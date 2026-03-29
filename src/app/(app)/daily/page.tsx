@@ -65,23 +65,25 @@ export default function DailyPage() {
   const { question, index } = getTodayQuestion();
   const questionId = `q-${index}`;
 
-  const loadAnswers = useCallback(async (cid: string, uid: string) => {
-    const { data } = await supabase
-      .from("daily_answers")
-      .select("*")
-      .eq("couple_id", cid)
-      .eq("question_id", questionId);
-
-    if (data) {
-      const mine = data.find((a) => a.user_id === uid);
-      const partner = data.find((a) => a.user_id !== uid);
-      if (mine) {
-        setSavedAnswer(mine as DailyAnswer);
-        setMyAnswer(mine.answer);
+  const loadAnswers = useCallback(async () => {
+    const res = await fetch("/api/daily");
+    const json = (await res.json()) as {
+      data?: {
+        question: { id: string; index: number; text: string; total: number };
+        myAnswer: DailyAnswer | null;
+        partnerAnswer: DailyAnswer | null;
+      };
+    };
+    if (json.data) {
+      if (json.data.myAnswer) {
+        setSavedAnswer(json.data.myAnswer);
+        setMyAnswer(json.data.myAnswer.answer);
       }
-      if (partner) setPartnerAnswer(partner as DailyAnswer);
+      if (json.data.partnerAnswer) {
+        setPartnerAnswer(json.data.partnerAnswer);
+      }
     }
-  }, [supabase, questionId]);
+  }, []);
 
   useEffect(() => {
     async function init() {
@@ -90,17 +92,13 @@ export default function DailyPage() {
       } = await supabase.auth.getUser();
       if (!user) return;
       setUserId(user.id);
+      await loadAnswers();
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("couple_id")
-        .eq("id", user.id)
-        .single();
+      // Resolve coupleId for real-time subscription
+      const res = await fetch("/api/couple");
+      const json = (await res.json()) as { data?: { couple: { id: string } | null } };
+      if (json.data?.couple?.id) setCoupleId(json.data.couple.id);
 
-      if (profile?.couple_id) {
-        setCoupleId(profile.couple_id);
-        await loadAnswers(profile.couple_id, user.id);
-      }
       setLoading(false);
     }
     init();
@@ -133,30 +131,19 @@ export default function DailyPage() {
   }, [coupleId, userId, today, supabase]);
 
   async function handleSave() {
-    if (!coupleId || !userId || !myAnswer.trim()) return;
+    if (!myAnswer.trim()) return;
     setSaving(true);
 
-    if (savedAnswer) {
-      await supabase
-        .from("daily_answers")
-        .update({ answer: myAnswer })
-        .eq("id", savedAnswer.id);
-    } else {
-      const { data } = await supabase
-        .from("daily_answers")
-        .insert({
-          question_id: questionId,
-          couple_id: coupleId,
-          user_id: userId,
-          answer: myAnswer,
-        })
-        .select()
-        .single();
-      if (data) setSavedAnswer(data as DailyAnswer);
-    }
+    await fetch("/api/daily", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question_id: questionId, answer: myAnswer }),
+    });
 
     setSaving(false);
     setSaved(true);
+    // Refresh so savedAnswer state is current (prevents duplicate upsert on re-save)
+    await loadAnswers();
     setTimeout(() => setSaved(false), 2000);
   }
 

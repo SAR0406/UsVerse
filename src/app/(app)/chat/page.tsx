@@ -17,6 +17,12 @@ const AI_SUGGESTIONS = [
   "You make ordinary moments feel extraordinary.",
 ];
 
+type CoupleApiData = {
+  couple: { id: string } | null;
+  partner: Partial<Profile> | null;
+  inviteCode: string | null;
+};
+
 export default function ChatPage() {
   const supabase = createClient();
   const [userId, setUserId] = useState<string | null>(null);
@@ -32,33 +38,37 @@ export default function ChatPage() {
   const [joinError, setJoinError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const loadMessages = useCallback(async (cid: string) => {
-    const { data } = await supabase
-      .from("messages")
-      .select("*")
-      .eq("couple_id", cid)
-      .order("created_at", { ascending: true })
-      .limit(100);
-    if (data) setMessages(data as Message[]);
-  }, [supabase]);
+  const loadCoupleAndMessages = useCallback(async () => {
+    const coupleRes = await fetch("/api/couple");
+    const coupleJson = (await coupleRes.json()) as { data?: CoupleApiData };
+    const coupleData = coupleJson.data;
 
-  const loadPartner = useCallback(async (cid: string, myId: string) => {
-    const { data: couple } = await supabase
-      .from("couples")
-      .select("user1_id, user2_id")
-      .eq("id", cid)
-      .single();
-    if (!couple) return;
-    const partnerId =
-      couple.user1_id === myId ? couple.user2_id : couple.user1_id;
-    if (!partnerId) return;
-    const { data: partnerProfile } = await supabase
-      .from("profiles")
-      .select("display_name, avatar_url")
-      .eq("id", partnerId)
-      .single();
-    if (partnerProfile) setPartner(partnerProfile);
-  }, [supabase]);
+    if (!coupleData?.couple) {
+      const createRes = await fetch("/api/couple", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "create" }),
+      });
+      const createJson = (await createRes.json()) as {
+        data?: { couple: { id: string }; inviteCode: string };
+      };
+      if (createJson.data) {
+        setCoupleId(createJson.data.couple.id);
+        setInviteCode(createJson.data.inviteCode);
+      }
+      return;
+    }
+
+    setCoupleId(coupleData.couple.id);
+    if (coupleData.inviteCode) setInviteCode(coupleData.inviteCode);
+    if (coupleData.partner) setPartner(coupleData.partner);
+
+    const msgRes = await fetch("/api/messages?limit=100");
+    const msgJson = (await msgRes.json()) as {
+      data?: { messages: Message[] };
+    };
+    if (msgJson.data?.messages) setMessages(msgJson.data.messages);
+  }, []);
 
   useEffect(() => {
     async function init() {
@@ -67,36 +77,11 @@ export default function ChatPage() {
       } = await supabase.auth.getUser();
       if (!user) return;
       setUserId(user.id);
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("couple_id")
-        .eq("id", user.id)
-        .single();
-
-      if (profile?.couple_id) {
-        setCoupleId(profile.couple_id);
-        await loadMessages(profile.couple_id);
-        await loadPartner(profile.couple_id, user.id);
-      } else {
-        const code = crypto.randomUUID().replace(/-/g, "").substring(0, 8).toUpperCase();
-        const { data: couple } = await supabase
-          .from("couples")
-          .insert({ user1_id: user.id, invite_code: code })
-          .select()
-          .single();
-        if (couple) {
-          await supabase
-            .from("profiles")
-            .upsert({ id: user.id, couple_id: couple.id });
-          setCoupleId(couple.id);
-          setInviteCode(code);
-        }
-      }
+      await loadCoupleAndMessages();
       setLoading(false);
     }
     init();
-  }, [supabase, loadMessages, loadPartner]);
+  }, [supabase, loadCoupleAndMessages]);
 
   useEffect(() => {
     if (!coupleId) return;
@@ -125,13 +110,16 @@ export default function ChatPage() {
   }, [messages]);
 
   async function sendMessage(content: string) {
-    if (!content.trim() || !coupleId || !userId) return;
+    if (!content.trim() || !coupleId) return;
     setSending(true);
-    await supabase.from("messages").insert({
-      couple_id: coupleId,
-      sender_id: userId,
-      content: content.trim(),
-      message_type: "text",
+    await fetch("/api/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        content: content.trim(),
+        message_type: "text",
+        idempotency_key: crypto.randomUUID(),
+      }),
     });
     setSending(false);
     setInput("");
@@ -139,32 +127,26 @@ export default function ChatPage() {
   }
 
   async function handleJoin() {
-    if (!userId || !joinCode.trim()) return;
+    if (!joinCode.trim()) return;
     setJoinError(null);
-    const { data: couple } = await supabase
-      .from("couples")
-      .select("*")
-      .eq("invite_code", joinCode.toUpperCase())
-      .single();
-    if (!couple) {
-      setJoinError("Invalid invite code. Ask your partner to share theirs.");
+    const res = await fetch("/api/couple", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "join",
+        invite_code: joinCode.trim().toUpperCase(),
+      }),
+    });
+    const json = (await res.json()) as {
+      data?: unknown;
+      error?: { message: string };
+    };
+    if (!res.ok || json.error) {
+      setJoinError(json.error?.message ?? "Invalid invite code");
       return;
     }
-    if (couple.user2_id) {
-      setJoinError("This couple already has two members.");
-      return;
-    }
-    await supabase
-      .from("couples")
-      .update({ user2_id: userId })
-      .eq("id", couple.id);
-    await supabase
-      .from("profiles")
-      .upsert({ id: userId, couple_id: couple.id });
-    setCoupleId(couple.id);
     setInviteCode(null);
-    await loadMessages(couple.id);
-    await loadPartner(couple.id, userId);
+    await loadCoupleAndMessages();
   }
 
   if (loading) return <LoadingSkeleton />;
@@ -186,7 +168,7 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* Invite section (when no partner yet) */}
+      {/* Invite section */}
       {inviteCode && !partner && (
         <div className="mx-4 mt-4 glass-card p-4 shrink-0">
           <p className="text-sm text-purple-300/80 mb-3">
@@ -231,7 +213,7 @@ export default function ChatPage() {
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {messages.length === 0 && !inviteCode && (
           <div className="flex flex-col items-center justify-center h-full text-center py-20">
-            <div className="text-5xl mb-4">💬</div>
+            <div className="text-5xl mb-4">��</div>
             <p className="text-purple-300/60">
               No messages yet. Say something ✨
             </p>

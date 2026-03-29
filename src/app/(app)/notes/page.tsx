@@ -18,14 +18,11 @@ export default function NotesPage() {
   const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const loadNotes = useCallback(async (cid: string) => {
-    const { data } = await supabase
-      .from("shared_notes")
-      .select("*")
-      .eq("couple_id", cid)
-      .order("updated_at", { ascending: false });
-    if (data) setNotes(data as SharedNote[]);
-  }, [supabase]);
+  const loadNotes = useCallback(async () => {
+    const res = await fetch("/api/notes?limit=50");
+    const json = (await res.json()) as { data?: { notes: SharedNote[] } };
+    if (json.data?.notes) setNotes(json.data.notes);
+  }, []);
 
   useEffect(() => {
     async function init() {

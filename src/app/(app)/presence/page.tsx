@@ -75,15 +75,11 @@ export default function PresencePage() {
     setTimeout(() => setVibrating(false), 1500);
   }, []);
 
-  const loadEvents = useCallback(async (cid: string) => {
-    const { data } = await supabase
-      .from("presence_events")
-      .select("*")
-      .eq("couple_id", cid)
-      .order("created_at", { ascending: false })
-      .limit(20);
-    if (data) setRecentEvents(data as PresenceEvent[]);
-  }, [supabase]);
+  const loadEvents = useCallback(async () => {
+    const res = await fetch("/api/presence?limit=20");
+    const json = (await res.json()) as { data?: { events: PresenceEvent[] } };
+    if (json.data?.events) setRecentEvents(json.data.events);
+  }, []);
 
   useEffect(() => {
     async function init() {
@@ -93,15 +89,13 @@ export default function PresencePage() {
       if (!user) return;
       setUserId(user.id);
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("couple_id")
-        .eq("id", user.id)
-        .single();
+      const res = await fetch("/api/couple");
+      const json = (await res.json()) as { data?: { couple: { id: string } | null } };
+      const coupleData = json.data;
 
-      if (profile?.couple_id) {
-        setCoupleId(profile.couple_id);
-        await loadEvents(profile.couple_id);
+      if (coupleData?.couple?.id) {
+        setCoupleId(coupleData.couple.id);
+        await loadEvents();
       }
       setLoading(false);
     }
@@ -122,7 +116,6 @@ export default function PresencePage() {
         },
         (payload) => {
           const event = payload.new as PresenceEvent;
-          // Vibrate on incoming heartbeat (if from partner)
           if (event.user_id !== userId && event.event_type === "heartbeat") {
             triggerVibration();
           }
@@ -138,12 +131,13 @@ export default function PresencePage() {
   async function sendPresence(type: EventType) {
     if (!coupleId || !userId) return;
     setSending(type);
-    const action = presenceActions.find((a) => a.type === type);
-    await supabase.from("presence_events").insert({
-      couple_id: coupleId,
-      user_id: userId,
-      event_type: type,
-      message: action?.partnerMessage ?? null,
+    await fetch("/api/presence", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event_type: type,
+        idempotency_key: crypto.randomUUID(),
+      }),
     });
     setLastSent(type);
     setTimeout(() => setLastSent(null), 3000);

@@ -1,0 +1,113 @@
+/**
+ * GET  /api/couple
+ *   Returns the authenticated user's couple info + partner profile.
+ *   Returns { couple: null } if the user has not joined a couple yet.
+ *
+ * POST /api/couple
+ *   { action: "create" }              → creates a new couple, returns invite_code
+ *   { action: "join", invite_code }   → joins an existing couple
+ *
+ *   Rate limited: 5 actions / 60 s per user to prevent code-guessing.
+ */
+
+import { type NextRequest } from "next/server";
+import { withAuth, ok, created } from "@/lib/api-handler";
+import { rateLimit } from "@/lib/rate-limit";
+import { CoupleActionSchema } from "@/lib/schemas";
+import { ConflictError, NotFoundError, ForbiddenError } from "@/lib/errors";
+import type { Couple, Profile } from "@/types/database";
+
+// ─── GET — couple + partner info ───────────────────────────────────────────
+
+export async function GET(_req: NextRequest) {
+  return withAuth(async ({ userId, coupleId, db }) => {
+    if (!coupleId) {
+      return ok({ couple: null, partner: null, inviteCode: null });
+    }
+
+    const { data: couple, error: coupleErr } = await db
+      .from("couples")
+      .select("id, created_at, user1_id, user2_id, invite_code, anniversary_date, meet_date")
+      .eq("id", coupleId)
+      .single();
+
+    if (coupleErr || !couple) throw new NotFoundError("Couple");
+
+    const partnerId =
+      couple.user1_id === userId ? couple.user2_id : couple.user1_id;
+
+    let partner: Partial<Profile> | null = null;
+    if (partnerId) {
+      const { data: p } = await db
+        .from("profiles")
+        .select("id, display_name, avatar_url")
+        .eq("id", partnerId)
+        .single();
+      partner = p;
+    }
+
+    return ok({
+      couple:     couple as Couple,
+      partner,
+      inviteCode: couple.user2_id ? null : couple.invite_code, // hide code once couple is full
+    });
+  });
+}
+
+// ─── POST — create or join a couple ────────────────────────────────────────
+
+export async function POST(req: NextRequest) {
+  return withAuth(async ({ userId, coupleId, db }) => {
+    // Rate limit: 5 attempts per minute (prevent brute-forcing invite codes)
+    rateLimit(`couple:${userId}`, 5, 60_000);
+
+    const body = CoupleActionSchema.parse(await req.json());
+
+    // ── create ─────────────────────────────────────────────────────────────
+    if (body.action === "create") {
+      if (coupleId) throw new ConflictError("You are already in a couple");
+
+      const inviteCode = crypto.randomUUID().replace(/-/g, "").substring(0, 8).toUpperCase();
+
+      const { data: couple, error } = await db
+        .from("couples")
+        .insert({ user1_id: userId, invite_code: inviteCode })
+        .select("id, invite_code")
+        .single();
+
+      if (error) throw error;
+
+      // Link the user's profile to this couple
+      await db.from("profiles").upsert({ id: userId, couple_id: couple.id });
+
+      return created({
+        couple:     couple as Pick<Couple, "id" | "invite_code">,
+        inviteCode: couple.invite_code,
+      });
+    }
+
+    // ── join ───────────────────────────────────────────────────────────────
+    if (coupleId) throw new ConflictError("You are already in a couple");
+
+    const { data: target, error: findErr } = await db
+      .from("couples")
+      .select("id, user1_id, user2_id, invite_code")
+      .eq("invite_code", body.invite_code)
+      .single();
+
+    if (findErr || !target) throw new NotFoundError("Invite code");
+    if (target.user2_id)    throw new ConflictError("This couple already has two members");
+    if (target.user1_id === userId) throw new ForbiddenError("You cannot join your own couple link");
+
+    const { error: updateErr } = await db
+      .from("couples")
+      .update({ user2_id: userId })
+      .eq("id", target.id);
+
+    if (updateErr) throw updateErr;
+
+    await db.from("profiles").upsert({ id: userId, couple_id: target.id });
+
+    return ok({ couple: { id: target.id } });
+  });
+}
