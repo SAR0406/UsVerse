@@ -5,20 +5,8 @@
 create extension if not exists "uuid-ossp";
 
 -- ============================================================
--- PROFILES
--- Extended user profiles (linked to auth.users)
--- ============================================================
-create table if not exists public.profiles (
-  id          uuid references auth.users(id) on delete cascade primary key,
-  created_at  timestamptz default now() not null,
-  display_name text,
-  avatar_url  text,
-  couple_id   uuid references public.couples(id) on delete set null
-);
-
--- ============================================================
 -- COUPLES
--- Connects two users as a couple
+-- Connects two users as a couple (created before profiles to avoid forward refs)
 -- ============================================================
 create table if not exists public.couples (
   id               uuid default uuid_generate_v4() primary key,
@@ -28,6 +16,19 @@ create table if not exists public.couples (
   invite_code      text unique not null,
   anniversary_date date,
   meet_date        date
+);
+
+-- ============================================================
+-- PROFILES
+-- Extended user profiles (linked to auth.users)
+-- couple_id FK added after couples table is created
+-- ============================================================
+create table if not exists public.profiles (
+  id          uuid references auth.users(id) on delete cascade primary key,
+  created_at  timestamptz default now() not null,
+  display_name text,
+  avatar_url  text,
+  couple_id   uuid references public.couples(id) on delete set null
 );
 
 -- ============================================================
@@ -70,6 +71,21 @@ create table if not exists public.shared_notes (
   title       text not null,
   content     text default ''
 );
+
+-- Auto-update updated_at on shared_notes
+create or replace function public.set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+create or replace trigger shared_notes_updated_at
+  before update on public.shared_notes
+  for each row execute procedure public.set_updated_at();
 
 -- ============================================================
 -- PRESENCE EVENTS

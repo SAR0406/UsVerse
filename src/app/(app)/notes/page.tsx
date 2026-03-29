@@ -103,7 +103,6 @@ export default function NotesPage() {
         author_id: userId,
         title: title.trim(),
         content: content.trim(),
-        updated_at: new Date().toISOString(),
       });
     } else if (editingId) {
       await supabase
@@ -111,7 +110,6 @@ export default function NotesPage() {
         .update({
           title: title.trim(),
           content: content.trim(),
-          updated_at: new Date().toISOString(),
         })
         .eq("id", editingId);
     }

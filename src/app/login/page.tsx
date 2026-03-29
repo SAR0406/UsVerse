@@ -28,12 +28,17 @@ export default function LoginPage() {
 
     try {
       if (mode === "signup") {
+        const appUrl =
+          process.env.NEXT_PUBLIC_APP_URL ??
+          (typeof window !== "undefined"
+            ? window.location.origin
+            : "http://localhost:3000");
         const { error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
             data: { display_name: displayName },
-            emailRedirectTo: `${location.origin}/api/auth/callback`,
+            emailRedirectTo: `${appUrl}/api/auth/callback`,
           },
         });
         if (signUpError) throw signUpError;

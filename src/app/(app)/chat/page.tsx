@@ -79,7 +79,7 @@ export default function ChatPage() {
         await loadMessages(profile.couple_id);
         await loadPartner(profile.couple_id, user.id);
       } else {
-        const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+        const code = crypto.randomUUID().replace(/-/g, "").substring(0, 8).toUpperCase();
         const { data: couple } = await supabase
           .from("couples")
           .insert({ user1_id: user.id, invite_code: code })
