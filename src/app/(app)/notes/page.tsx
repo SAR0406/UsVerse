@@ -40,7 +40,7 @@ export default function NotesPage() {
 
       if (profile?.couple_id) {
         setCoupleId(profile.couple_id);
-        await loadNotes(profile.couple_id);
+        await loadNotes();
       }
       setLoading(false);
     }
@@ -60,7 +60,7 @@ export default function NotesPage() {
           filter: `couple_id=eq.${coupleId}`,
         },
         () => {
-          loadNotes(coupleId);
+          loadNotes();
         }
       )
       .subscribe();
