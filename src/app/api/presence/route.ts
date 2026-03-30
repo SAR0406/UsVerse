@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
         couple_id:  coupleId,
         user_id:    userId,
         event_type: body.event_type,
-        message:    PRESENCE_MESSAGES[body.event_type] ?? null,
+        message:    body.message ?? PRESENCE_MESSAGES[body.event_type] ?? null,
       })
       .select("id, created_at, couple_id, user_id, event_type, message")
       .single();

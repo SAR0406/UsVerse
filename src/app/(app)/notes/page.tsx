@@ -17,11 +17,20 @@ export default function NotesPage() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const loadNotes = useCallback(async () => {
     const res = await fetch("/api/notes?limit=50");
-    const json = (await res.json()) as { data?: { notes: SharedNote[] } };
-    if (json.data?.notes) setNotes(json.data.notes);
+    const json = (await res.json()) as {
+      data?: { notes: SharedNote[] };
+      error?: { message?: string };
+    };
+    if (res.ok && json.data?.notes) {
+      setNotes(json.data.notes);
+      setErrorMessage(null);
+    } else if (!res.ok) {
+      setErrorMessage(json.error?.message ?? "Failed to load notes");
+    }
   }, []);
 
   useEffect(() => {
@@ -91,33 +100,58 @@ export default function NotesPage() {
   }
 
   async function saveNote() {
-    if (!coupleId || !userId || !title.trim()) return;
+    if (!title.trim()) return;
     setSaving(true);
+    setErrorMessage(null);
 
-    if (creating) {
-      await supabase.from("shared_notes").insert({
-        couple_id: coupleId,
-        author_id: userId,
-        title: title.trim(),
-        content: content.trim(),
-      });
-    } else if (editingId) {
-      await supabase
-        .from("shared_notes")
-        .update({
-          title: title.trim(),
-          content: content.trim(),
-        })
-        .eq("id", editingId);
+    try {
+      if (creating) {
+        const res = await fetch("/api/notes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: title.trim(),
+            content: content.trim(),
+          }),
+        });
+        if (!res.ok) {
+          const json = (await res.json()) as { error?: { message?: string } };
+          setErrorMessage(json.error?.message ?? "Failed to create note");
+          return;
+        }
+      } else if (editingId) {
+        const res = await fetch(`/api/notes/${editingId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: title.trim(),
+            content: content.trim(),
+          }),
+        });
+        if (!res.ok) {
+          const json = (await res.json()) as { error?: { message?: string } };
+          setErrorMessage(json.error?.message ?? "Failed to update note");
+          return;
+        }
+      }
+
+      await loadNotes();
+      cancelEdit();
+    } finally {
+      setSaving(false);
     }
-
-    setSaving(false);
-    cancelEdit();
   }
 
   async function deleteNote(id: string) {
     if (!confirm("Delete this entry?")) return;
-    await supabase.from("shared_notes").delete().eq("id", id);
+    setErrorMessage(null);
+    const res = await fetch(`/api/notes/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const json = (await res.json()) as { error?: { message?: string } };
+      setErrorMessage(json.error?.message ?? "Failed to delete note");
+      return;
+    }
+    await loadNotes();
   }
 
   if (loading)
@@ -151,6 +185,9 @@ export default function NotesPage() {
           </button>
         )}
       </div>
+      {errorMessage && (
+        <p className="mb-4 text-sm text-red-300/80">{errorMessage}</p>
+      )}
 
       {/* Form */}
       {isFormOpen && (

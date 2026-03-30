@@ -47,6 +47,7 @@ export const PRESENCE_TYPES = [
 
 export const SendPresenceSchema = z.object({
   event_type: z.enum(PRESENCE_TYPES),
+  message: z.string().trim().max(160, "Message too long").optional(),
   idempotency_key: idempotencyKey,
 });
 

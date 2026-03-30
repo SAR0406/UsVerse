@@ -1,25 +1,52 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0d0d1a;
-  --foreground: #e8e0f0;
-  --accent: #c084fc;
-  --accent-glow: rgba(192, 132, 252, 0.3);
-  --card: #16162a;
-  --border: rgba(192, 132, 252, 0.2);
+  /* Preferred font-family names with graceful platform fallbacks */
+  --font-accent: "Caveat", cursive;
+  --color-blossom: #ff6b9d;
+  --color-peach: #ffab76;
+  --color-rose-mist: #ffd6e7;
+  --color-lilac-dream: #c8b6e2;
+  --color-sky-blush: #b8e3ff;
+  --color-butter: #fff3b0;
+  --color-mint-kiss: #b8f0c8;
+  --gradient-heartbeat:
+    linear-gradient(135deg, #ff6b9d 0%, #ffab76 50%, #ffd6e7 100%);
+  --gradient-moonlight:
+    linear-gradient(135deg, #c8b6e2 0%, #b8e3ff 50%, #ffd6e7 100%);
+  --gradient-golden: linear-gradient(135deg, #fff3b0 0%, #ffab76 100%);
+  --gradient-presence:
+    radial-gradient(circle at center, rgba(255, 107, 157, 0.13) 0%, transparent 70%);
+  --dark-void: #0d0720;
+  --dark-nebula: #1c1040;
+  --dark-stardust: #2d1654;
+  --background: #0d0720;
+  --foreground: #f0d6ff;
+  --accent: #ff6b9d;
+  --accent-glow: rgba(255, 107, 157, 0.3);
+  --card: #1c1040;
+  --card-fallback-rgb: 28, 16, 64;
+  --surface-2: #2d1654;
+  --border: rgba(155, 109, 255, 0.3);
+  --text-soft: #c9a8df;
+  --text-whisper: #9f82ba;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-serif: "Playfair Display", Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(circle at 20% 15%, rgba(200, 182, 226, 0.18), transparent 40%),
+    radial-gradient(circle at 80% 80%, rgba(184, 227, 255, 0.12), transparent 45%),
+    var(--background);
   color: var(--foreground);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
+  font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   min-height: 100vh;
 }
 
@@ -46,6 +73,36 @@ body {
   100% { background-position: 200% center; }
 }
 
+@keyframes countdown-sunset {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes countdown-flip-out {
+  from { transform: rotateX(0deg); opacity: 1; }
+  to { transform: rotateX(-90deg); opacity: 0.45; }
+}
+
+@keyframes countdown-flip-in {
+  from { transform: rotateX(90deg); opacity: 0.45; }
+  to { transform: rotateX(0deg); opacity: 1; }
+}
+
+@keyframes countdown-particle-float {
+  0% {
+    transform: translateY(0) translateX(0) scale(0.9);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateY(-280px) translateX(10px) scale(1.08);
+    opacity: 0;
+  }
+}
+
 .animate-pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
 }
@@ -59,14 +116,65 @@ body {
 }
 
 .glass-card {
-  background: rgba(22, 22, 42, 0.8);
+  /* Fallback for browsers that don't support color-mix() */
+  background: rgba(var(--card-fallback-rgb), 0.86);
   backdrop-filter: blur(12px);
   border: 1px solid var(--border);
   border-radius: 1rem;
 }
 
+@supports (background: color-mix(in oklab, black 50%, white 50%)) {
+  .glass-card {
+    /* Prefer perceptual OKLAB interpolation for more consistent glass depth across themes */
+    background: color-mix(in oklab, var(--card) 86%, transparent);
+  }
+}
+
+.countdown-poster {
+  background:
+    linear-gradient(130deg, rgba(255, 107, 157, 0.22), rgba(255, 171, 118, 0.2), rgba(200, 182, 226, 0.24)),
+    var(--card);
+  background-size: 220% 220%;
+  animation: countdown-sunset 16s ease-in-out infinite;
+}
+
+.countdown-glow-gold {
+  box-shadow: 0 0 20px rgba(255, 171, 118, 0.45), 0 0 44px rgba(255, 171, 118, 0.2);
+}
+
+.countdown-flip-stage {
+  perspective: 800px;
+}
+
+.countdown-flip-digit {
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: clamp(2.4rem, 12vw, 3.5rem);
+  line-height: 1;
+  color: var(--foreground);
+  text-shadow: 0 6px 24px rgba(255, 107, 157, 0.24);
+  transform-origin: center;
+}
+
+.countdown-flip-out {
+  animation: countdown-flip-out 0.4s ease-in forwards;
+}
+
+.countdown-flip-in {
+  animation: countdown-flip-in 0.4s ease-out forwards;
+}
+
+.countdown-particle-float {
+  position: absolute;
+  bottom: -16px;
+  opacity: 0.85;
+  font-size: 0.95rem;
+  animation-name: countdown-particle-float;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
 .gradient-text {
-  background: linear-gradient(135deg, #c084fc, #f472b6, #fb923c);
+  background: var(--gradient-heartbeat);
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -86,7 +194,7 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--card);
+  background: var(--surface-2);
 }
 
 ::-webkit-scrollbar-thumb {
@@ -98,3 +206,33 @@ body {
   background: var(--accent);
 }
 
+@media (prefers-color-scheme: light) {
+  :root {
+    --background: #fff8fb;
+    --foreground: #2d1654;
+    --card: #ffffff;
+    --card-fallback-rgb: 255, 255, 255;
+    --surface-2: #fff0f7;
+    --border: #f0cadf;
+    --accent: var(--color-blossom);
+    --accent-glow: rgba(255, 107, 157, 0.3);
+    --text-soft: #8b6f9a;
+    --text-whisper: #c4a8d4;
+  }
+
+  body {
+    background:
+      radial-gradient(circle at 0% 0%, rgba(255, 214, 231, 0.6), transparent 45%),
+      radial-gradient(circle at 100% 100%, rgba(200, 182, 226, 0.25), transparent 40%),
+      var(--background);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .countdown-poster,
+  .countdown-flip-out,
+  .countdown-flip-in,
+  .countdown-particle-float {
+    animation: none !important;
+  }
+}
