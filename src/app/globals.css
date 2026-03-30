@@ -173,6 +173,65 @@ body {
   animation-iteration-count: infinite;
 }
 
+.living-canvas-layer {
+  position: fixed;
+  inset: 0;
+  z-index: -12;
+  pointer-events: none;
+  opacity: 0.32;
+}
+
+.living-cursor-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 80;
+}
+
+.living-cursor-heart {
+  position: fixed;
+  font-size: 0.9rem;
+  color: var(--color-blossom);
+  text-shadow: 0 0 10px color-mix(in oklab, var(--color-blossom) 44%, transparent);
+  transition: transform 140ms linear, opacity 180ms linear;
+}
+
+.living-scroll-message {
+  position: fixed;
+  left: 50%;
+  bottom: 84px;
+  transform: translateX(-50%) translateY(14px);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 70;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--border) 82%, transparent);
+  background: color-mix(in oklab, var(--card) 92%, transparent);
+  padding: 0.45rem 0.8rem;
+  font-size: 0.72rem;
+  color: var(--text-soft);
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+
+.living-scroll-message-visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.touch-pressable {
+  transform-origin: center;
+  transition:
+    transform 140ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 140ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 140ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.touch-pressable:active {
+  transform: scale(0.97);
+  box-shadow: 0 4px 10px color-mix(in oklab, var(--accent-glow) 45%, transparent);
+  filter: brightness(0.92);
+}
+
 .gradient-text {
   background: var(--gradient-heartbeat);
   background-clip: text;
@@ -468,5 +527,11 @@ body {
   .cinema-popcorn-kernel,
   .cinema-spark {
     animation: none !important;
+  }
+
+  .living-canvas-layer,
+  .living-cursor-layer,
+  .living-scroll-message {
+    display: none !important;
   }
 }
