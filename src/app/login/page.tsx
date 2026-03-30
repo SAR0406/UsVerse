@@ -28,20 +28,15 @@ export default function LoginPage() {
 
     try {
       if (mode === "signup") {
-        const appUrl =
-          process.env.NEXT_PUBLIC_APP_URL ??
-          (typeof window !== "undefined"
-            ? window.location.origin
-            : "http://localhost:3000");
-        const { error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { display_name: displayName },
-            emailRedirectTo: `${appUrl}/api/auth/callback`,
-          },
+        const response = await fetch("/api/auth/signup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password, displayName }),
         });
-        if (signUpError) throw signUpError;
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload?.error?.message ?? "Unable to create account");
+        }
         setMessage(
           "✨ Check your email to confirm your account, then sign in."
         );
