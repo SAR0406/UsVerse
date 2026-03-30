@@ -201,6 +201,7 @@ export default function LivingCanvas() {
     window.addEventListener("usverse:emotion", handleEmotion as EventListener);
 
     return () => {
+      if (scrollTimeout) window.clearTimeout(scrollTimeout);
       if (frameRef.current) window.cancelAnimationFrame(frameRef.current);
       window.removeEventListener("resize", resize);
       window.removeEventListener("pointermove", handlePointerMove);
