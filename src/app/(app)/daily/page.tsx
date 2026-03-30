@@ -6,54 +6,18 @@ import { HelpCircle, Send, Heart } from "lucide-react";
 import type { DailyAnswer } from "@/types/database";
 import { format } from "date-fns";
 
-const DAILY_QUESTIONS = [
-  "What did you miss about me today?",
-  "What made you smile today?",
-  "If you could teleport right now, where would you go?",
-  "What's one thing you wish I knew about how you're feeling?",
-  "Describe your perfect day with me.",
-  "What memory of us do you keep going back to?",
-  "What's something you learned today?",
-  "What's one thing you're grateful for right now?",
-  "What song reminds you of us?",
-  "What would you tell the version of us from one year ago?",
-  "If we had one whole day together tomorrow, how would you want to spend it?",
-  "What's the smallest thing I do that means the most to you?",
-  "What are you looking forward to most when we're finally together again?",
-  "What do you want to be doing in 5 years?",
-  "What's something you've never told anyone but want to tell me?",
-  "When do you feel closest to me, even from far away?",
-  "What's one thing about yourself you're proud of lately?",
-  "What's a dream you haven't spoken aloud yet?",
-  "What does home feel like to you?",
-  "If love had a color, what would ours be?",
-  "What's the most beautiful thing in your world right now?",
-  "What does silence between us feel like to you?",
-  "What's something you want us to do together that we've never done?",
-  "What would you write in a letter to future us?",
-  "What part of long-distance do you find hardest?",
-  "What's a small habit of mine you love?",
-  "If you could give me one thing right now, what would it be?",
-  "What does loving me feel like?",
-  "What's a fear you have about us?",
-  "What's a hope you carry about us?",
-  "What made today hard? What made it worth it?",
-];
-
-function getTodayQuestion(): { question: string; index: number } {
-  const startDate = new Date("2024-01-01");
-  const today = new Date();
-  const daysDiff = Math.floor(
-    (today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
-  );
-  const index = daysDiff % DAILY_QUESTIONS.length;
-  return { question: DAILY_QUESTIONS[index], index };
+interface DailyQuestion {
+  id: string;
+  index: number;
+  text: string;
+  total: number;
 }
 
 export default function DailyPage() {
   const supabase = createClient();
   const [userId, setUserId] = useState<string | null>(null);
   const [coupleId, setCoupleId] = useState<string | null>(null);
+  const [question, setQuestion] = useState<DailyQuestion | null>(null);
   const [myAnswer, setMyAnswer] = useState<string>("");
   const [partnerAnswer, setPartnerAnswer] = useState<DailyAnswer | null>(null);
   const [savedAnswer, setSavedAnswer] = useState<DailyAnswer | null>(null);
@@ -62,8 +26,6 @@ export default function DailyPage() {
   const [saved, setSaved] = useState(false);
 
   const today = format(new Date(), "yyyy-MM-dd");
-  const { question, index } = getTodayQuestion();
-  const questionId = `q-${index}`;
 
   const loadAnswers = useCallback(async () => {
     const res = await fetch("/api/daily");
@@ -75,6 +37,7 @@ export default function DailyPage() {
       };
     };
     if (json.data) {
+      setQuestion(json.data.question);
       if (json.data.myAnswer) {
         setSavedAnswer(json.data.myAnswer);
         setMyAnswer(json.data.myAnswer.answer);
@@ -131,13 +94,13 @@ export default function DailyPage() {
   }, [coupleId, userId, today, supabase]);
 
   async function handleSave() {
-    if (!myAnswer.trim()) return;
+    if (!myAnswer.trim() || !question) return;
     setSaving(true);
 
     await fetch("/api/daily", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question_id: questionId, answer: myAnswer }),
+      body: JSON.stringify({ question_id: question.id, answer: myAnswer }),
     });
 
     setSaving(false);
@@ -162,7 +125,7 @@ export default function DailyPage() {
           <h1 className="text-2xl font-bold text-white">Daily Question</h1>
         </div>
         <p className="text-purple-300/50 text-sm">
-          {format(new Date(), "EEEE, MMMM d")} · Question #{index + 1}
+          {format(new Date(), "EEEE, MMMM d")} · Question #{question?.index ?? "—"}
         </p>
       </div>
 
@@ -170,7 +133,7 @@ export default function DailyPage() {
       <div className="glass-card p-8 mb-6 text-center">
         <div className="text-4xl mb-4">🌙</div>
         <h2 className="text-xl md:text-2xl font-semibold text-white leading-relaxed">
-          {question}
+          {question?.text ?? "Loading question..."}
         </h2>
       </div>
 
@@ -193,7 +156,7 @@ export default function DailyPage() {
           {!saved && <span />}
           <button
             onClick={handleSave}
-            disabled={!myAnswer.trim() || saving}
+            disabled={!question || !myAnswer.trim() || saving}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-600 text-white text-sm hover:bg-purple-500 disabled:opacity-40 transition-all"
           >
             {saving ? (
@@ -229,7 +192,7 @@ export default function DailyPage() {
 
       {/* Past questions hint */}
       <p className="text-center text-purple-400/30 text-xs mt-6">
-        A new question every day. {DAILY_QUESTIONS.length} questions total. 💫
+        A new question every day. {question?.total ?? "—"} questions total. 💫
       </p>
     </div>
   );
