@@ -8,6 +8,9 @@ import {
   HelpCircle,
   Timer,
   Sparkles,
+  WandSparkles,
+  Gamepad2,
+  Clapperboard,
   ArrowRight,
 } from "lucide-react";
 
@@ -142,5 +145,26 @@ const quickActions = [
     desc: "Too empty to speak? She'll know.",
     icon: Heart,
     bgColor: "bg-rose-700",
+  },
+  {
+    href: "/bloom",
+    title: "Bloom Studio",
+    desc: "Paint, collage, and transform memories into stickers.",
+    icon: WandSparkles,
+    bgColor: "bg-pink-600",
+  },
+  {
+    href: "/play",
+    title: "The Arcade",
+    desc: "Step into your miniature game world and play together.",
+    icon: Gamepad2,
+    bgColor: "bg-purple-700",
+  },
+  {
+    href: "/cinema",
+    title: "Cinema",
+    desc: "Watch together in one shared room with sparks and afterglow.",
+    icon: Clapperboard,
+    bgColor: "bg-slate-700",
   },
 ];

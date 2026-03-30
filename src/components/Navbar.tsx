@@ -8,6 +8,9 @@ import {
   BookOpen,
   HelpCircle,
   Timer,
+  WandSparkles,
+  Gamepad2,
+  Clapperboard,
   LogOut,
   Home,
 } from "lucide-react";
@@ -20,6 +23,9 @@ const navItems = [
   { href: "/daily", label: "Daily", icon: HelpCircle },
   { href: "/notes", label: "Diary", icon: BookOpen },
   { href: "/countdown", label: "Countdown", icon: Timer },
+  { href: "/bloom", label: "Bloom", icon: WandSparkles },
+  { href: "/play", label: "Play", icon: Gamepad2 },
+  { href: "/cinema", label: "Cinema", icon: Clapperboard },
 ];
 
 export default function Navbar() {
