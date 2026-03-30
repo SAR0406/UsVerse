@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Timer, Heart, Edit3, Save } from "lucide-react";
 import { differenceInCalendarDays, format, parseISO } from "date-fns";
+import { countdownCardParticles } from "@/lib/animations";
 
 interface CountdownData {
   meetDate: string | null;
@@ -12,14 +13,6 @@ interface CountdownData {
 interface CountdownApiData extends CountdownData {
   coupleId: string;
 }
-
-const COUNTDOWN_CARD_PARTICLES = Array.from({ length: 14 }, (_, index) => ({
-  id: `countdown-p-${index}`,
-  symbol: index % 2 === 0 ? "💕" : "✨",
-  left: `${6 + ((index * 7) % 88)}%`,
-  delay: `${(index % 6) * 0.65}s`,
-  duration: `${6 + (index % 4)}s`,
-}));
 
 export default function CountdownPage() {
   const [countdown, setCountdown] = useState<CountdownData>({
@@ -218,7 +211,7 @@ export default function CountdownPage() {
         className="relative overflow-hidden rounded-3xl p-8 mb-6 text-center border border-white/15 countdown-poster"
       >
         <div className="absolute inset-0 pointer-events-none">
-          {COUNTDOWN_CARD_PARTICLES.map((particle) => (
+          {countdownCardParticles.map((particle) => (
             <span
               key={particle.id}
               className="countdown-particle-float"
