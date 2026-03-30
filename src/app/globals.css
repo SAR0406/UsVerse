@@ -32,6 +32,19 @@
   --text-whisper: #9f82ba;
 }
 
+[data-theme="light"] {
+  --background: #fff8fb;
+  --foreground: #2d1654;
+  --card: #ffffff;
+  --card-fallback-rgb: 255, 255, 255;
+  --surface-2: #fff0f7;
+  --border: #f0cadf;
+  --accent: var(--color-blossom);
+  --accent-glow: rgba(255, 107, 157, 0.3);
+  --text-soft: #8b6f9a;
+  --text-whisper: #c4a8d4;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -48,6 +61,13 @@ body {
   color: var(--foreground);
   font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   min-height: 100vh;
+}
+
+[data-theme="light"] body {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(255, 214, 231, 0.6), transparent 45%),
+    radial-gradient(circle at 100% 100%, rgba(200, 182, 226, 0.25), transparent 40%),
+    var(--background);
 }
 
 @keyframes pulse-glow {
@@ -479,7 +499,7 @@ body {
 }
 
 @media (prefers-color-scheme: light) {
-  :root {
+  :root:not([data-theme="dark"]) {
     --background: #fff8fb;
     --foreground: #2d1654;
     --card: #ffffff;
@@ -492,7 +512,7 @@ body {
     --text-whisper: #c4a8d4;
   }
 
-  body {
+  :root:not([data-theme="dark"]) body {
     background:
       radial-gradient(circle at 0% 0%, rgba(255, 214, 231, 0.6), transparent 45%),
       radial-gradient(circle at 100% 100%, rgba(200, 182, 226, 0.25), transparent 40%),
