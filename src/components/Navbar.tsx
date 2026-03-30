@@ -15,6 +15,7 @@ import {
   Home,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import DisplayControls from "@/components/DisplayControls";
 
 const navItems = [
   { href: "/dashboard", label: "Home", icon: Home },
@@ -69,6 +70,8 @@ export default function Navbar() {
             );
           })}
         </nav>
+
+        <DisplayControls />
 
         <button
           onClick={handleSignOut}

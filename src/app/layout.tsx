@@ -1,10 +1,26 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: "UsVerse — Your Private Universe",
   description:
     "A shared life app for two people who want to live together, digitally. Real-time presence, deep connection, shared memories.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    title: "UsVerse",
+    statusBarStyle: "black-translucent",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fff8fb" },
+    { media: "(prefers-color-scheme: dark)", color: "#0d0720" },
+  ],
+  colorScheme: "light dark",
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({
@@ -15,6 +31,19 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full antialiased">
       <body className="min-h-full flex flex-col">
+        <Script id="usverse-theme-init" strategy="beforeInteractive">{`
+          (function() {
+            try {
+              var saved = localStorage.getItem("usverse-theme");
+              var dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+              var theme = saved === "light" || saved === "dark" ? saved : (dark ? "dark" : "light");
+              document.documentElement.setAttribute("data-theme", theme);
+              var themeMeta = document.querySelector('meta[name="theme-color"]');
+              if (themeMeta) themeMeta.setAttribute("content", theme === "dark" ? "#0d0720" : "#fff8fb");
+            } catch (_) {
+            }
+          })();
+        `}</Script>
         {children}
       </body>
     </html>
