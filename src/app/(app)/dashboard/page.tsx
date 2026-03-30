@@ -28,6 +28,37 @@ export default async function DashboardPage() {
   const displayName =
     user.user_metadata?.display_name ?? user.email?.split("@")[0] ?? "You";
 
+  const { data: myProfile } = await supabase
+    .from("profiles")
+    .select("couple_id")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  let partnerName: string | null = null;
+
+  if (myProfile?.couple_id) {
+    const { data: couple } = await supabase
+      .from("couples")
+      .select("user1_id, user2_id")
+      .eq("id", myProfile.couple_id)
+      .maybeSingle();
+
+    const partnerId = couple
+      ? couple.user1_id === user.id
+        ? couple.user2_id
+        : couple.user1_id
+      : null;
+
+    if (partnerId) {
+      const { data: partnerProfile } = await supabase
+        .from("profiles")
+        .select("display_name")
+        .eq("id", partnerId)
+        .maybeSingle();
+      partnerName = partnerProfile?.display_name ?? "your partner";
+    }
+  }
+
   const greeting = getGreeting();
 
   return (
@@ -41,6 +72,26 @@ export default async function DashboardPage() {
         </h1>
         <p className="text-purple-300/50 mt-2 text-sm">
           Your universe is waiting.
+        </p>
+      </div>
+
+      <div
+        className={`mb-8 p-4 rounded-xl border ${
+          partnerName
+            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
+            : "bg-amber-500/10 border-amber-500/30 text-amber-300"
+        }`}
+      >
+        <p className="text-sm font-medium">
+          {partnerName ? (
+            <>
+              ✅ Connected with <strong>{partnerName}</strong>
+            </>
+          ) : (
+            <>
+              ⏳ Invite pending · Open <strong>Chat</strong> to connect and unlock shared moments
+            </>
+          )}
         </p>
       </div>
 

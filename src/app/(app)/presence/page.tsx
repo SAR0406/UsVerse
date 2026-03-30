@@ -338,16 +338,22 @@ export default function PresencePage() {
           Physical affection, digital distance — bridged. 💓
         </p>
       </div>
+      <div className="mt-4 glass-card p-4 border-l-2 border-rose-500/40">
+        <p className="text-xs text-purple-400/60">
+          💬 <strong>Stuck in silence?</strong> Tap the 💔 button to send a feeling when words are hard.
+        </p>
+      </div>
 
       <div className="fixed bottom-24 md:bottom-8 right-6 z-30">
         <button
           onClick={() => setSilentMenuOpen((prev) => !prev)}
-          className="w-[3.25rem] h-[3.25rem] rounded-full border border-[color:var(--border)] bg-[color:var(--card)]/85 text-2xl text-[color:var(--foreground)] shadow-lg hover:scale-105 active:scale-95 transition-transform"
+          className="w-[3.25rem] h-[3.25rem] rounded-full border border-[color:var(--border)] bg-[color:var(--card)]/85 text-2xl text-rose-400 shadow-lg hover:scale-110 active:scale-95 transition-transform"
           aria-expanded={silentMenuOpen}
           aria-label="Toggle silent mode menu"
           aria-controls="silent-mode-menu"
+          title="When words fail 💔"
         >
-          …
+          💔
         </button>
       </div>
 

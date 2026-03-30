@@ -244,8 +244,8 @@ export default function ChatPage() {
           <h2 className="font-semibold text-white">
             {partner?.display_name ?? "Your Partner"}
           </h2>
-          <p className="text-xs text-purple-400/50">
-            {partner ? "In your universe ✨" : "Waiting to connect…"}
+          <p className={`text-xs ${partner ? "text-emerald-300/80" : "text-amber-300/80"}`}>
+            {partner ? "In your universe ✨" : "Waiting to connect… Share or join a code below."}
           </p>
         </div>
       </div>
