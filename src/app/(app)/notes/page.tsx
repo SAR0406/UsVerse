@@ -91,33 +91,38 @@ export default function NotesPage() {
   }
 
   async function saveNote() {
-    if (!coupleId || !userId || !title.trim()) return;
+    if (!title.trim()) return;
     setSaving(true);
 
     if (creating) {
-      await supabase.from("shared_notes").insert({
-        couple_id: coupleId,
-        author_id: userId,
-        title: title.trim(),
-        content: content.trim(),
-      });
-    } else if (editingId) {
-      await supabase
-        .from("shared_notes")
-        .update({
+      await fetch("/api/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
           title: title.trim(),
           content: content.trim(),
-        })
-        .eq("id", editingId);
+        }),
+      });
+    } else if (editingId) {
+      await fetch(`/api/notes/${editingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title.trim(),
+          content: content.trim(),
+        }),
+      });
     }
 
+    await loadNotes();
     setSaving(false);
     cancelEdit();
   }
 
   async function deleteNote(id: string) {
     if (!confirm("Delete this entry?")) return;
-    await supabase.from("shared_notes").delete().eq("id", id);
+    await fetch(`/api/notes/${id}`, { method: "DELETE" });
+    await loadNotes();
   }
 
   if (loading)

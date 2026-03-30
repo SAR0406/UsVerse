@@ -1,13 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { Timer, Heart, Edit3, Save } from "lucide-react";
 import { differenceInCalendarDays, format, parseISO } from "date-fns";
 
 interface CountdownData {
   meetDate: string | null;
   anniversaryDate: string | null;
+}
+
+interface CountdownApiData extends CountdownData {
+  coupleId: string;
 }
 
 const COUNTDOWN_CARD_PARTICLES = Array.from({ length: 14 }, (_, index) => ({
@@ -19,8 +22,6 @@ const COUNTDOWN_CARD_PARTICLES = Array.from({ length: 14 }, (_, index) => ({
 }));
 
 export default function CountdownPage() {
-  const supabase = createClient();
-  const [coupleId, setCoupleId] = useState<string | null>(null);
   const [countdown, setCountdown] = useState<CountdownData>({
     meetDate: null,
     anniversaryDate: null,
@@ -40,52 +41,42 @@ export default function CountdownPage() {
 
   useEffect(() => {
     async function init() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("couple_id")
-        .eq("id", user.id)
-        .single();
-
-      if (profile?.couple_id) {
-        setCoupleId(profile.couple_id);
-        const { data: couple } = await supabase
-          .from("couples")
-          .select("meet_date, anniversary_date")
-          .eq("id", profile.couple_id)
-          .single();
-        if (couple) {
-          setCountdown({
-            meetDate: couple.meet_date,
-            anniversaryDate: couple.anniversary_date,
-          });
-          setMeetDateInput(couple.meet_date ?? "");
-          setAnniversaryInput(couple.anniversary_date ?? "");
-        }
+      const res = await fetch("/api/countdown");
+      const json = (await res.json()) as { data?: CountdownApiData };
+      const data = json.data;
+      if (res.ok && data) {
+        setCountdown({
+          meetDate: data.meetDate,
+          anniversaryDate: data.anniversaryDate,
+        });
+        setMeetDateInput(data.meetDate ?? "");
+        setAnniversaryInput(data.anniversaryDate ?? "");
       }
       setLoading(false);
     }
     init();
-  }, [supabase]);
+  }, []);
 
   async function handleSave() {
-    if (!coupleId) return;
     setSaving(true);
-    await supabase
-      .from("couples")
-      .update({
+    const res = await fetch("/api/countdown", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
         meet_date: meetDateInput || null,
         anniversary_date: anniversaryInput || null,
-      })
-      .eq("id", coupleId);
-    setCountdown({
-      meetDate: meetDateInput || null,
-      anniversaryDate: anniversaryInput || null,
+      }),
     });
+    const json = (await res.json()) as { data?: CountdownApiData };
+    const data = json.data;
+    if (res.ok && data) {
+      setCountdown({
+        meetDate: data.meetDate,
+        anniversaryDate: data.anniversaryDate,
+      });
+      setMeetDateInput(data.meetDate ?? "");
+      setAnniversaryInput(data.anniversaryDate ?? "");
+    }
     setSaving(false);
     setEditing(false);
   }
