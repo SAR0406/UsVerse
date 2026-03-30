@@ -344,20 +344,25 @@ export default function PresencePage() {
           onClick={() => setSilentMenuOpen((prev) => !prev)}
           className="w-[3.25rem] h-[3.25rem] rounded-full border border-[color:var(--border)] bg-[color:var(--card)]/85 text-2xl text-[color:var(--foreground)] shadow-lg hover:scale-105 active:scale-95 transition-transform"
           aria-expanded={silentMenuOpen}
-          aria-label={silentMenuOpen ? "Close silent mode" : "Open silent mode"}
+          aria-label="Toggle silent mode menu"
+          aria-controls="silent-mode-menu"
         >
           …
         </button>
       </div>
 
       {silentMenuOpen && (
-        <div className="fixed bottom-40 right-6 z-30 flex flex-col items-end gap-2">
+        <div
+          id="silent-mode-menu"
+          className="fixed bottom-40 right-6 z-30 flex flex-col items-end gap-2"
+        >
           {silentEmotions.map((emotion) => (
             <button
               key={emotion.label}
               onClick={() => sendSilentEmotion(emotion)}
               className="px-3 py-2 rounded-full text-xs border border-white/15 text-white transition-transform hover:scale-105"
               style={{ background: emotion.color }}
+              aria-label={`Send silent emotion: ${emotion.label}`}
             >
               {emotion.emoji} {emotion.label}
             </button>

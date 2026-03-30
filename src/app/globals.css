@@ -118,10 +118,16 @@ body {
 .glass-card {
   /* Fallback for browsers that don't support color-mix() */
   background: rgba(var(--card-fallback-rgb), 0.86);
-  background: color-mix(in oklab, var(--card) 86%, transparent);
   backdrop-filter: blur(12px);
   border: 1px solid var(--border);
   border-radius: 1rem;
+}
+
+@supports (background: color-mix(in oklab, black 50%, white 50%)) {
+  .glass-card {
+    /* Prefer perceptual OKLAB interpolation for more consistent glass depth across themes */
+    background: color-mix(in oklab, var(--card) 86%, transparent);
+  }
 }
 
 .countdown-poster {

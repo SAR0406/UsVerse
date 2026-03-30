@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Timer, Heart, Edit3, Save } from "lucide-react";
 import { differenceInCalendarDays, format, parseISO } from "date-fns";
@@ -9,6 +9,14 @@ interface CountdownData {
   meetDate: string | null;
   anniversaryDate: string | null;
 }
+
+const COUNTDOWN_CARD_PARTICLES = Array.from({ length: 14 }, (_, index) => ({
+  id: `countdown-p-${index}`,
+  symbol: index % 2 === 0 ? "💕" : "✨",
+  left: `${6 + ((index * 7) % 88)}%`,
+  delay: `${(index % 6) * 0.65}s`,
+  duration: `${6 + (index % 4)}s`,
+}));
 
 export default function CountdownPage() {
   const supabase = createClient();
@@ -23,18 +31,6 @@ export default function CountdownPage() {
   const [anniversaryInput, setAnniversaryInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [now, setNow] = useState(new Date());
-
-  const cardParticles = useMemo(
-    () =>
-      Array.from({ length: 14 }, (_, index) => ({
-        id: `countdown-p-${index}`,
-        symbol: index % 2 === 0 ? "💕" : "✨",
-        left: `${6 + ((index * 7) % 88)}%`,
-        delay: `${(index % 6) * 0.65}s`,
-        duration: `${6 + (index % 4)}s`,
-      })),
-    []
-  );
 
   // Live clock
   useEffect(() => {
@@ -206,7 +202,7 @@ export default function CountdownPage() {
         className="relative overflow-hidden rounded-3xl p-8 mb-6 text-center border border-white/15 countdown-poster"
       >
         <div className="absolute inset-0 pointer-events-none">
-          {cardParticles.map((particle) => (
+          {COUNTDOWN_CARD_PARTICLES.map((particle) => (
             <span
               key={particle.id}
               className="countdown-particle-float"
@@ -243,14 +239,11 @@ export default function CountdownPage() {
                     key={`flip-${meetDays ?? "none"}`}
                     className="countdown-flip-digit countdown-flip-in countdown-glow-gold"
                     aria-live="polite"
-                    aria-label={
-                      isToday
-                        ? "Days until we are in the same place again: today"
-                        : `Days until we are in the same place again: ${meetDays ?? "unknown"}`
-                    }
+                    aria-atomic="true"
                   >
                     {isToday ? "TODAY!" : String(meetDays ?? "—")}
                   </div>
+                  <span className="sr-only">Days until we are in the same place again</span>
                 </div>
                 {timeUntilMeet && (
                   <div className="grid grid-cols-4 gap-3 mb-4">
