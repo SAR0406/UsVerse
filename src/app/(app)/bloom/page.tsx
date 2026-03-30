@@ -551,7 +551,7 @@ export default function BloomPage() {
           <div className="mb-3">
             <p className="text-sm font-semibold text-[color:var(--foreground)]">Photo to Art</p>
             <p className="text-xs text-[color:var(--text-soft)]">
-              Upload one memory and reimagine it as tonight&apos;s sticker mood.
+              Upload one memory and reimagine it with tonight&apos;s artistic style.
             </p>
           </div>
           <label className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[color:var(--color-lilac-dream)] text-[color:var(--dark-void)] text-sm font-semibold">
