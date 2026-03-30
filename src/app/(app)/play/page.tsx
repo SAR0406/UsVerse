@@ -52,7 +52,6 @@ const ARCADE_MACHINES: ArcadeMachine[] = [
 ];
 
 const LAST_PLAYED_STORAGE_KEY = "usverse.play.lastPlayed";
-const DEFAULT_GAME: GameId = "wavelength";
 
 function isGameId(value: string): value is GameId {
   return ARCADE_MACHINES.some((machine) => machine.id === value);
@@ -61,8 +60,8 @@ function isGameId(value: string): value is GameId {
 function getArcadeRhythm(now: Date): { recommendedGame: GameId; partnerActiveGame: GameId | null } {
   const day = now.getDate();
   const hour = now.getHours();
-  const recommendedGame = ARCADE_MACHINES[day % ARCADE_MACHINES.length]?.id ?? DEFAULT_GAME;
-  const activeMachine = ARCADE_MACHINES[(day + hour) % ARCADE_MACHINES.length]?.id ?? null;
+  const recommendedGame = ARCADE_MACHINES[day % ARCADE_MACHINES.length].id;
+  const activeMachine = ARCADE_MACHINES[(day + hour) % ARCADE_MACHINES.length].id;
   return {
     recommendedGame,
     partnerActiveGame: activeMachine === recommendedGame ? null : activeMachine,
