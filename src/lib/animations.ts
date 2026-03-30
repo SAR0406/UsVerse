@@ -38,7 +38,7 @@ export const stickerDrop = {
   hidden: { y: -30, rotate: -5, opacity: 0 },
   visible: {
     y: 0,
-    rotate: Math.random() * 6 - 3,
+    rotate: 2,
     opacity: 1,
     transition: { type: "spring" as const, stiffness: 300, damping: 12 },
   },
@@ -48,7 +48,7 @@ export const polaroidFall = {
   hidden: { y: -100, rotate: -8, opacity: 0 },
   visible: {
     y: 0,
-    rotate: Math.random() * 4 - 2,
+    rotate: -1,
     opacity: 1,
     transition: { type: "spring" as const, stiffness: 200, damping: 18, delay: 0.1 },
   },
@@ -86,10 +86,21 @@ export const heartParticleConfig = {
   },
 };
 
-export const countdownCardParticles = Array.from({ length: 14 }, (_, index) => ({
+const COUNTDOWN_PARTICLE_COUNT = 14;
+const COUNTDOWN_PARTICLE_LEFT_BASE = 6;
+const COUNTDOWN_PARTICLE_LEFT_SPREAD = 88;
+const COUNTDOWN_PARTICLE_LEFT_STEP = 7;
+const COUNTDOWN_PARTICLE_DELAY_GROUPS = 6;
+const COUNTDOWN_PARTICLE_DELAY_STEP = 0.65;
+const COUNTDOWN_PARTICLE_DURATION_BASE = 6;
+const COUNTDOWN_PARTICLE_DURATION_GROUPS = 4;
+
+export const countdownCardParticles = Array.from(
+  { length: COUNTDOWN_PARTICLE_COUNT },
+  (_, index) => ({
   id: `countdown-p-${index}`,
   symbol: index % 2 === 0 ? "💕" : "✨",
-  left: `${6 + ((index * 7) % 88)}%`,
-  delay: `${(index % 6) * 0.65}s`,
-  duration: `${6 + (index % 4)}s`,
+  left: `${COUNTDOWN_PARTICLE_LEFT_BASE + ((index * COUNTDOWN_PARTICLE_LEFT_STEP) % COUNTDOWN_PARTICLE_LEFT_SPREAD)}%`,
+  delay: `${(index % COUNTDOWN_PARTICLE_DELAY_GROUPS) * COUNTDOWN_PARTICLE_DELAY_STEP}s`,
+  duration: `${COUNTDOWN_PARTICLE_DURATION_BASE + (index % COUNTDOWN_PARTICLE_DURATION_GROUPS)}s`,
 }));
