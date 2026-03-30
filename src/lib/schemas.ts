@@ -116,3 +116,30 @@ export const UpdateCountdownSchema = z
   );
 
 export type UpdateCountdownInput = z.infer<typeof UpdateCountdownSchema>;
+
+// ─── AI suggestions ──────────────────────────────────────────────────────────
+
+export const SuggestionToneSchema = z.enum([
+  "romantic",
+  "supportive",
+  "playful",
+  "calm",
+]);
+
+export const GenerateSuggestionsSchema = z.object({
+  recent_input: z
+    .string()
+    .trim()
+    .max(500, "recent_input too long")
+    .optional(),
+  context: z
+    .string()
+    .trim()
+    .max(1_000, "context too long")
+    .optional(),
+  tone: SuggestionToneSchema.default("romantic"),
+  count: z.coerce.number().int().min(1).max(6).default(4),
+});
+
+export type SuggestionTone = z.infer<typeof SuggestionToneSchema>;
+export type GenerateSuggestionsInput = z.infer<typeof GenerateSuggestionsSchema>;

@@ -47,6 +47,10 @@ Edit `.env.local`:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+NVIDIA_API_KEY=nvapi-your-key
+NIM_BASE_URL=https://integrate.api.nvidia.com/v1
+NIM_CHAT_MODEL=meta/llama-3.1-8b-instruct
+NIM_TIMEOUT_MS=8000
 ```
 
 ### 4. Run
@@ -66,8 +70,18 @@ Open [http://localhost:3000](http://localhost:3000) 💫
 | Frontend | Next.js 16 (App Router) + TypeScript |
 | Styling | Tailwind CSS v4 |
 | Backend | Supabase (Auth + Realtime + PostgreSQL) |
+| AI Inference | NVIDIA NIM API (chat suggestions) |
 | Realtime | Supabase Realtime Channels |
 | Auth | Supabase Auth (email/password) |
+
+### AI Suggestions API (NVIDIA NIM)
+
+UsVerse uses a Next.js Route Handler at:
+
+- `POST /api/ai/suggestions`
+
+It is authenticated, rate-limited, and uses NVIDIA NIM chat-completions to generate emotional chat suggestions.
+If the AI endpoint is unavailable, it falls back to curated local suggestions.
 
 ---
 

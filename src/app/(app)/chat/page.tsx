@@ -6,7 +6,7 @@ import { Send, Bot, MessageCircle } from "lucide-react";
 import type { Message, Profile } from "@/types/database";
 import { formatDistanceToNow } from "date-fns";
 
-const AI_SUGGESTIONS = [
+const DEFAULT_AI_SUGGESTIONS = [
   "I've been thinking about you all day ☁️",
   "Remember that time we laughed until we cried? I miss that.",
   "If I could teleport anywhere right now, you know where I'd be.",
@@ -33,6 +33,10 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [showAI, setShowAI] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>(
+    DEFAULT_AI_SUGGESTIONS
+  );
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [joinCode, setJoinCode] = useState("");
   const [joinError, setJoinError] = useState<string | null>(null);
@@ -124,6 +128,34 @@ export default function ChatPage() {
     setSending(false);
     setInput("");
     setShowAI(false);
+  }
+
+  async function loadAiSuggestions() {
+    setLoadingSuggestions(true);
+    try {
+      const res = await fetch("/api/ai/suggestions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recent_input: input.trim() || undefined,
+          tone: "romantic",
+          count: 4,
+        }),
+      });
+      const json = (await res.json()) as {
+        data?: { suggestions?: string[] };
+      };
+
+      if (json.data?.suggestions?.length) {
+        setAiSuggestions(json.data.suggestions);
+      } else {
+        setAiSuggestions(DEFAULT_AI_SUGGESTIONS);
+      }
+    } catch {
+      setAiSuggestions(DEFAULT_AI_SUGGESTIONS);
+    } finally {
+      setLoadingSuggestions(false);
+    }
   }
 
   async function handleJoin() {
@@ -258,18 +290,22 @@ export default function ChatPage() {
               <Bot className="w-3 h-3" /> AI Love Assistant
             </p>
             <div className="flex flex-wrap gap-2">
-              {AI_SUGGESTIONS.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => {
-                    setInput(s);
-                    setShowAI(false);
-                  }}
-                  className="text-xs px-3 py-1.5 rounded-full border border-purple-500/20 text-purple-300/70 hover:border-purple-500/50 hover:text-purple-300 transition-all"
-                >
-                  {s}
-                </button>
-              ))}
+              {loadingSuggestions && (
+                <p className="text-xs text-purple-400/60">Generating suggestions…</p>
+              )}
+              {!loadingSuggestions &&
+                aiSuggestions.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => {
+                      setInput(s);
+                      setShowAI(false);
+                    }}
+                    className="text-xs px-3 py-1.5 rounded-full border border-purple-500/20 text-purple-300/70 hover:border-purple-500/50 hover:text-purple-300 transition-all"
+                  >
+                    {s}
+                  </button>
+                ))}
             </div>
           </div>
         </div>
@@ -279,7 +315,11 @@ export default function ChatPage() {
       <div className="px-4 py-3 border-t border-purple-500/10 shrink-0">
         <div className="flex items-end gap-2">
           <button
-            onClick={() => setShowAI(!showAI)}
+            onClick={() => {
+              const next = !showAI;
+              setShowAI(next);
+              if (next) void loadAiSuggestions();
+            }}
             title="AI Love Assistant"
             className={`p-2.5 rounded-xl transition-all ${
               showAI
