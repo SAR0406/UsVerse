@@ -31,6 +31,7 @@ export default function CountdownPage() {
   const [meetDateInput, setMeetDateInput] = useState("");
   const [anniversaryInput, setAnniversaryInput] = useState("");
   const [saving, setSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [now, setNow] = useState(new Date());
 
   // Live clock
@@ -41,16 +42,26 @@ export default function CountdownPage() {
 
   useEffect(() => {
     async function init() {
-      const res = await fetch("/api/countdown");
-      const json = (await res.json()) as { data?: CountdownApiData };
-      const data = json.data;
-      if (res.ok && data) {
-        setCountdown({
-          meetDate: data.meetDate,
-          anniversaryDate: data.anniversaryDate,
-        });
-        setMeetDateInput(data.meetDate ?? "");
-        setAnniversaryInput(data.anniversaryDate ?? "");
+      setErrorMessage(null);
+      try {
+        const res = await fetch("/api/countdown");
+        const json = (await res.json()) as {
+          data?: CountdownApiData;
+          error?: { message?: string };
+        };
+        const data = json.data;
+        if (res.ok && data) {
+          setCountdown({
+            meetDate: data.meetDate,
+            anniversaryDate: data.anniversaryDate,
+          });
+          setMeetDateInput(data.meetDate ?? "");
+          setAnniversaryInput(data.anniversaryDate ?? "");
+        } else {
+          setErrorMessage(json.error?.message ?? "Failed to load countdown");
+        }
+      } catch {
+        setErrorMessage("Failed to load countdown");
       }
       setLoading(false);
     }
@@ -59,26 +70,37 @@ export default function CountdownPage() {
 
   async function handleSave() {
     setSaving(true);
-    const res = await fetch("/api/countdown", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        meet_date: meetDateInput || null,
-        anniversary_date: anniversaryInput || null,
-      }),
-    });
-    const json = (await res.json()) as { data?: CountdownApiData };
-    const data = json.data;
-    if (res.ok && data) {
-      setCountdown({
-        meetDate: data.meetDate,
-        anniversaryDate: data.anniversaryDate,
+    setErrorMessage(null);
+    try {
+      const res = await fetch("/api/countdown", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          meet_date: meetDateInput || null,
+          anniversary_date: anniversaryInput || null,
+        }),
       });
-      setMeetDateInput(data.meetDate ?? "");
-      setAnniversaryInput(data.anniversaryDate ?? "");
+      const json = (await res.json()) as {
+        data?: CountdownApiData;
+        error?: { message?: string };
+      };
+      const data = json.data;
+      if (res.ok && data) {
+        setCountdown({
+          meetDate: data.meetDate,
+          anniversaryDate: data.anniversaryDate,
+        });
+        setMeetDateInput(data.meetDate ?? "");
+        setAnniversaryInput(data.anniversaryDate ?? "");
+        setEditing(false);
+      } else {
+        setErrorMessage(json.error?.message ?? "Failed to save countdown");
+      }
+    } catch {
+      setErrorMessage("Failed to save countdown");
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
-    setEditing(false);
   }
 
   function getDaysUntil(dateStr: string | null): number | null {
@@ -140,6 +162,9 @@ export default function CountdownPage() {
           {editing ? "Cancel" : "Edit dates"}
         </button>
       </div>
+      {errorMessage && (
+        <p className="mb-4 text-sm text-red-300/80">{errorMessage}</p>
+      )}
 
       {/* Edit form */}
       {editing && (
