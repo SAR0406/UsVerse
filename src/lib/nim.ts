@@ -17,13 +17,16 @@ interface NimChatResponse {
 const DEFAULT_NIM_BASE_URL = "https://integrate.api.nvidia.com/v1";
 const DEFAULT_NIM_MODEL = "meta/llama-3.1-8b-instruct";
 const DEFAULT_NIM_REQUEST_TIMEOUT_MS = 8_000;
+const MIN_NIM_REQUEST_TIMEOUT_MS = 1_000;
+const MAX_NIM_REQUEST_TIMEOUT_MS = 30_000;
+const MAX_SUGGESTION_LENGTH = 140;
 
 function buildPrompt(input: GenerateSuggestionsInput): string {
   const lines = [
     "Generate concise and emotionally warm message suggestions for a long-distance couple.",
     "Return exactly one suggestion per line.",
     "No numbering, no bullet points, no quotes.",
-    "Each suggestion must be <= 140 characters.",
+    `Each suggestion must be <= ${MAX_SUGGESTION_LENGTH} characters.`,
     `Tone: ${input.tone}.`,
   ];
 
@@ -44,11 +47,21 @@ function parseSuggestions(raw: string, requestedCount: number): string[] {
     .map((line) => line.trim())
     .filter(Boolean)
     .map((line) => line.replace(/^[-*\d.)\s]+/, ""))
+    .map((line) => line.slice(0, MAX_SUGGESTION_LENGTH))
     .filter(Boolean)
     .slice(0, requestedCount);
 
   const unique = Array.from(new Set(suggestions));
   return unique;
+}
+
+function parseTimeoutMs(raw: string | undefined): number {
+  const parsed = Number(raw ?? DEFAULT_NIM_REQUEST_TIMEOUT_MS);
+  if (!Number.isFinite(parsed)) return DEFAULT_NIM_REQUEST_TIMEOUT_MS;
+  return Math.min(
+    MAX_NIM_REQUEST_TIMEOUT_MS,
+    Math.max(MIN_NIM_REQUEST_TIMEOUT_MS, Math.floor(parsed)),
+  );
 }
 
 export async function generateNimSuggestions(
@@ -61,7 +74,7 @@ export async function generateNimSuggestions(
 
   const baseUrl = process.env.NIM_BASE_URL ?? DEFAULT_NIM_BASE_URL;
   const model = process.env.NIM_CHAT_MODEL ?? DEFAULT_NIM_MODEL;
-  const timeoutMs = Number(process.env.NIM_TIMEOUT_MS ?? DEFAULT_NIM_REQUEST_TIMEOUT_MS);
+  const timeoutMs = parseTimeoutMs(process.env.NIM_TIMEOUT_MS);
   const endpoint = `${baseUrl.replace(/\/+$/, "")}/chat/completions`;
 
   const messages: NimMessage[] = [

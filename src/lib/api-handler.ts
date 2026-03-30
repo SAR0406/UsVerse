@@ -17,12 +17,7 @@ import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { logger, newTraceId } from "@/lib/logger";
-import {
-  AppError,
-  UnauthorizedError,
-  ValidationError,
-  isAppError,
-} from "@/lib/errors";
+import { UnauthorizedError, ValidationError, isAppError } from "@/lib/errors";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/types/database";
 
@@ -117,6 +112,8 @@ export async function withAuth(handler: AuthedHandler): Promise<NextResponse> {
       traceId,
     });
 
+    result.headers.set("x-trace-id", traceId);
+
     logger.info("api.request", {
       traceId,
       userId: user.id,
@@ -132,6 +129,8 @@ export async function withAuth(handler: AuthedHandler): Promise<NextResponse> {
       error: err instanceof Error ? err.message : String(err),
       code: isAppError(err) ? err.code : "UNKNOWN",
     });
-    return errorResponse(err, traceId);
+    const res = errorResponse(err, traceId);
+    res.headers.set("x-trace-id", traceId);
+    return res;
   }
 }
