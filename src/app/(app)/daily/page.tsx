@@ -24,27 +24,39 @@ export default function DailyPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const today = format(new Date(), "yyyy-MM-dd");
 
   const loadAnswers = useCallback(async () => {
-    const res = await fetch("/api/daily");
-    const json = (await res.json()) as {
-      data?: {
-        question: { id: string; index: number; text: string; total: number };
-        myAnswer: DailyAnswer | null;
-        partnerAnswer: DailyAnswer | null;
+    setErrorMessage(null);
+    try {
+      const res = await fetch("/api/daily");
+      const json = (await res.json()) as {
+        data?: {
+          question: { id: string; index: number; text: string; total: number };
+          myAnswer: DailyAnswer | null;
+          partnerAnswer: DailyAnswer | null;
+        };
+        error?: { message?: string };
       };
-    };
-    if (json.data) {
-      setQuestion(json.data.question);
-      if (json.data.myAnswer) {
-        setSavedAnswer(json.data.myAnswer);
-        setMyAnswer(json.data.myAnswer.answer);
+      if (!res.ok) {
+        throw new Error(json.error?.message ?? "Failed to load daily question");
       }
-      if (json.data.partnerAnswer) {
-        setPartnerAnswer(json.data.partnerAnswer);
+      if (json.data) {
+        setQuestion(json.data.question);
+        if (json.data.myAnswer) {
+          setSavedAnswer(json.data.myAnswer);
+          setMyAnswer(json.data.myAnswer.answer);
+        }
+        if (json.data.partnerAnswer) {
+          setPartnerAnswer(json.data.partnerAnswer);
+        }
       }
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Failed to load daily question",
+      );
     }
   }, []);
 
@@ -96,18 +108,30 @@ export default function DailyPage() {
   async function handleSave() {
     if (!myAnswer.trim() || !question) return;
     setSaving(true);
+    setErrorMessage(null);
 
-    await fetch("/api/daily", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question_id: question.id, answer: myAnswer }),
-    });
+    try {
+      const res = await fetch("/api/daily", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question_id: question.id, answer: myAnswer }),
+      });
+      const json = (await res.json()) as { error?: { message?: string } };
+      if (!res.ok) {
+        throw new Error(json.error?.message ?? "Failed to save answer");
+      }
 
-    setSaving(false);
-    setSaved(true);
-    // Refresh so savedAnswer state is current (prevents duplicate upsert on re-save)
-    await loadAnswers();
-    setTimeout(() => setSaved(false), 2000);
+      setSaved(true);
+      // Refresh so savedAnswer state is current (prevents duplicate upsert on re-save)
+      await loadAnswers();
+      setTimeout(() => setSaved(false), 2000);
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "Failed to save answer",
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (loading)
@@ -128,6 +152,17 @@ export default function DailyPage() {
           {format(new Date(), "EEEE, MMMM d")} · Question #{question?.index ?? "—"}
         </p>
       </div>
+
+      {!coupleId && (
+        <div className="glass-card p-4 mb-6 border border-amber-500/30 bg-amber-500/5">
+          <p className="text-amber-300 text-sm">
+            📌 Connect with your partner in Chat first to unlock shared answers.
+          </p>
+        </div>
+      )}
+      {errorMessage && (
+        <p className="mb-4 text-sm text-red-300/80">{errorMessage}</p>
+      )}
 
       {/* Question card */}
       <div className="glass-card p-8 mb-6 text-center">

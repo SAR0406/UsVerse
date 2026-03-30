@@ -118,6 +118,18 @@ Tables:
 
 ---
 
+## ❓ Troubleshooting
+
+| Issue | Solution |
+|---|---|
+| Invite code not accepted | Make sure both users are logged in, then retry with the 8-character uppercase code. |
+| Too many attempts error | Wait 1 minute before trying to join again (rate limit protection). |
+| Daily question not loading | First connect with your partner in Chat so couple-based features are available. |
+| Messages fail to send | Check your internet connection and try again. API errors are shown in the chat composer. |
+| Countdown not updating | Refresh the page after saving dates. |
+
+---
+
 ## 🔐 Privacy & Security
 
 - Row Level Security (RLS) ensures only the two of you can see your data
