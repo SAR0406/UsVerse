@@ -47,6 +47,7 @@ Edit `.env.local`:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 NVIDIA_API_KEY=nvapi-your-key
 NIM_BASE_URL=https://integrate.api.nvidia.com/v1
 NIM_CHAT_MODEL=meta/llama-3.1-8b-instruct
@@ -60,6 +61,15 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) 💫
+
+### 5. Available Commands
+
+```bash
+npm run dev    # Start development server
+npm run lint   # Run ESLint
+npm run build  # Build for production
+npm run start  # Start production server
+```
 
 ---
 
@@ -105,6 +115,18 @@ Tables:
 2. A unique **invite code** is generated for you
 3. **Share the code** with your partner — they enter it to join your universe
 4. You're now connected 💫
+
+---
+
+## ❓ Troubleshooting
+
+| Issue | Solution |
+|---|---|
+| Invite code not accepted | Make sure both users are logged in, then retry with the 8-character uppercase code. |
+| Too many attempts error | Wait 1 minute before trying to join again (rate limit protection). |
+| Daily question not loading | First connect with your partner in Chat so couple-based features are available. |
+| Messages fail to send | Check your internet connection and try again. API errors are shown in the chat composer. |
+| Countdown not updating | Refresh the page after saving dates. |
 
 ---
 

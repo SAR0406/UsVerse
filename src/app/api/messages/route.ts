@@ -13,6 +13,7 @@ import { withAuth, ok, created } from "@/lib/api-handler";
 import { rateLimit, getIdempotentResult, setIdempotentResult } from "@/lib/rate-limit";
 import { SendMessageSchema, PaginationSchema } from "@/lib/schemas";
 import { NotFoundError, ForbiddenError } from "@/lib/errors";
+import { logger } from "@/lib/logger";
 import type { Message } from "@/types/database";
 
 // ─── GET — paginated message history ───────────────────────────────────────
@@ -83,8 +84,12 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) {
-      // Log context for debugging without leaking to the client
-      void traceId;
+      logger.error("messages.insert_failed", {
+        traceId,
+        userId,
+        coupleId,
+        error: error.message,
+      });
       throw error;
     }
 

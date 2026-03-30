@@ -40,11 +40,20 @@ export default function ChatPage() {
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [joinCode, setJoinCode] = useState("");
   const [joinError, setJoinError] = useState<string | null>(null);
+  const [pageError, setPageError] = useState<string | null>(null);
+  const [composerError, setComposerError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const loadCoupleAndMessages = useCallback(async () => {
+    setPageError(null);
     const coupleRes = await fetch("/api/couple");
-    const coupleJson = (await coupleRes.json()) as { data?: CoupleApiData };
+    const coupleJson = (await coupleRes.json()) as {
+      data?: CoupleApiData;
+      error?: { message?: string };
+    };
+    if (!coupleRes.ok) {
+      throw new Error(coupleJson.error?.message ?? "Failed to load your connection");
+    }
     const coupleData = coupleJson.data;
 
     if (!coupleData?.couple) {
@@ -55,7 +64,11 @@ export default function ChatPage() {
       });
       const createJson = (await createRes.json()) as {
         data?: { couple: { id: string }; inviteCode: string };
+        error?: { message?: string };
       };
+      if (!createRes.ok) {
+        throw new Error(createJson.error?.message ?? "Failed to create your couple space");
+      }
       if (createJson.data) {
         setCoupleId(createJson.data.couple.id);
         setInviteCode(createJson.data.inviteCode);
@@ -70,19 +83,32 @@ export default function ChatPage() {
     const msgRes = await fetch("/api/messages?limit=100");
     const msgJson = (await msgRes.json()) as {
       data?: { messages: Message[] };
+      error?: { message?: string };
     };
+    if (!msgRes.ok) {
+      throw new Error(msgJson.error?.message ?? "Failed to load messages");
+    }
     if (msgJson.data?.messages) setMessages(msgJson.data.messages);
   }, []);
 
   useEffect(() => {
     async function init() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
-      setUserId(user.id);
-      await loadCoupleAndMessages();
-      setLoading(false);
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) return;
+        setUserId(user.id);
+        await loadCoupleAndMessages();
+      } catch (error) {
+        setPageError(
+          error instanceof Error
+            ? error.message
+            : "Unable to connect right now. Please refresh and try again.",
+        );
+      } finally {
+        setLoading(false);
+      }
     }
     init();
   }, [supabase, loadCoupleAndMessages]);
@@ -115,19 +141,31 @@ export default function ChatPage() {
 
   async function sendMessage(content: string) {
     if (!content.trim() || !coupleId) return;
+    setComposerError(null);
     setSending(true);
-    await fetch("/api/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        content: content.trim(),
-        message_type: "text",
-        idempotency_key: crypto.randomUUID(),
-      }),
-    });
-    setSending(false);
-    setInput("");
-    setShowAI(false);
+    try {
+      const res = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: content.trim(),
+          message_type: "text",
+          idempotency_key: crypto.randomUUID(),
+        }),
+      });
+      const json = (await res.json()) as { error?: { message?: string } };
+      if (!res.ok) {
+        throw new Error(json.error?.message ?? "Failed to send message");
+      }
+      setInput("");
+      setShowAI(false);
+    } catch (error) {
+      setComposerError(
+        error instanceof Error ? error.message : "Failed to send message",
+      );
+    } finally {
+      setSending(false);
+    }
   }
 
   async function loadAiSuggestions() {
@@ -142,6 +180,10 @@ export default function ChatPage() {
           count: 4,
         }),
       });
+      if (!res.ok) {
+        setAiSuggestions(DEFAULT_AI_SUGGESTIONS);
+        return;
+      }
       const json = (await res.json()) as {
         data?: { suggestions?: string[] };
       };
@@ -161,24 +203,32 @@ export default function ChatPage() {
   async function handleJoin() {
     if (!joinCode.trim()) return;
     setJoinError(null);
-    const res = await fetch("/api/couple", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "join",
-        invite_code: joinCode.trim().toUpperCase(),
-      }),
-    });
-    const json = (await res.json()) as {
-      data?: unknown;
-      error?: { message: string };
-    };
-    if (!res.ok || json.error) {
-      setJoinError(json.error?.message ?? "Invalid invite code");
-      return;
+    try {
+      const res = await fetch("/api/couple", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "join",
+          invite_code: joinCode.trim().toUpperCase(),
+        }),
+      });
+      const json = (await res.json()) as {
+        data?: unknown;
+        error?: { message: string };
+      };
+      if (!res.ok || json.error) {
+        if (res.status === 429) {
+          setJoinError("Too many attempts. Please wait a minute and try again.");
+        } else {
+          setJoinError(json.error?.message ?? "Invalid invite code");
+        }
+        return;
+      }
+      setInviteCode(null);
+      await loadCoupleAndMessages();
+    } catch {
+      setJoinError("Connection error. Please try again.");
     }
-    setInviteCode(null);
-    await loadCoupleAndMessages();
   }
 
   if (loading) return <LoadingSkeleton />;
@@ -194,11 +244,16 @@ export default function ChatPage() {
           <h2 className="font-semibold text-white">
             {partner?.display_name ?? "Your Partner"}
           </h2>
-          <p className="text-xs text-purple-400/50">
-            {partner ? "In your universe ✨" : "Waiting to connect…"}
+          <p className={`text-xs ${partner ? "text-emerald-300/80" : "text-amber-300/80"}`}>
+            {partner ? "In your universe ✨" : "Waiting to connect… Share or join a code below."}
           </p>
         </div>
       </div>
+      {pageError && (
+        <div className="mx-4 mt-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+          {pageError}
+        </div>
+      )}
 
       {/* Invite section */}
       {inviteCode && !partner && (
@@ -245,7 +300,7 @@ export default function ChatPage() {
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {messages.length === 0 && !inviteCode && (
           <div className="flex flex-col items-center justify-center h-full text-center py-20">
-            <div className="text-5xl mb-4">��</div>
+            <div className="text-5xl mb-4">💬</div>
             <p className="text-purple-300/60">
               No messages yet. Say something ✨
             </p>
@@ -313,6 +368,9 @@ export default function ChatPage() {
 
       {/* Input */}
       <div className="px-4 py-3 border-t border-purple-500/10 shrink-0">
+        {composerError && (
+          <p className="mb-2 text-xs text-red-300/80">{composerError}</p>
+        )}
         <div className="flex items-end gap-2">
           <button
             onClick={() => {

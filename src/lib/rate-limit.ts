@@ -66,8 +66,9 @@ export function rateLimit(key: string, limit: number, windowMs: number): void {
   entry.timestamps = entry.timestamps.slice(i);
 
   if (entry.timestamps.length >= limit) {
+    const windowLabel = windowMs < 1000 ? `${windowMs}ms` : `${Math.round(windowMs / 1000)}s`;
     throw new TooManyRequestsError(
-      `Rate limit: ${limit} requests per ${windowMs / 1000}s`,
+      `Rate limit: ${limit} requests per ${windowLabel}`,
     );
   }
 

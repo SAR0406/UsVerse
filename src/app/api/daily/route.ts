@@ -52,9 +52,10 @@ const DAILY_QUESTIONS = [
 ] as const;
 
 function getTodayQuestion(): { question: string; questionId: string; index: number } {
-  const start = new Date("2024-01-01");
-  const today = new Date();
-  const daysDiff = Math.floor((today.getTime() - start.getTime()) / 86_400_000);
+  const startUtc = Date.UTC(2024, 0, 1);
+  const now = new Date();
+  const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const daysDiff = Math.floor((todayUtc - startUtc) / 86_400_000);
   const index = daysDiff % DAILY_QUESTIONS.length;
   return {
     question: DAILY_QUESTIONS[index],
@@ -65,7 +66,8 @@ function getTodayQuestion(): { question: string; questionId: string; index: numb
 
 // ─── GET — today's question + answers ──────────────────────────────────────
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
+  void req;
   return withAuth(async ({ userId, coupleId, db }) => {
     const { question, questionId, index } = getTodayQuestion();
 
