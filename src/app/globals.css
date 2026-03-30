@@ -291,6 +291,117 @@ body {
   animation: bloom-send-particle 700ms ease-out forwards;
 }
 
+@keyframes cinema-figure-idle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+@keyframes cinema-figure-lean {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-5deg) translateX(-1px); }
+}
+
+@keyframes cinema-figure-laugh {
+  0%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-6px); }
+  60% { transform: translateY(0); }
+}
+
+@keyframes cinema-popcorn {
+  0% {
+    transform: translateY(6px) scale(0.8);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-18px) scale(1);
+    opacity: 0;
+  }
+}
+
+@keyframes cinema-spark-rise {
+  0% {
+    transform: translateY(0) scale(0.8);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-72px) scale(1.15);
+    opacity: 0;
+  }
+}
+
+.cinema-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at center, transparent 52%, rgba(3, 8, 18, 0.76) 100%);
+}
+
+.cinema-figure {
+  width: 20px;
+  height: 32px;
+  border-radius: 12px 12px 10px 10px;
+  background: color-mix(in oklab, var(--color-lilac-dream) 45%, black);
+  animation: cinema-figure-idle 3.4s ease-in-out infinite;
+}
+
+.cinema-figure-lean {
+  animation: cinema-figure-lean 2.2s ease-in-out infinite;
+}
+
+.cinema-figure-laugh {
+  animation: cinema-figure-laugh 350ms ease-in-out;
+}
+
+.cinema-figure-curious {
+  box-shadow: 0 0 12px color-mix(in oklab, var(--color-sky-blush) 42%, transparent);
+}
+
+.cinema-sync-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.cinema-sync-dot-good {
+  background: #70f0a9;
+  box-shadow: 0 0 0 0 rgba(112, 240, 169, 0.6);
+  animation: pulse-glow 1.2s ease-in-out infinite;
+}
+
+.cinema-sync-dot-drift {
+  background: #ff9ab8;
+  box-shadow: 0 0 0 0 rgba(255, 154, 184, 0.5);
+  animation: pulse-glow 1.6s ease-in-out infinite;
+}
+
+.cinema-popcorn-kernel {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #fff3b0, #ffab76);
+  animation: cinema-popcorn 750ms ease-out infinite;
+}
+
+.cinema-spark {
+  position: absolute;
+  bottom: 58px;
+  font-size: 1.2rem;
+  pointer-events: none;
+  animation: cinema-spark-rise 700ms ease-out forwards;
+}
+
+.cinema-wave-bar {
+  width: 5px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ffe19c 0%, #ff6b9d 100%);
+}
+
 ::-webkit-scrollbar {
   width: 4px;
 }
@@ -348,7 +459,14 @@ body {
   .countdown-poster,
   .countdown-flip-out,
   .countdown-flip-in,
-  .countdown-particle-float {
+  .countdown-particle-float,
+  .cinema-figure,
+  .cinema-figure-lean,
+  .cinema-figure-laugh,
+  .cinema-sync-dot-good,
+  .cinema-sync-dot-drift,
+  .cinema-popcorn-kernel,
+  .cinema-spark {
     animation: none !important;
   }
 }

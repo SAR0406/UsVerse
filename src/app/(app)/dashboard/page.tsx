@@ -10,6 +10,7 @@ import {
   Sparkles,
   WandSparkles,
   Gamepad2,
+  Clapperboard,
   ArrowRight,
 } from "lucide-react";
 
@@ -158,5 +159,12 @@ const quickActions = [
     desc: "Step into your miniature game world and play together.",
     icon: Gamepad2,
     bgColor: "bg-purple-700",
+  },
+  {
+    href: "/cinema",
+    title: "Cinema",
+    desc: "Watch together in one shared room with sparks and afterglow.",
+    icon: Clapperboard,
+    bgColor: "bg-slate-700",
   },
 ];

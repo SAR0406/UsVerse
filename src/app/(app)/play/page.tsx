@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Crown, Gamepad2, Sparkles } from "lucide-react";
 
 type GameId = "wavelength" | "eclipse" | "telepathy" | "world-builder" | "gravity";
@@ -173,6 +174,12 @@ export default function PlayPage() {
           <Crown className="w-4 h-4" />
           Mark as last played
         </button>
+        <div className="mt-4 text-xs text-purple-300/70">
+          Ready for watch-together mode?{" "}
+          <Link href="/cinema" className="text-purple-200 underline underline-offset-2 hover:text-white">
+            Enter Cinema
+          </Link>
+        </div>
       </section>
     </div>
   );

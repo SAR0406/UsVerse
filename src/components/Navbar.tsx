@@ -10,6 +10,7 @@ import {
   Timer,
   WandSparkles,
   Gamepad2,
+  Clapperboard,
   LogOut,
   Home,
 } from "lucide-react";
@@ -24,6 +25,7 @@ const navItems = [
   { href: "/countdown", label: "Countdown", icon: Timer },
   { href: "/bloom", label: "Bloom", icon: WandSparkles },
   { href: "/play", label: "Play", icon: Gamepad2 },
+  { href: "/cinema", label: "Cinema", icon: Clapperboard },
 ];
 
 export default function Navbar() {
