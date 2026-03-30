@@ -66,7 +66,7 @@ function getTodayQuestion(): { question: string; questionId: string; index: numb
 
 // ─── GET — today's question + answers ──────────────────────────────────────
 
-export async function GET(_req?: NextRequest) {
+export async function GET() {
   return withAuth(async ({ userId, coupleId, db }) => {
     const { question, questionId, index } = getTodayQuestion();
 
