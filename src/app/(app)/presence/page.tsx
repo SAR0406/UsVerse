@@ -68,6 +68,16 @@ export default function PresencePage() {
   const [sending, setSending] = useState<EventType | null>(null);
   const [lastSent, setLastSent] = useState<EventType | null>(null);
   const [vibrating, setVibrating] = useState(false);
+  const [silentMenuOpen, setSilentMenuOpen] = useState(false);
+  const [silentSending, setSilentSending] = useState(false);
+  const [selectedSilentEmotion, setSelectedSilentEmotion] = useState<
+    (typeof silentEmotions)[number] | null
+  >(null);
+  const [incomingSilentMessage, setIncomingSilentMessage] = useState<string | null>(
+    null
+  );
+  const [sendingHeartBack, setSendingHeartBack] = useState(false);
+  const [silentError, setSilentError] = useState<string | null>(null);
 
   const triggerVibration = useCallback(() => {
     setVibrating(true);
@@ -119,6 +129,9 @@ export default function PresencePage() {
           if (event.user_id !== userId && event.event_type === "heartbeat") {
             triggerVibration();
           }
+          if (event.user_id !== userId && event.event_type === "silent_mode") {
+            setIncomingSilentMessage(event.message ?? "Your partner is here with you 🤍");
+          }
           setRecentEvents((prev) => [event, ...prev].slice(0, 20));
         }
       )
@@ -142,6 +155,56 @@ export default function PresencePage() {
     setLastSent(type);
     setTimeout(() => setLastSent(null), 3000);
     setSending(null);
+  }
+
+  async function sendSilentEmotion(
+    emotion: (typeof silentEmotions)[number]
+  ) {
+    setSelectedSilentEmotion(emotion);
+    setSilentSending(true);
+    setSilentError(null);
+    try {
+      const response = await fetch("/api/presence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event_type: "silent_mode",
+          message: `${emotion.label} ${emotion.emoji}`,
+          idempotency_key: crypto.randomUUID(),
+        }),
+      });
+      if (!response.ok) throw new Error("Failed to send silent emotion");
+      setSilentMenuOpen(false);
+      setTimeout(() => setSelectedSilentEmotion(null), 1800);
+    } catch {
+      setSilentError("Could not send right now. Try again in a moment.");
+      setSelectedSilentEmotion(null);
+    } finally {
+      setSilentSending(false);
+    }
+  }
+
+  async function sendHeartResponse() {
+    setSendingHeartBack(true);
+    setSilentError(null);
+    try {
+      const response = await fetch("/api/presence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event_type: "thinking_of_you",
+          idempotency_key: crypto.randomUUID(),
+        }),
+      });
+      if (!response.ok) throw new Error("Failed to send heart response");
+      setTimeout(() => {
+        setIncomingSilentMessage(null);
+        setSendingHeartBack(false);
+      }, 400);
+    } catch {
+      setSendingHeartBack(false);
+      setSilentError("Heart did not send. Tap again.");
+    }
   }
 
   const getEventLabel = (event: PresenceEvent) => {
@@ -275,6 +338,75 @@ export default function PresencePage() {
           Physical affection, digital distance — bridged. 💓
         </p>
       </div>
+
+      <div className="fixed bottom-24 md:bottom-8 right-6 z-30">
+        <button
+          onClick={() => setSilentMenuOpen((prev) => !prev)}
+          className="w-[3.25rem] h-[3.25rem] rounded-full border border-[color:var(--border)] bg-[color:var(--card)]/85 text-2xl text-[color:var(--foreground)] shadow-lg hover:scale-105 active:scale-95 transition-transform"
+          aria-expanded={silentMenuOpen}
+          aria-label="Open silent mode"
+        >
+          …
+        </button>
+      </div>
+
+      {silentMenuOpen && (
+        <div className="fixed bottom-40 right-6 z-30 flex flex-col items-end gap-2">
+          {silentEmotions.map((emotion) => (
+            <button
+              key={emotion.label}
+              onClick={() => sendSilentEmotion(emotion)}
+              className="px-3 py-2 rounded-full text-xs border border-white/15 text-white transition-transform hover:scale-105"
+              style={{ background: emotion.color }}
+            >
+              {emotion.emoji} {emotion.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {silentError && (
+        <div className="fixed bottom-[7.5rem] right-6 z-30 rounded-xl border border-rose-400/40 bg-rose-500/15 px-3 py-2 text-xs text-rose-200">
+          {silentError}
+        </div>
+      )}
+
+      {silentSending && selectedSilentEmotion && (
+        <div className="fixed inset-0 z-40 pointer-events-none flex items-end justify-center pb-24">
+          <div className="text-5xl animate-float">{selectedSilentEmotion.emoji}</div>
+        </div>
+      )}
+
+      {incomingSilentMessage && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-[color:var(--background)]/80 backdrop-blur-sm p-6">
+          <div className="glass-card max-w-sm w-full p-6 text-center">
+            <div className="text-5xl mb-3">🥺</div>
+            <p
+              className="text-3xl leading-tight mb-5"
+              style={{ fontFamily: "var(--font-accent), cursive" }}
+            >
+              {incomingSilentMessage}
+            </p>
+            <button
+              onClick={sendHeartResponse}
+              disabled={sendingHeartBack}
+              className="px-4 py-2 rounded-full bg-[color:var(--color-blossom)] text-white text-sm hover:opacity-90 disabled:opacity-50"
+            >
+              {sendingHeartBack ? "Sending…" : "Send one heart 💕"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+const silentEmotions = [
+  { label: "Missing you", emoji: "💔", color: "rgba(155, 109, 255, 0.85)" },
+  { label: "Thinking of you", emoji: "💭", color: "rgba(184, 227, 255, 0.82)" },
+  { label: "Proud of you", emoji: "⭐", color: "rgba(255, 171, 118, 0.9)" },
+  { label: "I love you", emoji: "❤️", color: "rgba(255, 107, 157, 0.9)" },
+  { label: "I'm here", emoji: "🤍", color: "rgba(255, 255, 255, 0.25)" },
+  { label: "Hard day", emoji: "🌧️", color: "rgba(123, 146, 170, 0.88)" },
+  { label: "Wish you were here", emoji: "🌙", color: "rgba(45, 22, 84, 0.9)" },
+] as const;

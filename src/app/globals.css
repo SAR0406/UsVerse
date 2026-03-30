@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 :root {
+  /* Font stacks are system/declarative fallbacks until managed via next/font */
+  --font-accent: "Caveat", cursive;
   --color-blossom: #ff6b9d;
   --color-peach: #ffab76;
   --color-rose-mist: #ffd6e7;
@@ -23,6 +25,7 @@
   --accent: #ff6b9d;
   --accent-glow: rgba(255, 107, 157, 0.3);
   --card: #1c1040;
+  --card-fallback-rgb: 28, 16, 64;
   --surface-2: #2d1654;
   --border: rgba(155, 109, 255, 0.3);
   --text-soft: #c9a8df;
@@ -70,6 +73,36 @@ body {
   100% { background-position: 200% center; }
 }
 
+@keyframes countdown-sunset {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes countdown-flip-out {
+  from { transform: rotateX(0deg); opacity: 1; }
+  to { transform: rotateX(-90deg); opacity: 0.45; }
+}
+
+@keyframes countdown-flip-in {
+  from { transform: rotateX(90deg); opacity: 0.45; }
+  to { transform: rotateX(0deg); opacity: 1; }
+}
+
+@keyframes countdown-particle-float {
+  0% {
+    transform: translateY(0) translateX(0) scale(0.9);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateY(-280px) translateX(10px) scale(1.08);
+    opacity: 0;
+  }
+}
+
 .animate-pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
 }
@@ -83,11 +116,55 @@ body {
 }
 
 .glass-card {
-  background: rgba(28, 16, 64, 0.86);
+  /* Fallback for browsers that don't support color-mix() */
+  background: rgba(var(--card-fallback-rgb), 0.86);
   background: color-mix(in oklab, var(--card) 86%, transparent);
   backdrop-filter: blur(12px);
   border: 1px solid var(--border);
   border-radius: 1rem;
+}
+
+.countdown-poster {
+  background:
+    linear-gradient(130deg, rgba(255, 107, 157, 0.22), rgba(255, 171, 118, 0.2), rgba(200, 182, 226, 0.24)),
+    var(--card);
+  background-size: 220% 220%;
+  animation: countdown-sunset 16s ease-in-out infinite;
+}
+
+.countdown-glow-gold {
+  box-shadow: 0 0 20px rgba(255, 171, 118, 0.45), 0 0 44px rgba(255, 171, 118, 0.2);
+}
+
+.countdown-flip-stage {
+  perspective: 800px;
+}
+
+.countdown-flip-digit {
+  font-family: var(--font-serif), Georgia, serif;
+  font-size: clamp(2.4rem, 12vw, 3.5rem);
+  line-height: 1;
+  color: var(--foreground);
+  text-shadow: 0 6px 24px rgba(255, 107, 157, 0.24);
+  transform-origin: center;
+}
+
+.countdown-flip-out {
+  animation: countdown-flip-out 0.4s ease-in forwards;
+}
+
+.countdown-flip-in {
+  animation: countdown-flip-in 0.4s ease-out forwards;
+}
+
+.countdown-particle-float {
+  position: absolute;
+  bottom: -16px;
+  opacity: 0.85;
+  font-size: 0.95rem;
+  animation-name: countdown-particle-float;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
 }
 
 .gradient-text {
@@ -128,6 +205,7 @@ body {
     --background: #fff8fb;
     --foreground: #2d1654;
     --card: #ffffff;
+    --card-fallback-rgb: 255, 255, 255;
     --surface-2: #fff0f7;
     --border: #f0cadf;
     --accent: var(--color-blossom);
@@ -141,5 +219,14 @@ body {
       radial-gradient(circle at 0% 0%, rgba(255, 214, 231, 0.6), transparent 45%),
       radial-gradient(circle at 100% 100%, rgba(200, 182, 226, 0.25), transparent 40%),
       var(--background);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .countdown-poster,
+  .countdown-flip-out,
+  .countdown-flip-in,
+  .countdown-particle-float {
+    animation: none !important;
   }
 }

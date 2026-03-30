@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Timer, Heart, Edit3, Save } from "lucide-react";
-import { differenceInDays, format, isPast, parseISO } from "date-fns";
+import { differenceInCalendarDays, format, parseISO } from "date-fns";
 
 interface CountdownData {
   meetDate: string | null;
@@ -23,6 +23,18 @@ export default function CountdownPage() {
   const [anniversaryInput, setAnniversaryInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [now, setNow] = useState(new Date());
+
+  const cardParticles = useMemo(
+    () =>
+      Array.from({ length: 14 }, (_, index) => ({
+        id: `countdown-p-${index}`,
+        symbol: index % 2 === 0 ? "💕" : "✨",
+        left: `${6 + ((index * 7) % 88)}%`,
+        delay: `${(index % 6) * 0.65}s`,
+        duration: `${6 + (index % 4)}s`,
+      })),
+    []
+  );
 
   // Live clock
   useEffect(() => {
@@ -85,7 +97,7 @@ export default function CountdownPage() {
   function getDaysUntil(dateStr: string | null): number | null {
     if (!dateStr) return null;
     try {
-      return differenceInDays(parseISO(dateStr), now);
+      return differenceInCalendarDays(parseISO(dateStr), now);
     } catch {
       return null;
     }
@@ -107,19 +119,19 @@ export default function CountdownPage() {
     }
   }
 
+  const meetDays = getDaysUntil(countdown.meetDate);
+  const timeUntilMeet = getTimeUntil(countdown.meetDate);
+  const anniversaryDays = getDaysUntil(countdown.anniversaryDate);
+  const isToday = meetDays === 0;
+
+  const meetPast = meetDays !== null && meetDays < 0;
+
   if (loading)
     return (
       <div className="flex items-center justify-center h-full p-20">
         <div className="w-8 h-8 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
       </div>
     );
-
-  const meetDays = getDaysUntil(countdown.meetDate);
-  const timeUntilMeet = getTimeUntil(countdown.meetDate);
-  const anniversaryDays = getDaysUntil(countdown.anniversaryDate);
-
-  const meetPast =
-    countdown.meetDate && isPast(parseISO(countdown.meetDate));
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
@@ -190,8 +202,26 @@ export default function CountdownPage() {
       )}
 
       {/* Main countdown — next meet */}
-      <div className="glass-card p-8 mb-6 text-center">
-        <div className="text-5xl mb-4">❤️</div>
+      <div
+        className="relative overflow-hidden rounded-3xl p-8 mb-6 text-center border border-white/15 countdown-poster"
+      >
+        <div className="absolute inset-0 pointer-events-none">
+          {cardParticles.map((particle) => (
+            <span
+              key={particle.id}
+              className="countdown-particle-float"
+              style={{
+                left: particle.left,
+                animationDelay: particle.delay,
+                animationDuration: particle.duration,
+              }}
+            >
+              {particle.symbol}
+            </span>
+          ))}
+        </div>
+        <div className="relative z-10">
+          <div className="text-5xl mb-4">❤️</div>
         {countdown.meetDate ? (
           <>
             {meetPast ? (
@@ -205,9 +235,18 @@ export default function CountdownPage() {
               </>
             ) : (
               <>
-                <p className="text-purple-300/60 text-sm mb-4 uppercase tracking-wider">
-                  Until we meet again
+                <p className="text-[color:var(--text-soft)] text-sm mb-3 uppercase tracking-wider">
+                  Days until we&apos;re in the same place again
                 </p>
+                <div className="countdown-flip-stage mb-5">
+                  <div
+                    key={`flip-${meetDays ?? "none"}`}
+                    className="countdown-flip-digit countdown-flip-in countdown-glow-gold"
+                    aria-live="polite"
+                  >
+                    {isToday ? "TODAY!" : String(meetDays ?? "—")}
+                  </div>
+                </div>
                 {timeUntilMeet && (
                   <div className="grid grid-cols-4 gap-3 mb-4">
                     {[
@@ -231,7 +270,7 @@ export default function CountdownPage() {
                   </div>
                 )}
                 {meetDays !== null && (
-                  <p className="text-purple-300/60 text-sm">
+                  <p className="text-[color:var(--foreground)]/80 text-sm">
                     {meetDays === 0
                       ? "Today is the day! 🎊"
                       : meetDays === 1
@@ -260,6 +299,7 @@ export default function CountdownPage() {
             </button>
           </div>
         )}
+        </div>
       </div>
 
       {/* Anniversary */}
@@ -291,6 +331,38 @@ export default function CountdownPage() {
               : meetDays > 7
                 ? `Only ${meetDays} days. So close you can almost feel it. ✨`
                 : `${meetDays} days. The wait is almost over. 🌙`}
+          </p>
+        </div>
+      )}
+
+      {isToday && (
+        <div className="fixed inset-0 z-50 pointer-events-none flex flex-col items-center justify-center bg-[color:var(--background)]/75 backdrop-blur-sm">
+          <div className="absolute inset-0 pointer-events-none">
+            {Array.from({ length: 28 }, (_, index) => {
+              const symbols = ["🎉", "💕", "✨", "🌸", "⭐"] as const;
+              return (
+                <span
+                  key={`celebrate-${index}`}
+                  className="countdown-particle-float"
+                  style={{
+                    left: `${(index * 13) % 100}%`,
+                    animationDelay: `${(index % 8) * 0.18}s`,
+                    animationDuration: `${3.2 + (index % 4) * 0.5}s`,
+                  }}
+                >
+                  {symbols[index % symbols.length]}
+                </span>
+              );
+            })}
+          </div>
+          <p
+            className="text-[4rem] leading-none mb-4"
+            style={{ fontFamily: "var(--font-accent), cursive" }}
+          >
+            TODAY! 🎉
+          </p>
+          <p className="text-[color:var(--foreground)] text-lg text-center px-6">
+            You made it through every mile. Go hold each other. 💞
           </p>
         </div>
       )}
