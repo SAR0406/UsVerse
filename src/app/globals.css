@@ -189,6 +189,108 @@ body {
   animation: shimmer 3s linear infinite;
 }
 
+@keyframes bloom-parchment-breathe {
+  0%, 100% { opacity: 0.95; }
+  50% { opacity: 1; }
+}
+
+@keyframes bloom-pour {
+  0% {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  40% {
+    opacity: 0.82;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(12%);
+  }
+}
+
+@keyframes bloom-starfall {
+  0% {
+    opacity: 0.9;
+    transform: translate(-50%, -50%) scale(0.85);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, 40px) scale(1.2);
+  }
+}
+
+@keyframes bloom-send-particle {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.7);
+  }
+  25% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-60px) scale(1.15);
+  }
+}
+
+.bloom-parchment {
+  background:
+    radial-gradient(circle at 25% 15%, color-mix(in oklab, var(--color-butter) 48%, transparent), transparent 52%),
+    radial-gradient(circle at 78% 85%, color-mix(in oklab, var(--color-rose-mist) 34%, transparent), transparent 56%),
+    color-mix(in oklab, var(--card) 88%, var(--color-butter) 12%);
+  animation: bloom-parchment-breathe 4s ease-in-out infinite;
+}
+
+.bloom-pour-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, var(--bloom-pour-color) 0%, color-mix(in oklab, var(--bloom-pour-color) 45%, transparent) 45%, transparent 100%);
+  transform-origin: top;
+  animation: bloom-pour 350ms ease-out forwards;
+}
+
+.bloom-starfall {
+  position: absolute;
+  pointer-events: none;
+  animation: bloom-starfall 1.4s ease-out forwards;
+}
+
+.bloom-send-card {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+  background: color-mix(in oklab, var(--color-blossom) 25%, var(--card) 75%);
+  display: grid;
+  place-items: center;
+  transition: transform 420ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 420ms ease;
+}
+
+.bloom-send-card-fold {
+  transform: scale(0.72) rotate(12deg);
+}
+
+.bloom-send-card-launch {
+  transform: translate(240px, -100px) rotate(25deg) scale(0.55);
+  opacity: 0;
+}
+
+.bloom-send-particle {
+  position: absolute;
+  bottom: 16px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.bloom-send-particle-active {
+  animation: bloom-send-particle 700ms ease-out forwards;
+}
+
 ::-webkit-scrollbar {
   width: 4px;
 }
@@ -229,6 +331,20 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .bloom-parchment,
+  .bloom-pour-overlay,
+  .bloom-starfall,
+  .bloom-send-particle-active {
+    animation: none !important;
+  }
+
+  .bloom-send-card,
+  .bloom-send-card-fold,
+  .bloom-send-card-launch {
+    transform: none !important;
+    opacity: 1 !important;
+  }
+
   .countdown-poster,
   .countdown-flip-out,
   .countdown-flip-in,

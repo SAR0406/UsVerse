@@ -8,6 +8,7 @@ import {
   HelpCircle,
   Timer,
   Sparkles,
+  WandSparkles,
   ArrowRight,
 } from "lucide-react";
 
@@ -142,5 +143,12 @@ const quickActions = [
     desc: "Too empty to speak? She'll know.",
     icon: Heart,
     bgColor: "bg-rose-700",
+  },
+  {
+    href: "/bloom",
+    title: "Bloom Studio",
+    desc: "Paint, collage, and transform memories into stickers.",
+    icon: WandSparkles,
+    bgColor: "bg-pink-600",
   },
 ];
