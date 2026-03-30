@@ -156,7 +156,7 @@ export default function DailyPage() {
           {!saved && <span />}
           <button
             onClick={handleSave}
-            disabled={!myAnswer.trim() || saving}
+            disabled={!question || !myAnswer.trim() || saving}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-purple-600 text-white text-sm hover:bg-purple-500 disabled:opacity-40 transition-all"
           >
             {saving ? (
