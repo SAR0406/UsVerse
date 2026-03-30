@@ -279,6 +279,7 @@ export default function CinemaPage() {
               maxLength={200}
               onChange={(event) => setMySentence(event.target.value)}
               disabled={sentencesLocked}
+              aria-label="Your afterglow sentence"
               placeholder="Your one sentence..."
               className="rounded-xl bg-white/5 border border-purple-500/30 p-3 text-sm outline-none focus:border-purple-400 min-h-24"
             />
@@ -287,6 +288,7 @@ export default function CinemaPage() {
               maxLength={200}
               onChange={(event) => setHerSentence(event.target.value)}
               disabled={sentencesLocked}
+              aria-label="Her afterglow sentence"
               placeholder="Her one sentence..."
               className="rounded-xl bg-white/5 border border-purple-500/30 p-3 text-sm outline-none focus:border-purple-400 min-h-24"
             />
