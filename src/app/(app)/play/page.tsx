@@ -25,7 +25,7 @@ const ARCADE_MACHINES: ArcadeMachine[] = [
     id: "eclipse",
     title: "Eclipse",
     machine: "Circular telescope",
-    concept: "Battle memory details and let your relationship constellation evolve.",
+    concept: "Test memory details and let your relationship constellation evolve.",
     emoji: "🔭",
   },
   {
@@ -51,12 +51,35 @@ const ARCADE_MACHINES: ArcadeMachine[] = [
   },
 ];
 
-const RECOMMENDED_GAME: GameId = "wavelength";
-const PARTNER_ACTIVE_GAME: GameId = "telepathy";
+const LAST_PLAYED_STORAGE_KEY = "usverse.play.lastPlayed";
+const DEFAULT_GAME: GameId = "wavelength";
+
+function isGameId(value: string): value is GameId {
+  return ARCADE_MACHINES.some((machine) => machine.id === value);
+}
+
+function getArcadeRhythm(now: Date): { recommendedGame: GameId; partnerActiveGame: GameId | null } {
+  const day = now.getDate();
+  const hour = now.getHours();
+  const recommendedGame = ARCADE_MACHINES[day % ARCADE_MACHINES.length]?.id ?? DEFAULT_GAME;
+  const activeMachine = ARCADE_MACHINES[(day + hour) % ARCADE_MACHINES.length]?.id ?? null;
+  return {
+    recommendedGame,
+    partnerActiveGame: activeMachine === recommendedGame ? null : activeMachine,
+  };
+}
 
 export default function PlayPage() {
-  const [selectedGame, setSelectedGame] = useState<GameId>(RECOMMENDED_GAME);
-  const [lastPlayed, setLastPlayed] = useState<GameId | null>(null);
+  const { recommendedGame, partnerActiveGame } = useMemo(
+    () => getArcadeRhythm(new Date()),
+    [],
+  );
+  const [selectedGame, setSelectedGame] = useState<GameId>(recommendedGame);
+  const [lastPlayed, setLastPlayed] = useState<GameId | null>(() => {
+    if (typeof window === "undefined") return null;
+    const stored = window.localStorage.getItem(LAST_PLAYED_STORAGE_KEY);
+    return stored && isGameId(stored) ? stored : null;
+  });
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
   useEffect(() => {
@@ -66,6 +89,11 @@ export default function PlayPage() {
     media.addEventListener("change", sync);
     return () => media.removeEventListener("change", sync);
   }, []);
+
+  useEffect(() => {
+    if (!lastPlayed) return;
+    window.localStorage.setItem(LAST_PLAYED_STORAGE_KEY, lastPlayed);
+  }, [lastPlayed]);
 
   const selectedMachine = useMemo(
     () => ARCADE_MACHINES.find((machine) => machine.id === selectedGame) ?? ARCADE_MACHINES[0],
@@ -87,8 +115,8 @@ export default function PlayPage() {
 
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {ARCADE_MACHINES.map((machine, index) => {
-          const isRecommended = machine.id === RECOMMENDED_GAME;
-          const isPartnerActive = machine.id === PARTNER_ACTIVE_GAME;
+          const isRecommended = machine.id === recommendedGame;
+          const isPartnerActive = machine.id === partnerActiveGame;
           const isLastPlayed = machine.id === lastPlayed;
           const isSelected = machine.id === selectedGame;
           return (
