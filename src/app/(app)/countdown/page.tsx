@@ -243,6 +243,11 @@ export default function CountdownPage() {
                     key={`flip-${meetDays ?? "none"}`}
                     className="countdown-flip-digit countdown-flip-in countdown-glow-gold"
                     aria-live="polite"
+                    aria-label={
+                      isToday
+                        ? "Days until we are in the same place again: today"
+                        : `Days until we are in the same place again: ${meetDays ?? "unknown"}`
+                    }
                   >
                     {isToday ? "TODAY!" : String(meetDays ?? "—")}
                   </div>

@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  /* Font stacks are system/declarative fallbacks until managed via next/font */
+  /* Preferred font-family names with graceful platform fallbacks */
   --font-accent: "Caveat", cursive;
   --color-blossom: #ff6b9d;
   --color-peach: #ffab76;

@@ -344,7 +344,7 @@ export default function PresencePage() {
           onClick={() => setSilentMenuOpen((prev) => !prev)}
           className="w-[3.25rem] h-[3.25rem] rounded-full border border-[color:var(--border)] bg-[color:var(--card)]/85 text-2xl text-[color:var(--foreground)] shadow-lg hover:scale-105 active:scale-95 transition-transform"
           aria-expanded={silentMenuOpen}
-          aria-label="Open silent mode"
+          aria-label={silentMenuOpen ? "Close silent mode" : "Open silent mode"}
         >
           …
         </button>
