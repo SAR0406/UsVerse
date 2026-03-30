@@ -9,6 +9,7 @@ import {
   Timer,
   Sparkles,
   WandSparkles,
+  Gamepad2,
   ArrowRight,
 } from "lucide-react";
 
@@ -150,5 +151,12 @@ const quickActions = [
     desc: "Paint, collage, and transform memories into stickers.",
     icon: WandSparkles,
     bgColor: "bg-pink-600",
+  },
+  {
+    href: "/play",
+    title: "The Arcade",
+    desc: "Step into your miniature game world and play together.",
+    icon: Gamepad2,
+    bgColor: "bg-purple-700",
   },
 ];
