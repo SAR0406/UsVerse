@@ -110,7 +110,7 @@ export default function ChatPage() {
         setLoading(false);
       }
     }
-    void init();
+    init();
   }, [supabase, loadCoupleAndMessages]);
 
   useEffect(() => {
