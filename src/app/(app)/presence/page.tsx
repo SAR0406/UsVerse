@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Heart, Stars } from "lucide-react";
+import { Heart, Zap } from "lucide-react";
 import type { PresenceEvent } from "@/types/database";
 import { formatDistanceToNow } from "date-fns";
 
@@ -19,45 +19,55 @@ const presenceActions: {
     type: "thinking_of_you",
     emoji: "💭",
     label: "Thinking of you",
-    color: "from-purple-600 to-violet-500",
+    color: "from-violet-500 to-purple-600",
     partnerMessage: "is thinking of you 💭",
   },
   {
     type: "heartbeat",
     emoji: "💓",
     label: "Send heartbeat",
-    color: "from-pink-600 to-rose-500",
+    color: "from-rose-500 to-pink-600",
     partnerMessage: "sent you a heartbeat 💓",
   },
   {
     type: "missing_you",
     emoji: "🥺",
     label: "Missing you",
-    color: "from-indigo-600 to-blue-500",
+    color: "from-blue-500 to-indigo-600",
     partnerMessage: "is missing you so much 🥺",
   },
   {
     type: "studying",
     emoji: "📚",
     label: "I'm studying",
-    color: "from-emerald-600 to-teal-500",
+    color: "from-emerald-500 to-teal-600",
     partnerMessage: "is studying 📚",
   },
   {
     type: "sleeping",
     emoji: "😴",
     label: "Going to sleep",
-    color: "from-slate-600 to-zinc-500",
+    color: "from-slate-500 to-zinc-600",
     partnerMessage: "is going to sleep 😴",
   },
   {
     type: "silent_mode",
     emoji: "💔",
     label: "I feel empty…",
-    color: "from-rose-700 to-pink-700",
+    color: "from-rose-700 to-red-700",
     partnerMessage: "feels empty and misses you but can't express it 💔",
   },
 ];
+
+const silentEmotions = [
+  { label: "Missing you",        emoji: "💔", color: "rgba(155, 109, 255, 0.88)" },
+  { label: "Thinking of you",    emoji: "💭", color: "rgba(96, 165, 250, 0.88)"  },
+  { label: "Proud of you",       emoji: "⭐", color: "rgba(251, 146, 60, 0.90)"  },
+  { label: "I love you",         emoji: "❤️", color: "rgba(244, 63, 94, 0.90)"  },
+  { label: "I'm here",           emoji: "🤍", color: "rgba(100, 116, 139, 0.85)" },
+  { label: "Hard day",           emoji: "🌧️", color: "rgba(71, 85, 105, 0.90)"  },
+  { label: "Wish you were here", emoji: "🌙", color: "rgba(45, 22, 84, 0.92)"   },
+] as const;
 
 export default function PresencePage() {
   const supabase = createClient();
@@ -73,9 +83,7 @@ export default function PresencePage() {
   const [selectedSilentEmotion, setSelectedSilentEmotion] = useState<
     (typeof silentEmotions)[number] | null
   >(null);
-  const [incomingSilentMessage, setIncomingSilentMessage] = useState<string | null>(
-    null
-  );
+  const [incomingSilentMessage, setIncomingSilentMessage] = useState<string | null>(null);
   const [sendingHeartBack, setSendingHeartBack] = useState(false);
   const [silentError, setSilentError] = useState<string | null>(null);
 
@@ -93,18 +101,14 @@ export default function PresencePage() {
 
   useEffect(() => {
     async function init() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       setUserId(user.id);
 
       const res = await fetch("/api/couple");
       const json = (await res.json()) as { data?: { couple: { id: string } | null } };
-      const coupleData = json.data;
-
-      if (coupleData?.couple?.id) {
-        setCoupleId(coupleData.couple.id);
+      if (json.data?.couple?.id) {
+        setCoupleId(json.data.couple.id);
         await loadEvents();
       }
       setLoading(false);
@@ -133,12 +137,10 @@ export default function PresencePage() {
             setIncomingSilentMessage(event.message ?? "Your partner is here with you 🤍");
           }
           setRecentEvents((prev) => [event, ...prev].slice(0, 20));
-        }
+        },
       )
       .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [coupleId, userId, supabase, triggerVibration]);
 
   async function sendPresence(type: EventType) {
@@ -157,9 +159,7 @@ export default function PresencePage() {
     setSending(null);
   }
 
-  async function sendSilentEmotion(
-    emotion: (typeof silentEmotions)[number]
-  ) {
+  async function sendSilentEmotion(emotion: (typeof silentEmotions)[number]) {
     setSelectedSilentEmotion(emotion);
     setSilentSending(true);
     setSilentError(null);
@@ -208,117 +208,145 @@ export default function PresencePage() {
   }
 
   const getEventLabel = (event: PresenceEvent) => {
+    if (event.event_type === "silent_mode" && event.message) return event.message;
     const action = presenceActions.find((a) => a.type === event.event_type);
     return action ? action.partnerMessage : event.event_type;
   };
 
   const isMyEvent = (event: PresenceEvent) => event.user_id === userId;
 
-  if (loading)
+  if (loading) {
     return (
-      <div className="flex items-center justify-center h-full p-20">
-        <div className="w-8 h-8 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
+      <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+        <div className="w-10 h-10 border-2 border-purple-500/20 border-t-purple-500 rounded-full animate-spin" />
       </div>
     );
+  }
+
+  const lastSentAction = presenceActions.find((a) => a.type === lastSent);
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
+    <div className="max-w-lg mx-auto px-4 py-6 pb-36 md:pb-10">
+      {/* ── Page header ── */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white mb-1">
-          Presence & Touch 💓
+        <h1 className="text-2xl font-bold text-[color:var(--foreground)] mb-1 flex items-center gap-2">
+          Presence{" "}
+          <span className="inline-block animate-heartbeat">💓</span>
         </h1>
-        <p className="text-purple-300/50 text-sm">
+        <p className="text-[color:var(--text-whisper)] text-sm">
           No words needed. Let your feeling do the talking.
         </p>
       </div>
 
-      {/* Heartbeat visual */}
-      <div
-        className={`flex justify-center mb-10 transition-all ${vibrating ? "scale-125" : ""}`}
-      >
-        <div
-          className={`w-28 h-28 rounded-full bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center shadow-2xl ${
-            lastSent === "heartbeat" ? "animate-pulse-glow animate-heartbeat" : "animate-pulse-glow"
-          }`}
-        >
-          <Heart
-            className={`w-14 h-14 text-white ${
-              vibrating ? "animate-heartbeat" : ""
+      {/* ── Multi-ring heartbeat hero ── */}
+      <div className="flex justify-center mb-10">
+        <div className={`relative flex items-center justify-center ${vibrating ? "animate-heartbeat" : ""}`}>
+          {/* Pulsing rings */}
+          <div className="absolute w-28 h-28 rounded-full border border-pink-400/30 animate-ring-1" />
+          <div className="absolute w-28 h-28 rounded-full border border-pink-400/25 animate-ring-2" />
+          <div className="absolute w-28 h-28 rounded-full border border-pink-400/20 animate-ring-3" />
+          {/* Center orb */}
+          <div
+            className={`relative z-10 w-28 h-28 rounded-full flex items-center justify-center shadow-2xl transition-all duration-300 ${
+              lastSent === "heartbeat"
+                ? "bg-gradient-to-br from-rose-500 to-pink-600 animate-heartbeat"
+                : "bg-gradient-to-br from-purple-600 to-pink-500 animate-pulse-glow"
             }`}
-            fill={vibrating ? "white" : "none"}
-          />
+          >
+            <Heart
+              className="w-14 h-14 text-white"
+              fill={vibrating || lastSent === "heartbeat" ? "white" : "none"}
+            />
+          </div>
         </div>
       </div>
 
-      {/* Presence buttons */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-        {presenceActions.map((action) => (
-          <button
-            key={action.type}
-            onClick={() => sendPresence(action.type)}
-            disabled={!!sending}
-            className={`glass-card p-4 flex flex-col items-center gap-2 hover:border-purple-500/40 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 ${
-              lastSent === action.type
-                ? "border-purple-500/60 bg-purple-500/10"
-                : ""
-            }`}
-          >
-            <span className="text-3xl">
-              {sending === action.type ? (
-                <span className="inline-block w-8 h-8 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
-              ) : (
-                action.emoji
-              )}
-            </span>
-            <span className="text-xs font-medium text-purple-200/70">
-              {action.label}
-            </span>
-          </button>
-        ))}
+      {/* ── Presence action cards ── */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
+        {presenceActions.map((action) => {
+          const isThisLastSent = lastSent === action.type;
+          const isSending = sending === action.type;
+          return (
+            <button
+              key={action.type}
+              onClick={() => void sendPresence(action.type)}
+              disabled={!!sending}
+              className={`relative overflow-hidden rounded-2xl border transition-all duration-200 hover:-translate-y-1 hover:shadow-xl active:scale-95 disabled:opacity-50 ${
+                isThisLastSent
+                  ? "border-purple-400/50 shadow-lg shadow-purple-500/15"
+                  : "border-[color:var(--border)] hover:border-purple-500/40"
+              }`}
+              style={{
+                background: "color-mix(in oklab, var(--card) 88%, transparent)",
+              }}
+            >
+              {/* Gradient accent strip */}
+              <div className={`h-1 w-full bg-gradient-to-r ${action.color}`} />
+              <div className="p-4 flex flex-col items-center gap-2">
+                <span className="text-3xl leading-none">
+                  {isSending ? (
+                    <span className="block w-8 h-8 border-2 border-purple-500/30 border-t-purple-500 rounded-full animate-spin" />
+                  ) : isThisLastSent ? (
+                    "✅"
+                  ) : (
+                    action.emoji
+                  )}
+                </span>
+                <span className="text-xs font-medium text-[color:var(--text-soft)] text-center leading-tight">
+                  {action.label}
+                </span>
+              </div>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Confirmation message */}
-      {lastSent && (
-        <div className="mb-6 p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-center text-purple-300 text-sm">
-          ✨ Sent! She feels it now.
+      {/* ── Sent confirmation toast ── */}
+      {lastSent && lastSentAction && (
+        <div className="mb-5 px-4 py-3 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-center text-sm animate-slide-up-fade">
+          <span className="text-[color:var(--foreground)]">
+            ✨ Sent! {lastSentAction.label} {lastSentAction.emoji}
+          </span>
         </div>
       )}
 
-      {/* Recent presence events */}
-      <div>
-        <h2 className="text-sm font-medium text-purple-400/60 mb-3 uppercase tracking-wider">
+      {/* ── Recent events timeline ── */}
+      <div className="mb-6">
+        <h2 className="text-xs font-semibold text-[color:var(--text-whisper)] uppercase tracking-widest mb-3">
           Recent Moments
         </h2>
         {recentEvents.length === 0 ? (
-          <div className="text-center py-8 text-purple-400/30 text-sm">
-            No moments yet. Send your first feeling ✨
+          <div className="text-center py-10">
+            <div className="text-4xl mb-3">💫</div>
+            <p className="text-[color:var(--text-whisper)] text-sm">
+              No moments yet. Send your first feeling ✨
+            </p>
           </div>
         ) : (
           <div className="space-y-2">
             {recentEvents.map((event) => {
-              const action = presenceActions.find(
-                (a) => a.type === event.event_type
-              );
+              const action = presenceActions.find((a) => a.type === event.event_type);
+              const isMine = isMyEvent(event);
               return (
                 <div
                   key={event.id}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm ${
-                    isMyEvent(event)
-                      ? "bg-purple-600/10 border border-purple-500/20"
+                  className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm ${
+                    isMine
+                      ? "bg-purple-600/10 border border-purple-500/15"
                       : "glass-card"
                   }`}
                 >
-                  <span className="text-xl">{action?.emoji ?? "💫"}</span>
+                  <span className="text-xl flex-shrink-0">{action?.emoji ?? "💫"}</span>
                   <div className="flex-1 min-w-0">
-                    <span className="text-purple-200/80">
-                      {isMyEvent(event) ? "You" : "They"}{" "}
+                    <span className="text-[color:var(--text-soft)]">
+                      <span className="font-semibold text-[color:var(--foreground)]">
+                        {isMine ? "You" : "They"}
+                      </span>{" "}
                       {getEventLabel(event)}
                     </span>
                   </div>
-                  <span className="text-purple-400/30 text-xs shrink-0">
-                    {formatDistanceToNow(new Date(event.created_at), {
-                      addSuffix: true,
-                    })}
+                  <span className="text-[color:var(--text-whisper)] text-xs flex-shrink-0">
+                    {formatDistanceToNow(new Date(event.created_at), { addSuffix: true })}
                   </span>
                 </div>
               );
@@ -327,73 +355,96 @@ export default function PresencePage() {
         )}
       </div>
 
-      {/* Virtual Touch info */}
-      <div className="mt-8 glass-card p-5">
-        <div className="flex items-center gap-2 mb-3">
-          <Stars className="w-4 h-4 text-purple-400" />
-          <h3 className="text-sm font-medium text-purple-300">Virtual Touch</h3>
+      {/* ── Info cards ── */}
+      <div className="space-y-3">
+        <div className="glass-card p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Zap className="w-4 h-4 text-amber-400" />
+            <span className="text-sm font-medium text-[color:var(--foreground)]">Virtual Touch</span>
+          </div>
+          <p className="text-xs text-[color:var(--text-whisper)] leading-relaxed">
+            When you tap &quot;Send heartbeat&quot;, their phone will feel it.
+            Physical affection, digital distance — bridged. 💓
+          </p>
         </div>
-        <p className="text-xs text-purple-300/50 leading-relaxed">
-          When you tap &quot;Send heartbeat&quot;, her phone will feel it.
-          Physical affection, digital distance — bridged. 💓
-        </p>
-      </div>
-      <div className="mt-4 glass-card p-4 border-l-2 border-rose-500/40">
-        <p className="text-xs text-purple-400/60">
-          💬 <strong>Stuck in silence?</strong> Tap the 💔 button to send a feeling when words are hard.
-        </p>
+        <div className="glass-card p-4 border-l-2 border-rose-500/40">
+          <p className="text-xs text-[color:var(--text-whisper)]">
+            💬{" "}
+            <span className="font-semibold text-[color:var(--text-soft)]">
+              Stuck in silence?
+            </span>{" "}
+            Tap the 💔 button below to send a feeling when words are hard.
+          </p>
+        </div>
       </div>
 
-      <div className="fixed bottom-24 md:bottom-8 right-6 z-30">
+      {/* ── FAB: silent mode trigger ── */}
+      <div className="fixed bottom-24 md:bottom-8 right-5 z-30">
+        {/* Emotion picker menu */}
+        {silentMenuOpen && (
+          <div className="absolute bottom-16 right-0 flex flex-col items-end gap-2 animate-slide-up-fade">
+            {silentEmotions.map((emotion) => (
+              <button
+                key={emotion.label}
+                onClick={() => void sendSilentEmotion(emotion)}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-full text-xs text-white font-medium border border-white/10 shadow-lg hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
+                style={{ background: emotion.color }}
+                aria-label={`Send silent emotion: ${emotion.label}`}
+              >
+                <span>{emotion.emoji}</span>
+                <span>{emotion.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* FAB button */}
         <button
           onClick={() => setSilentMenuOpen((prev) => !prev)}
-          className="w-[3.25rem] h-[3.25rem] rounded-full border border-[color:var(--border)] bg-[color:var(--card)]/85 text-2xl text-rose-400 shadow-lg hover:scale-110 active:scale-95 transition-transform"
+          className={`relative w-14 h-14 rounded-full border flex items-center justify-center text-2xl shadow-xl transition-all duration-200 hover:scale-110 active:scale-95 ${
+            silentMenuOpen
+              ? "bg-rose-500/30 border-rose-500/50 rotate-[20deg]"
+              : "bg-[color:var(--card)]/90 backdrop-blur-sm border-[color:var(--border)]"
+          }`}
           aria-expanded={silentMenuOpen}
           aria-label="Toggle silent mode menu"
           aria-controls="silent-mode-menu"
           title="When words fail 💔"
         >
           💔
+          {/* Beacon pulse dot */}
+          {!silentMenuOpen && (
+            <>
+              <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-rose-500 rounded-full animate-beacon" />
+              <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-rose-500 rounded-full" />
+            </>
+          )}
         </button>
       </div>
 
-      {silentMenuOpen && (
-        <div
-          id="silent-mode-menu"
-          className="fixed bottom-40 right-6 z-30 flex flex-col items-end gap-2"
-        >
-          {silentEmotions.map((emotion) => (
-            <button
-              key={emotion.label}
-              onClick={() => sendSilentEmotion(emotion)}
-              className="px-3 py-2 rounded-full text-xs border border-white/15 text-white transition-transform hover:scale-105"
-              style={{ background: emotion.color }}
-              aria-label={`Send silent emotion: ${emotion.label}`}
-            >
-              {emotion.emoji} {emotion.label}
-            </button>
-          ))}
-        </div>
-      )}
-
       {silentError && (
-        <div className="fixed bottom-[7.5rem] right-6 z-30 rounded-xl border border-rose-400/40 bg-rose-500/15 px-3 py-2 text-xs text-rose-200">
+        <div className="fixed bottom-[8.5rem] right-5 z-30 rounded-2xl border border-rose-400/40 bg-rose-500/15 px-3 py-2 text-xs text-rose-200 max-w-[200px]">
           {silentError}
         </div>
       )}
 
+      {/* ── Floating emoji while sending ── */}
       {silentSending && selectedSilentEmotion && (
-        <div className="fixed inset-0 z-40 pointer-events-none flex items-end justify-center pb-24">
-          <div className="text-5xl animate-float">{selectedSilentEmotion.emoji}</div>
+        <div className="fixed inset-0 z-40 pointer-events-none flex items-end justify-center pb-28">
+          <div className="text-6xl animate-float">{selectedSilentEmotion.emoji}</div>
         </div>
       )}
 
+      {/* ── Incoming silent message modal ── */}
       {incomingSilentMessage && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-[color:var(--background)]/80 backdrop-blur-sm p-6">
-          <div className="glass-card max-w-sm w-full p-6 text-center">
-            <div className="text-5xl mb-3">🥺</div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[color:var(--background)]/85 backdrop-blur-md p-6">
+          <div className="glass-card max-w-sm w-full p-8 text-center animate-slide-up-fade">
+            <div className="text-6xl mb-4 animate-float">🥺</div>
+            <p className="text-[color:var(--text-whisper)] text-xs uppercase tracking-widest mb-3">
+              A silent message from your partner
+            </p>
             <p
-              className="text-3xl leading-tight mb-5"
+              className="text-2xl leading-tight text-[color:var(--foreground)] mb-7"
               style={{ fontFamily: "var(--font-accent), cursive" }}
             >
               {incomingSilentMessage}
@@ -401,9 +452,15 @@ export default function PresencePage() {
             <button
               onClick={sendHeartResponse}
               disabled={sendingHeartBack}
-              className="px-4 py-2 rounded-full bg-[color:var(--color-blossom)] text-white text-sm hover:opacity-90 disabled:opacity-50"
+              className="px-8 py-3 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 text-white text-sm font-semibold hover:opacity-90 disabled:opacity-50 transition-all animate-pulse-glow shadow-lg shadow-pink-500/25"
             >
               {sendingHeartBack ? "Sending…" : "Send one heart 💕"}
+            </button>
+            <button
+              onClick={() => setIncomingSilentMessage(null)}
+              className="block mx-auto mt-3 text-xs text-[color:var(--text-whisper)] hover:text-[color:var(--text-soft)] transition-colors"
+            >
+              Dismiss
             </button>
           </div>
         </div>
@@ -411,13 +468,3 @@ export default function PresencePage() {
     </div>
   );
 }
-
-const silentEmotions = [
-  { label: "Missing you", emoji: "💔", color: "rgba(155, 109, 255, 0.85)" },
-  { label: "Thinking of you", emoji: "💭", color: "rgba(184, 227, 255, 0.82)" },
-  { label: "Proud of you", emoji: "⭐", color: "rgba(255, 171, 118, 0.9)" },
-  { label: "I love you", emoji: "❤️", color: "rgba(255, 107, 157, 0.9)" },
-  { label: "I'm here", emoji: "🤍", color: "rgba(255, 255, 255, 0.25)" },
-  { label: "Hard day", emoji: "🌧️", color: "rgba(123, 146, 170, 0.88)" },
-  { label: "Wish you were here", emoji: "🌙", color: "rgba(45, 22, 84, 0.9)" },
-] as const;
