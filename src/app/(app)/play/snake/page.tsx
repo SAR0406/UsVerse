@@ -5,6 +5,7 @@ import { Camera, Gamepad2, Heart, Home, RefreshCw, Smartphone, Trophy } from "lu
 
 type Cell = { x: number; y: number };
 type MatchState = "waiting" | "playing" | "finished";
+type RewardItem = { id: string; score: number; reward: string; when: string };
 
 const GRID = 14;
 const START_A: Cell = { x: 3, y: 7 };
@@ -40,16 +41,29 @@ function rewardLabel(score: number): string {
   return "Start with a hug and play again";
 }
 
+function createRewardId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
 export default function SnakeLoveNestPage() {
-  const [rewardHistory, setRewardHistory] = useState<Array<{ score: number; reward: string; when: string }>>(
-    () => {
+  const [rewardHistory, setRewardHistory] = useState<RewardItem[]>(() => {
       if (typeof window === "undefined") return [];
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (!raw) return [];
       try {
-        const parsed = JSON.parse(raw) as Array<{ score: number; reward: string; when: string }>;
-        return Array.isArray(parsed) ? parsed.slice(0, 6) : [];
-      } catch {
+        const parsed = JSON.parse(raw) as Array<{ id?: string | number; score: number; reward: string; when: string }>;
+        if (!Array.isArray(parsed)) return [];
+        return parsed.slice(0, 6).map((item) => ({
+          id: typeof item.id === "string" ? item.id : createRewardId(),
+          score: item.score,
+          reward: item.reward,
+          when: item.when,
+        }));
+      } catch (error) {
+        console.warn("Unable to restore reward history from localStorage.", error);
         return [];
       }
     },
@@ -63,7 +77,6 @@ export default function SnakeLoveNestPage() {
   const [matchState, setMatchState] = useState<MatchState>("waiting");
   const [sensorEnabled, setSensorEnabled] = useState(false);
   const [sensorDirection, setSensorDirection] = useState<{ dx: number; dy: number }>({ dx: 1, dy: 0 });
-  const [cameraOn, setCameraOn] = useState(false);
   const partnerARef = useRef(partnerA);
   const partnerBRef = useRef(partnerB);
   const heartRef = useRef(heart);
@@ -152,7 +165,12 @@ export default function SnakeLoveNestPage() {
 
       if (sameCell(nextA, nextB)) {
         const reward = rewardLabel(scoreRef.current);
-        const item = { score: scoreRef.current, reward, when: new Date().toLocaleString() };
+        const item = {
+          id: createRewardId(),
+          score: scoreRef.current,
+          reward,
+          when: new Date().toLocaleString(),
+        };
         setRewardHistory((current) => [item, ...current].slice(0, 6));
         setMatchState("finished");
         matchStateRef.current = "finished";
@@ -212,7 +230,10 @@ export default function SnakeLoveNestPage() {
             <div className="text-sm text-purple-200/80">Round {round}</div>
             <div className="text-sm text-pink-200">Score: {score}</div>
           </div>
-          <div className="grid grid-cols-14 gap-1 bg-black/20 p-3 rounded-2xl">
+          <div
+            className="grid gap-1 bg-black/20 p-3 rounded-2xl"
+            style={{ gridTemplateColumns: "repeat(14, minmax(0, 1fr))" }}
+          >
             {board.map(({ cell, kind }) => (
               <div
                 key={`${cell.x}-${cell.y}`}
@@ -283,8 +304,8 @@ export default function SnakeLoveNestPage() {
               {rewardHistory.length === 0 ? (
                 <li className="text-purple-300/60">No completed rounds yet.</li>
               ) : (
-                rewardHistory.map((item, index) => (
-                  <li key={`${item.when}-${index}`} className="rounded-xl bg-white/5 px-3 py-2">
+                rewardHistory.map((item) => (
+                  <li key={item.id} className="rounded-xl bg-white/5 px-3 py-2">
                     {item.when} — Score {item.score}: {item.reward}
                   </li>
                 ))
@@ -316,11 +337,11 @@ export default function SnakeLoveNestPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setCameraOn((value) => !value)}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 font-medium bg-amber-500/60 hover:bg-amber-500/80 transition-colors"
+                disabled
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 font-medium bg-zinc-700/50 text-zinc-300 cursor-not-allowed"
               >
                 <Camera className="w-4 h-4" />
-                {cameraOn ? "Camera vibe mode on (placeholder)" : "Enable camera vibe mode"}
+                Camera vibe mode (coming soon)
               </button>
               <p className="text-xs text-purple-300/70">
                 Camera/AR are shown as a safe placeholder here so gameplay stays stable without requiring
