@@ -167,25 +167,26 @@ export default function PlayPage() {
           <Heart className="w-4 h-4" />
           New couple mode
         </div>
-        <h2 className="text-xl font-semibold text-white">Snake + Love Nest Co-op</h2>
+        <h2 className="text-xl font-semibold text-white">Choose your couple mode</h2>
         <p className="text-sm text-purple-200/80 mt-2">
-          A multiplayer page for two people on desktop or mobile with romantic co-op, sensor play,
-          and real-life rewards tracking.
+          Pick between fast romantic Snake rounds and the shared house-life Love Nest experience.
         </p>
-        <Link
-          href="/play/snake"
-          className="mt-4 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium bg-pink-500/70 hover:bg-pink-500/90 transition-colors"
-        >
-          <Gamepad2 className="w-4 h-4" />
-          Open /play/snake
-        </Link>
-        <Link
-          href="/play/love-nest"
-          className="mt-3 ml-3 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium bg-indigo-500/60 hover:bg-indigo-500/80 transition-colors"
-        >
-          <Home className="w-4 h-4" />
-          Open /play/love-nest
-        </Link>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Link
+            href="/play/snake"
+            className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium bg-pink-500/70 hover:bg-pink-500/90 transition-colors"
+          >
+            <Gamepad2 className="w-4 h-4" />
+            Open /play/snake
+          </Link>
+          <Link
+            href="/play/love-nest"
+            className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium bg-indigo-500/60 hover:bg-indigo-500/80 transition-colors"
+          >
+            <Home className="w-4 h-4" />
+            Open /play/love-nest
+          </Link>
+        </div>
       </section>
 
       <section className="glass-card p-6">

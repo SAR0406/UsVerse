@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Heart, Home, Sparkles, Smartphone, Trophy, Users } from "lucide-react";
 
 type Room = "kitchen" | "living" | "garden";
@@ -45,6 +45,7 @@ export default function LoveNestPage() {
   });
   const [partnerOnline, setPartnerOnline] = useState(false);
   const [sensorBoost, setSensorBoost] = useState(false);
+  const partnerOnlineTimeoutRef = useRef<number | null>(null);
   const sensorSupported = useMemo(
     () =>
       typeof window !== "undefined" &&
@@ -59,15 +60,24 @@ export default function LoveNestPage() {
 
   useEffect(() => {
     if (!sensorBoost) return;
-    const onMotion = (event: DeviceOrientationEvent) => {
+    const onOrientation = (event: DeviceOrientationEvent) => {
       const gamma = Math.abs(event.gamma ?? 0);
       const beta = Math.abs(event.beta ?? 0);
       if (gamma > 20 || beta > 20) {
         setPartnerOnline(true);
+        if (partnerOnlineTimeoutRef.current) {
+          window.clearTimeout(partnerOnlineTimeoutRef.current);
+        }
+        partnerOnlineTimeoutRef.current = window.setTimeout(() => setPartnerOnline(false), 7000);
       }
     };
-    window.addEventListener("deviceorientation", onMotion);
-    return () => window.removeEventListener("deviceorientation", onMotion);
+    window.addEventListener("deviceorientation", onOrientation);
+    return () => {
+      window.removeEventListener("deviceorientation", onOrientation);
+      if (partnerOnlineTimeoutRef.current) {
+        window.clearTimeout(partnerOnlineTimeoutRef.current);
+      }
+    };
   }, [sensorBoost]);
 
   const roomTasks = TASKS.filter((task) => task.room === selectedRoom);

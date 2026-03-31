@@ -54,7 +54,7 @@ export default function SnakeLoveNestPage() {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (!raw) return [];
       try {
-        const parsed = JSON.parse(raw) as Array<{ id?: string | number; score: number; reward: string; when: string }>;
+        const parsed = JSON.parse(raw) as Array<{ id?: string; score: number; reward: string; when: string }>;
         if (!Array.isArray(parsed)) return [];
         return parsed.slice(0, 6).map((item) => ({
           id: typeof item.id === "string" ? item.id : createRewardId(),
@@ -279,7 +279,7 @@ export default function SnakeLoveNestPage() {
           </div>
           <p className="mt-3 text-xs text-purple-200/70">
             Controls: Partner A uses phone tilt when sensor mode is on (or auto-glide if off). Partner B
-            glides opposite to create co-op tension.
+            auto-glides left across the board to create co-op tension.
           </p>
         </div>
 
