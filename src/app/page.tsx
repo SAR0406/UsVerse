@@ -48,8 +48,14 @@ export default function LandingPage() {
     <main className="min-h-screen px-4 py-8 md:px-8 md:py-12">
       <div className="mx-auto max-w-6xl space-y-6 md:space-y-8">
         <section className="glass-card relative overflow-hidden p-6 md:p-10">
-          <div className="pointer-events-none absolute -left-20 -top-20 h-52 w-52 rounded-full bg-[var(--accent-glow)] blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-24 -right-16 h-52 w-52 rounded-full bg-[color-mix(in_oklab,var(--color-sky-blush)_35%,transparent)] blur-3xl" />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -left-20 -top-20 h-52 w-52 rounded-full bg-[var(--accent-glow)] blur-3xl"
+          />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -bottom-24 -right-16 h-52 w-52 rounded-full bg-[color-mix(in_oklab,var(--color-sky-blush)_35%,transparent)] blur-3xl"
+          />
           <div className="grid items-center gap-8 lg:grid-cols-[1.2fr_0.8fr]">
             <div className="space-y-5">
               <Pill className="border border-[var(--border)] text-[var(--text-soft)]">
@@ -154,7 +160,7 @@ function Card({
 }) {
   return (
     <div
-      className={`rounded-3xl border border-[var(--border)] bg-[color-mix(in_oklab,var(--card)_88%,var(--color-butter)_12%)] p-5 shadow-[0_10px_30px_rgba(0,0,0,0.12)] ${className}`}
+      className={`min-h-[184px] rounded-3xl border border-[var(--border)] bg-[color-mix(in_oklab,var(--card)_88%,var(--color-butter)_12%)] p-5 shadow-lg ${className}`}
     >
       {children}
     </div>
@@ -170,7 +176,7 @@ function Pill({
 }) {
   return (
     <div
-      className={`inline-flex rounded-full px-4 py-2 text-[11px] font-semibold leading-none tracking-[0.16em] uppercase ${className ?? ""}`}
+      className={`inline-flex min-w-[120px] justify-center rounded-full px-4 py-2 text-center text-xs font-semibold leading-none tracking-wide ${className ?? ""}`}
     >
       {children}
     </div>
