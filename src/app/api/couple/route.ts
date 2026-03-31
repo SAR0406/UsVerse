@@ -131,26 +131,28 @@ export async function POST(req: NextRequest) {
     }
 
     // ── join ───────────────────────────────────────────────────────────────
-    //
-    // Allow joining even when the caller already has an *incomplete* solo
-    // couple (user2 = null and they are user1).  This is the common case
-    // where the frontend auto-created a placeholder couple on first visit.
-    // We atomically abandon that placeholder before completing the join.
+    // Keep join flow tolerant to stale profile state and race-safe:
+    // 1) allow abandoning only an incomplete solo couple
+    // 2) join target only if user2_id is still null
 
     let soloToDelete: string | null = null;
 
     if (coupleId) {
-      const { data: existing } = await db
+      const { data: existing, error: existingErr } = await db
         .from("couples")
         .select("id, user1_id, user2_id")
         .eq("id", coupleId)
-        .single();
+        .maybeSingle();
 
-      if (existing?.user1_id === userId && existing.user2_id === null) {
-        // Caller owns an incomplete solo couple — safe to abandon
-        soloToDelete = existing.id;
+      if (!existingErr && existing) {
+        if (existing.user1_id === userId && existing.user2_id === null) {
+          soloToDelete = existing.id;
+        } else {
+          throw new ConflictError("You are already in a couple");
+        }
       } else {
-        throw new ConflictError("You are already in a couple");
+        // Profile points to a stale couple reference; clear and continue join.
+        await db.from("profiles").update({ couple_id: null }).eq("id", userId);
       }
     }
 
@@ -161,8 +163,10 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (findErr || !target) throw new NotFoundError("Invite code");
-    if (target.user2_id)    throw new ConflictError("This couple already has two members");
-    if (target.user1_id === userId) throw new ForbiddenError("You cannot join your own couple link");
+    if (target.user2_id) throw new ConflictError("This couple already has two members");
+    if (target.user1_id === userId || target.id === soloToDelete) {
+      throw new ForbiddenError("You cannot join your own couple link");
+    }
 
     // Delete the caller's solo placeholder (if any) before linking
     if (soloToDelete) {
@@ -173,12 +177,16 @@ export async function POST(req: NextRequest) {
       if (delErr) throw delErr;
     }
 
-    const { error: updateErr } = await db
+    const { data: joined, error: updateErr } = await db
       .from("couples")
       .update({ user2_id: userId })
-      .eq("id", target.id);
+      .eq("id", target.id)
+      .is("user2_id", null)
+      .select("id")
+      .maybeSingle();
 
     if (updateErr) throw updateErr;
+    if (!joined) throw new ConflictError("This couple already has two members");
 
     await db.from("profiles").upsert({ id: userId, couple_id: target.id });
 
