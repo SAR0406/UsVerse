@@ -12,6 +12,7 @@ type ArcadeMachine = {
   machine: string;
   concept: string;
   emoji: string;
+  href?: string;
 };
 
 const ARCADE_MACHINES: ArcadeMachine[] = [
@@ -49,6 +50,7 @@ const ARCADE_MACHINES: ArcadeMachine[] = [
     machine: "Retro arcade cabinet",
     concept: "Tilt together to move one shared ball into a target you can't solve alone.",
     emoji: "🕹️",
+    href: "/play/gravity",
   },
 ];
 
@@ -150,6 +152,17 @@ export default function PlayPage() {
               <h2 className="text-white font-semibold">{machine.title}</h2>
               <p className="text-xs text-purple-200/60 mt-1">{machine.machine}</p>
               <p className="text-xs text-purple-300/60 leading-relaxed mt-3">{machine.concept}</p>
+
+              {machine.href ? (
+                <Link
+                  href={machine.href}
+                  onClick={(e) => e.stopPropagation()}
+                  className="mt-3 inline-flex items-center gap-1 text-[11px] text-purple-100 bg-purple-500/40 hover:bg-purple-500/60 px-2 py-1 rounded-full transition-colors"
+                >
+                  <Gamepad2 className="w-3 h-3" />
+                  Play now
+                </Link>
+              ) : null}
 
               {isPartnerActive ? (
                 <div className="mt-4 inline-flex items-center gap-1 text-[11px] text-pink-200 bg-pink-400/15 px-2 py-1 rounded-full">
