@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { vibrateHeartbeat } from "@/lib/haptics";
 import { Heart, Stars } from "lucide-react";
 import type { PresenceEvent } from "@/types/database";
 import { formatDistanceToNow } from "date-fns";
@@ -81,7 +82,7 @@ export default function PresencePage() {
 
   const triggerVibration = useCallback(() => {
     setVibrating(true);
-    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+    vibrateHeartbeat();
     setTimeout(() => setVibrating(false), 1500);
   }, []);
 
