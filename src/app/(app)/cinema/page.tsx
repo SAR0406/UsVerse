@@ -1,12 +1,42 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Clapperboard, Play, Pause, Radio, Wifi, Link2, MonitorPlay } from "lucide-react";
+import {
+  Clapperboard,
+  Link2,
+  MonitorPlay,
+  Pause,
+  Play,
+  Radio,
+  Sparkles,
+  Users,
+  Waves,
+  Wifi,
+  Zap,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import {
+  vibrateCelebrate,
+  vibrateHeartbeat,
+  vibrateHug,
+  vibratePress,
+  vibrateSuccess,
+  vibrateTap,
+} from "@/lib/haptics";
 
 type SyncAction = "play" | "pause" | "seek";
 type P2PStatus = "idle" | "connecting" | "connected" | "error";
 type P2PRole = "none" | "host" | "guest";
+type PlaybackSource = "none" | "youtube" | "direct";
+type CinemaChannelEvent =
+  | "cinema_sync"
+  | "cinema_signal"
+  | "cinema_presence"
+  | "cinema_ritual"
+  | "cinema_spark"
+  | "cinema_afterglow";
+type SparkKind = "heart" | "laugh" | "tear" | "star" | "shock" | "pulse";
+type SparkSide = "left" | "right";
 
 type CinemaSyncPayload = {
   senderId: string;
@@ -20,6 +50,81 @@ type SignalPayload = {
   kind: "offer" | "answer" | "ice";
   sdp?: RTCSessionDescriptionInit;
   candidate?: RTCIceCandidateInit;
+};
+
+type PresencePayload = {
+  senderId: string;
+  source: Exclude<PlaybackSource, "none">;
+  timestamp: number;
+  paused: boolean;
+  sentAt: number;
+};
+
+type RitualPayload = {
+  senderId: string;
+  source: Exclude<PlaybackSource, "none">;
+  startAt: number;
+};
+
+type SparkPayload = {
+  senderId: string;
+  kind: SparkKind;
+  xPercent: number;
+  at: number;
+};
+
+type AfterglowPayload = {
+  senderId: string;
+  sentence: string;
+};
+
+type BroadcastPayload =
+  | CinemaSyncPayload
+  | SignalPayload
+  | PresencePayload
+  | RitualPayload
+  | SparkPayload
+  | AfterglowPayload;
+
+type SparkParticle = {
+  id: string;
+  kind: SparkKind;
+  side: SparkSide;
+  xPercent: number;
+};
+
+type SparkLog = {
+  id: string;
+  kind: SparkKind;
+  side: SparkSide;
+  at: number;
+};
+
+type PlaybackSnapshot = {
+  source: PlaybackSource;
+  timestamp: number;
+  paused: boolean;
+};
+
+type GestureState = {
+  downAt: number;
+  downX: number;
+  downY: number;
+  swipeTriggered: boolean;
+  longTriggered: boolean;
+  lastTapAt: number;
+  longTimer: number | null;
+  tapTimer: number | null;
+  twoFingerTimer: number | null;
+};
+
+const SPARK_META: Record<SparkKind, { emoji: string; intensity: number; label: string }> = {
+  heart: { emoji: "💕", intensity: 2.2, label: "Heart pulse" },
+  laugh: { emoji: "😂", intensity: 2.8, label: "Laugh burst" },
+  tear: { emoji: "😭", intensity: 3.1, label: "Tear spark" },
+  star: { emoji: "🌟", intensity: 2.4, label: "Amazed star" },
+  shock: { emoji: "😱", intensity: 3.3, label: "Shock flash" },
+  pulse: { emoji: "🤍", intensity: 4.2, label: "Silent pulse" },
 };
 
 declare global {
@@ -38,6 +143,7 @@ declare global {
       ) => {
         destroy: () => void;
         getCurrentTime: () => number;
+        getPlayerState: () => number;
         playVideo: () => void;
         pauseVideo: () => void;
         seekTo: (seconds: number, allowSeekAhead: boolean) => void;
@@ -62,6 +168,17 @@ const ICE_SERVERS: RTCIceServer[] = [
 ];
 const DRIFT_THRESHOLD_SECONDS = 0.5;
 const SUPPRESS_DURATION_MS = 250;
+const PRESENCE_HEARTBEAT_MS = 2000;
+const PARTNER_STALE_MS = 5000;
+const RITUAL_BUFFER_MS = 1200;
+const RITUAL_DURATION_MS = 3000;
+const WAVE_BUCKETS = 36;
+const DOUBLE_TAP_WINDOW_MS = 260;
+const LONG_PRESS_MS = 420;
+const TWO_FINGER_HOLD_MS = 420;
+const SWIPE_MIN_DISTANCE_PX = 42;
+const SHAKE_THRESHOLD = 33;
+const SHAKE_COOLDOWN_MS = 1400;
 
 function extractYouTubeId(input: string): string | null {
   const value = input.trim();
@@ -79,6 +196,30 @@ function extractYouTubeId(input: string): string | null {
   return null;
 }
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function formatClock(totalSeconds: number): string {
+  const safe = Math.max(0, Math.floor(totalSeconds));
+  const minutes = Math.floor(safe / 60);
+  const seconds = safe % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
+function toSingleSentence(value: string): string {
+  const compact = value.trim().replace(/\s+/g, " ");
+  if (!compact) return "";
+  const firstSentence = compact.match(/[^.!?]+[.!?]?/);
+  return (firstSentence?.[0] ?? compact).trim();
+}
+
+function pointToPercentX(target: HTMLElement, clientX: number): number {
+  const rect = target.getBoundingClientRect();
+  if (rect.width <= 0) return 50;
+  return clamp(((clientX - rect.left) / rect.width) * 100, 8, 92);
+}
+
 export default function CinemaPage() {
   const supabase = useMemo(() => createClient(), []);
   const ytPlayerRef = useRef<InstanceType<NonNullable<typeof window.YT>["Player"]> | null>(null);
@@ -89,6 +230,21 @@ export default function CinemaPage() {
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const dataChannelRef = useRef<RTCDataChannel | null>(null);
   const pendingCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
+  const partnerSeenAtRef = useRef(0);
+  const ritualTimersRef = useRef<number[]>([]);
+  const sparkCounterRef = useRef(0);
+  const shakeStampRef = useRef(0);
+  const gestureRef = useRef<GestureState>({
+    downAt: 0,
+    downX: 0,
+    downY: 0,
+    swipeTriggered: false,
+    longTriggered: false,
+    lastTapAt: 0,
+    longTimer: null,
+    tapTimer: null,
+    twoFingerTimer: null,
+  });
 
   const [loading, setLoading] = useState(true);
   const [statusMessage, setStatusMessage] = useState("Connecting room…");
@@ -101,14 +257,142 @@ export default function CinemaPage() {
 
   const [videoInput, setVideoInput] = useState("");
   const [videoSource, setVideoSource] = useState("");
+  const [preferredSource, setPreferredSource] = useState<"youtube" | "direct">("youtube");
   const [p2pStatus, setP2pStatus] = useState<P2PStatus>("idle");
   const [p2pRole, setP2pRole] = useState<P2PRole>("none");
   const [p2pError, setP2pError] = useState<string | null>(null);
+  const [syncDriftSeconds, setSyncDriftSeconds] = useState(0);
+  const [partnerActive, setPartnerActive] = useState(false);
+  const [partnerPausedHint, setPartnerPausedHint] = useState(false);
+  const [partnerLaughPulse, setPartnerLaughPulse] = useState(0);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+  const [ritualCountdown, setRitualCountdown] = useState<number | null>(null);
+  const [sparkParticles, setSparkParticles] = useState<SparkParticle[]>([]);
+  const [sparkLog, setSparkLog] = useState<SparkLog[]>([]);
+
+  const [afterglowOpen, setAfterglowOpen] = useState(false);
+  const [afterglowDraft, setAfterglowDraft] = useState("");
+  const [myAfterglowSentence, setMyAfterglowSentence] = useState<string | null>(null);
+  const [partnerAfterglowSentence, setPartnerAfterglowSentence] = useState<string | null>(null);
+  const [waveCursor, setWaveCursor] = useState(0);
 
   const youtubeId = useMemo(() => extractYouTubeId(youtubeInput), [youtubeInput]);
+  const posterArtUrl = youtubeId ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg` : null;
+
+  const resolvedSource = useMemo<PlaybackSource>(() => {
+    if (preferredSource === "direct" && videoSource) return "direct";
+    if (preferredSource === "youtube" && youtubeId) return "youtube";
+    if (videoSource) return "direct";
+    if (youtubeId) return "youtube";
+    return "none";
+  }, [preferredSource, videoSource, youtubeId]);
+
+  const waveform = useMemo(() => {
+    const bars = Array.from({ length: WAVE_BUCKETS }, () => 0);
+    const groups: SparkLog[][] = Array.from({ length: WAVE_BUCKETS }, () => []);
+    if (sparkLog.length === 0) {
+      return {
+        bars,
+        groups,
+        startAt: 0,
+      };
+    }
+
+    const startAt = sparkLog[0]?.at ?? 0;
+    const endAt = sparkLog[sparkLog.length - 1]?.at ?? startAt + 1;
+    const span = Math.max(1, endAt - startAt);
+
+    for (const item of sparkLog) {
+      const normalized = (item.at - startAt) / span;
+      const index = clamp(Math.floor(normalized * (WAVE_BUCKETS - 1)), 0, WAVE_BUCKETS - 1);
+      bars[index] += SPARK_META[item.kind].intensity;
+      groups[index]?.push(item);
+    }
+
+    return {
+      bars: bars.map((value) => Math.min(96, value * 9)),
+      groups,
+      startAt,
+    };
+  }, [sparkLog]);
+
+  const clampedWaveCursor = clamp(waveCursor, 0, waveform.bars.length - 1);
+  const selectedWaveEvents = waveform.groups[clampedWaveCursor] ?? [];
+  const selectedWaveLabel = selectedWaveEvents.length
+    ? `Around ${formatClock((selectedWaveEvents[0].at - waveform.startAt) / 1000)} - ${selectedWaveEvents
+        .slice(0, 2)
+        .map((event) => SPARK_META[event.kind].label)
+        .join(" + ")}`
+    : "No spark captured in this moment yet.";
+
+  const simultaneousMoments = useMemo(() => {
+    const left = sparkLog.filter((item) => item.side === "left");
+    const right = sparkLog.filter((item) => item.side === "right");
+    let count = 0;
+    for (const leftEvent of left) {
+      const close = right.some((rightEvent) => Math.abs(rightEvent.at - leftEvent.at) <= 900);
+      if (close) count += 1;
+    }
+    return count;
+  }, [sparkLog]);
+
+  const syncAligned = syncDriftSeconds <= DRIFT_THRESHOLD_SECONDS;
+
+  const clearGestureTimers = useCallback(() => {
+    const gesture = gestureRef.current;
+    if (gesture.longTimer !== null) {
+      window.clearTimeout(gesture.longTimer);
+      gesture.longTimer = null;
+    }
+    if (gesture.tapTimer !== null) {
+      window.clearTimeout(gesture.tapTimer);
+      gesture.tapTimer = null;
+    }
+    if (gesture.twoFingerTimer !== null) {
+      window.clearTimeout(gesture.twoFingerTimer);
+      gesture.twoFingerTimer = null;
+    }
+  }, []);
+
+  const clearRitualTimers = useCallback(() => {
+    for (const timerId of ritualTimersRef.current) {
+      window.clearTimeout(timerId);
+    }
+    ritualTimersRef.current = [];
+  }, []);
+
+  const markPartnerSeen = useCallback(() => {
+    partnerSeenAtRef.current = Date.now();
+    setPartnerActive(true);
+  }, []);
+
+  const getPlaybackSnapshot = useCallback((): PlaybackSnapshot => {
+    if (resolvedSource === "direct") {
+      const video = videoRef.current;
+      if (!video) return { source: "none", timestamp: 0, paused: true };
+      return { source: "direct", timestamp: video.currentTime, paused: video.paused };
+    }
+
+    if (resolvedSource === "youtube") {
+      const player = ytPlayerRef.current;
+      if (!player || !youtubeReady) {
+        return { source: "none", timestamp: 0, paused: true };
+      }
+      const state = player.getPlayerState?.() ?? 0;
+      const paused = state !== window.YT?.PlayerState.PLAYING;
+      return {
+        source: "youtube",
+        timestamp: player.getCurrentTime(),
+        paused,
+      };
+    }
+
+    return { source: "none", timestamp: 0, paused: true };
+  }, [resolvedSource, youtubeReady]);
 
   const sendBroadcast = useCallback(
-    (event: "cinema_sync" | "cinema_signal", payload: CinemaSyncPayload | SignalPayload) => {
+    (event: CinemaChannelEvent, payload: BroadcastPayload) => {
       if (!channelRef.current) return;
       void channelRef.current.send({
         type: "broadcast",
@@ -132,24 +416,44 @@ export default function CinemaPage() {
     [sendBroadcast, userId],
   );
 
-  const applyRemoteYoutubeSync = useCallback((payload: CinemaSyncPayload) => {
-    const player = ytPlayerRef.current;
-    if (!player) return;
-
-    const networkDelay = (Date.now() - payload.sentAt) / 1000;
-    const correctedTime = payload.timestamp + networkDelay;
-    const drift = Math.abs(player.getCurrentTime() - correctedTime);
-
-    suppressYouTubeRef.current = true;
-    if (payload.action === "seek" || drift > DRIFT_THRESHOLD_SECONDS) {
-      player.seekTo(correctedTime, true);
-    }
-    if (payload.action === "play") player.playVideo();
-    if (payload.action === "pause") player.pauseVideo();
-    window.setTimeout(() => {
-      suppressYouTubeRef.current = false;
-    }, SUPPRESS_DURATION_MS);
+  const openAfterglow = useCallback(() => {
+    setAfterglowOpen(true);
+    vibrateHug();
+    window.dispatchEvent(
+      new CustomEvent("usverse:notification-drop", {
+        detail: { x: 0.5, y: 0.28 },
+      }),
+    );
   }, []);
+
+  const applyRemoteYoutubeSync = useCallback(
+    (payload: CinemaSyncPayload) => {
+      const player = ytPlayerRef.current;
+      if (!player) return;
+
+      const networkDelay = (Date.now() - payload.sentAt) / 1000;
+      const correctedTime = payload.timestamp + networkDelay;
+      const drift = Math.abs(player.getCurrentTime() - correctedTime);
+      setSyncDriftSeconds(drift);
+      markPartnerSeen();
+
+      if (payload.action === "pause") {
+        setPartnerPausedHint(true);
+        window.setTimeout(() => setPartnerPausedHint(false), 1200);
+      }
+
+      suppressYouTubeRef.current = true;
+      if (payload.action === "seek" || drift > DRIFT_THRESHOLD_SECONDS) {
+        player.seekTo(correctedTime, true);
+      }
+      if (payload.action === "play") player.playVideo();
+      if (payload.action === "pause") player.pauseVideo();
+      window.setTimeout(() => {
+        suppressYouTubeRef.current = false;
+      }, SUPPRESS_DURATION_MS);
+    },
+    [markPartnerSeen],
+  );
 
   const closePeer = useCallback(() => {
     dataChannelRef.current?.close();
@@ -159,27 +463,38 @@ export default function CinemaPage() {
     pendingCandidatesRef.current = [];
   }, []);
 
-  const applyP2PSync = useCallback((payload: CinemaSyncPayload) => {
-    const video = videoRef.current;
-    if (!video) return;
+  const applyP2PSync = useCallback(
+    (payload: CinemaSyncPayload) => {
+      const video = videoRef.current;
+      if (!video) return;
 
-    const lag = (Date.now() - payload.sentAt) / 1000;
-    const corrected = payload.timestamp + lag;
+      const lag = (Date.now() - payload.sentAt) / 1000;
+      const corrected = payload.timestamp + lag;
+      const drift = Math.abs(video.currentTime - corrected);
+      setSyncDriftSeconds(drift);
+      markPartnerSeen();
 
-    suppressVideoRef.current = true;
-    if (payload.action === "seek" || Math.abs(video.currentTime - corrected) > DRIFT_THRESHOLD_SECONDS) {
-      video.currentTime = corrected;
-    }
-    if (payload.action === "play") {
-      void video.play().catch(() => undefined);
-    }
-    if (payload.action === "pause") {
-      video.pause();
-    }
-    window.setTimeout(() => {
-      suppressVideoRef.current = false;
-    }, SUPPRESS_DURATION_MS);
-  }, []);
+      if (payload.action === "pause") {
+        setPartnerPausedHint(true);
+        window.setTimeout(() => setPartnerPausedHint(false), 1200);
+      }
+
+      suppressVideoRef.current = true;
+      if (payload.action === "seek" || drift > DRIFT_THRESHOLD_SECONDS) {
+        video.currentTime = corrected;
+      }
+      if (payload.action === "play") {
+        void video.play().catch(() => undefined);
+      }
+      if (payload.action === "pause") {
+        video.pause();
+      }
+      window.setTimeout(() => {
+        suppressVideoRef.current = false;
+      }, SUPPRESS_DURATION_MS);
+    },
+    [markPartnerSeen],
+  );
 
   const setupDataChannel = useCallback(
     (channel: RTCDataChannel) => {
@@ -201,10 +516,19 @@ export default function CinemaPage() {
 
       channel.onmessage = (event) => {
         try {
-          const payload = JSON.parse(event.data) as CinemaSyncPayload;
-          applyP2PSync(payload);
-        } catch (error) {
-          console.warn("Invalid P2P sync payload received", { error, raw: event.data });
+          const payload = JSON.parse(event.data) as Partial<CinemaSyncPayload>;
+          if (
+            !payload ||
+            typeof payload.action !== "string" ||
+            typeof payload.timestamp !== "number" ||
+            typeof payload.sentAt !== "number" ||
+            typeof payload.senderId !== "string"
+          ) {
+            setP2pError("Received invalid P2P sync payload. Try reconnecting.");
+            return;
+          }
+          applyP2PSync(payload as CinemaSyncPayload);
+        } catch {
           setP2pError("Received invalid P2P sync payload. Try reconnecting.");
         }
       };
@@ -255,8 +579,7 @@ export default function CinemaPage() {
     for (const candidate of queued) {
       try {
         await connection.addIceCandidate(candidate);
-      } catch (error) {
-        console.warn("Failed to apply ICE candidate", { error, candidate, state: connection.connectionState });
+      } catch {
         setP2pError("Could not apply ICE candidate. Connection may be unstable.");
       }
     }
@@ -299,14 +622,222 @@ export default function CinemaPage() {
           }
           pendingCandidatesRef.current.push(payload.candidate);
         }
-      } catch (error) {
-        console.warn("Failed to process WebRTC signal", { error, kind: payload.kind });
+      } catch {
         setP2pStatus("error");
         setP2pError("WebRTC signaling failed. Try reconnecting.");
       }
     },
     [createPeerConnection, flushPendingCandidates, p2pRole, sendBroadcast, userId],
   );
+
+  const startPlayback = useCallback(() => {
+    if (resolvedSource === "youtube") {
+      ytPlayerRef.current?.playVideo();
+      return;
+    }
+    if (resolvedSource === "direct") {
+      const video = videoRef.current;
+      if (!video) return;
+      void video.play().catch(() => undefined);
+    }
+  }, [resolvedSource]);
+
+  const scheduleRitual = useCallback(
+    (startAt: number) => {
+      clearRitualTimers();
+      if (prefersReducedMotion) {
+        setRitualCountdown(null);
+        startPlayback();
+        return;
+      }
+
+      const endAt = startAt + RITUAL_DURATION_MS;
+      const tick = () => {
+        const remaining = endAt - Date.now();
+        if (remaining <= 0) {
+          setRitualCountdown(null);
+          startPlayback();
+          vibrateCelebrate();
+          return;
+        }
+        setRitualCountdown(Math.ceil(remaining / 1000));
+        vibrateHeartbeat();
+        const timer = window.setTimeout(tick, 1000);
+        ritualTimersRef.current.push(timer);
+      };
+
+      const lead = Math.max(0, startAt - Date.now());
+      const starter = window.setTimeout(tick, lead);
+      ritualTimersRef.current.push(starter);
+    },
+    [clearRitualTimers, prefersReducedMotion, startPlayback],
+  );
+
+  const pushSpark = useCallback(
+    (kind: SparkKind, side: SparkSide, xPercent: number, at = Date.now()) => {
+      sparkCounterRef.current += 1;
+      const id = `spark-${sparkCounterRef.current}`;
+      const normalizedX = clamp(xPercent, 8, 92);
+
+      setSparkParticles((previous) => [
+        ...previous,
+        {
+          id,
+          kind,
+          side,
+          xPercent: normalizedX,
+        },
+      ].slice(-28));
+      setSparkLog((previous) => [
+        ...previous,
+        {
+          id: `log-${sparkCounterRef.current}`,
+          kind,
+          side,
+          at,
+        },
+      ].slice(-240));
+
+      const timeout = window.setTimeout(
+        () => {
+          setSparkParticles((previous) => previous.filter((particle) => particle.id !== id));
+        },
+        prefersReducedMotion ? 180 : 760,
+      );
+      ritualTimersRef.current.push(timeout);
+    },
+    [prefersReducedMotion],
+  );
+
+  const emitLocalSpark = useCallback(
+    (kind: SparkKind, xPercent: number) => {
+      const at = Date.now();
+      pushSpark(kind, "left", xPercent, at);
+
+      if (kind === "pulse") {
+        vibrateHug();
+      } else if (kind === "star") {
+        vibrateCelebrate();
+      } else if (kind === "tear" || kind === "shock") {
+        vibratePress();
+      } else {
+        vibrateTap();
+      }
+
+      window.dispatchEvent(
+        new CustomEvent("usverse:notification-drop", {
+          detail: { x: xPercent / 100, y: 0.34 },
+        }),
+      );
+      if (kind === "pulse") {
+        window.dispatchEvent(
+          new CustomEvent("usverse:emotion", {
+            detail: { kind: "missing_you" },
+          }),
+        );
+      }
+
+      if (!userId) return;
+      sendBroadcast("cinema_spark", {
+        senderId: userId,
+        kind,
+        xPercent,
+        at,
+      });
+    },
+    [pushSpark, sendBroadcast, userId],
+  );
+
+  const handlePresence = useCallback(
+    (payload: PresencePayload) => {
+      if (!userId || payload.senderId === userId) return;
+      markPartnerSeen();
+
+      if (payload.paused) {
+        setPartnerPausedHint(true);
+        window.setTimeout(() => setPartnerPausedHint(false), 1200);
+      }
+
+      const local = getPlaybackSnapshot();
+      if (local.source !== payload.source) return;
+
+      const lag = (Date.now() - payload.sentAt) / 1000;
+      const corrected = payload.timestamp + lag;
+      setSyncDriftSeconds(Math.abs(local.timestamp - corrected));
+    },
+    [getPlaybackSnapshot, markPartnerSeen, userId],
+  );
+
+  const handleRitual = useCallback(
+    (payload: RitualPayload) => {
+      if (!userId || payload.senderId === userId) return;
+      markPartnerSeen();
+      setAfterglowOpen(false);
+      setMyAfterglowSentence(null);
+      setPartnerAfterglowSentence(null);
+      setAfterglowDraft("");
+      scheduleRitual(payload.startAt);
+    },
+    [markPartnerSeen, scheduleRitual, userId],
+  );
+
+  const handleSpark = useCallback(
+    (payload: SparkPayload) => {
+      if (!userId || payload.senderId === userId) return;
+      markPartnerSeen();
+      pushSpark(payload.kind, "right", 100 - payload.xPercent, payload.at);
+      if (payload.kind === "laugh") {
+        setPartnerLaughPulse((value) => value + 1);
+      }
+      if (payload.kind === "pulse") {
+        window.dispatchEvent(
+          new CustomEvent("usverse:emotion", {
+            detail: { kind: "missing_you" },
+          }),
+        );
+      }
+    },
+    [markPartnerSeen, pushSpark, userId],
+  );
+
+  const handleAfterglow = useCallback(
+    (payload: AfterglowPayload) => {
+      if (!userId || payload.senderId === userId) return;
+      markPartnerSeen();
+      setAfterglowOpen(true);
+      setPartnerAfterglowSentence(payload.sentence);
+      vibrateSuccess();
+    },
+    [markPartnerSeen, userId],
+  );
+
+  const beginSharedRitual = useCallback(() => {
+    const snapshot = getPlaybackSnapshot();
+    if (snapshot.source === "none") {
+      setStatusMessage("Load a YouTube link or direct video before starting the ritual.");
+      vibratePress();
+      return;
+    }
+
+    const startAt = Date.now() + (prefersReducedMotion ? 180 : RITUAL_BUFFER_MS);
+    setAfterglowOpen(false);
+    setMyAfterglowSentence(null);
+    setPartnerAfterglowSentence(null);
+    setAfterglowDraft("");
+    scheduleRitual(startAt);
+    if (userId) {
+      sendBroadcast("cinema_ritual", {
+        senderId: userId,
+        source: snapshot.source,
+        startAt,
+      });
+    }
+    window.dispatchEvent(
+      new CustomEvent("usverse:notification-drop", {
+        detail: { x: 0.5, y: 0.08 },
+      }),
+    );
+  }, [getPlaybackSnapshot, prefersReducedMotion, scheduleRitual, sendBroadcast, userId]);
 
   useEffect(() => {
     async function initRoom() {
@@ -351,6 +882,18 @@ export default function CinemaPage() {
       .on("broadcast", { event: "cinema_signal" }, ({ payload }) => {
         void handleSignal(payload as SignalPayload);
       })
+      .on("broadcast", { event: "cinema_presence" }, ({ payload }) => {
+        handlePresence(payload as PresencePayload);
+      })
+      .on("broadcast", { event: "cinema_ritual" }, ({ payload }) => {
+        handleRitual(payload as RitualPayload);
+      })
+      .on("broadcast", { event: "cinema_spark" }, ({ payload }) => {
+        handleSpark(payload as SparkPayload);
+      })
+      .on("broadcast", { event: "cinema_afterglow" }, ({ payload }) => {
+        handleAfterglow(payload as AfterglowPayload);
+      })
       .subscribe();
 
     channelRef.current = channel;
@@ -362,7 +905,18 @@ export default function CinemaPage() {
       }
       channelRef.current = null;
     };
-  }, [applyRemoteYoutubeSync, closePeer, coupleId, handleSignal, supabase, userId]);
+  }, [
+    applyRemoteYoutubeSync,
+    closePeer,
+    coupleId,
+    handleAfterglow,
+    handlePresence,
+    handleRitual,
+    handleSignal,
+    handleSpark,
+    supabase,
+    userId,
+  ]);
 
   useEffect(() => {
     if (window.YT?.Player) {
@@ -400,6 +954,9 @@ export default function CinemaPage() {
           if (event.data === window.YT?.PlayerState.PAUSED) {
             sendYoutubeSync("pause", ytPlayerRef.current.getCurrentTime());
           }
+          if (event.data === 0) {
+            openAfterglow();
+          }
         },
       },
     });
@@ -409,7 +966,7 @@ export default function CinemaPage() {
       ytPlayerRef.current = null;
       setYoutubeReady(false);
     };
-  }, [sendYoutubeSync, youtubeApiReady, youtubeId]);
+  }, [openAfterglow, sendYoutubeSync, youtubeApiReady, youtubeId]);
 
   const sendP2PSync = useCallback(
     (action: SyncAction) => {
@@ -427,23 +984,94 @@ export default function CinemaPage() {
   );
 
   useEffect(() => {
+    if (!userId || !coupleId) return;
+
+    const id = window.setInterval(() => {
+      const snapshot = getPlaybackSnapshot();
+      if (snapshot.source === "none") return;
+      sendBroadcast("cinema_presence", {
+        senderId: userId,
+        source: snapshot.source,
+        timestamp: snapshot.timestamp,
+        paused: snapshot.paused,
+        sentAt: Date.now(),
+      });
+    }, PRESENCE_HEARTBEAT_MS);
+
+    return () => window.clearInterval(id);
+  }, [coupleId, getPlaybackSnapshot, sendBroadcast, userId]);
+
+  useEffect(() => {
+    const staleWatcher = window.setInterval(() => {
+      if (Date.now() - partnerSeenAtRef.current > PARTNER_STALE_MS) {
+        setPartnerActive(false);
+      }
+    }, 600);
+
+    return () => window.clearInterval(staleWatcher);
+  }, []);
+
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent("usverse:partner-active", {
+        detail: { active: partnerActive },
+      }),
+    );
+  }, [partnerActive]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sync = () => setPrefersReducedMotion(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
+
+  useEffect(() => {
+    const motionListener = (event: DeviceMotionEvent) => {
+      if (resolvedSource === "none") return;
+      const accel = event.accelerationIncludingGravity;
+      if (!accel) return;
+      const magnitude = Math.abs(accel.x ?? 0) + Math.abs(accel.y ?? 0) + Math.abs(accel.z ?? 0);
+      const now = Date.now();
+      if (magnitude < SHAKE_THRESHOLD || now - shakeStampRef.current < SHAKE_COOLDOWN_MS) return;
+      shakeStampRef.current = now;
+      emitLocalSpark("shock", 50);
+    };
+
+    window.addEventListener("devicemotion", motionListener);
+    return () => window.removeEventListener("devicemotion", motionListener);
+  }, [emitLocalSpark, resolvedSource]);
+
+  useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
     const onPlay = () => sendP2PSync("play");
     const onPause = () => sendP2PSync("pause");
     const onSeeked = () => sendP2PSync("seek");
+    const onEnded = () => openAfterglow();
 
     video.addEventListener("play", onPlay);
     video.addEventListener("pause", onPause);
     video.addEventListener("seeked", onSeeked);
+    video.addEventListener("ended", onEnded);
 
     return () => {
       video.removeEventListener("play", onPlay);
       video.removeEventListener("pause", onPause);
       video.removeEventListener("seeked", onSeeked);
+      video.removeEventListener("ended", onEnded);
     };
-  }, [sendP2PSync]);
+  }, [openAfterglow, sendP2PSync]);
+
+  useEffect(
+    () => () => {
+      clearGestureTimers();
+      clearRitualTimers();
+    },
+    [clearGestureTimers, clearRitualTimers],
+  );
 
   async function startHosting() {
     if (!userId) return;
@@ -464,8 +1092,7 @@ export default function CinemaPage() {
         kind: "offer",
         sdp: offer,
       });
-    } catch (error) {
-      console.warn("Failed to start P2P host", error);
+    } catch {
       setP2pStatus("error");
       setP2pError("Could not create P2P host session.");
     }
@@ -478,21 +1105,423 @@ export default function CinemaPage() {
     setP2pError(null);
   }
 
+  function onSparkPadPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (resolvedSource === "none") return;
+    const gesture = gestureRef.current;
+    clearGestureTimers();
+
+    gesture.downAt = Date.now();
+    gesture.downX = event.clientX;
+    gesture.downY = event.clientY;
+    gesture.swipeTriggered = false;
+    gesture.longTriggered = false;
+
+    const xPercent = pointToPercentX(event.currentTarget, event.clientX);
+    gesture.longTimer = window.setTimeout(() => {
+      gesture.longTriggered = true;
+      emitLocalSpark("tear", xPercent);
+    }, LONG_PRESS_MS);
+  }
+
+  function onSparkPadPointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    const gesture = gestureRef.current;
+    if (!gesture.downAt || gesture.swipeTriggered || gesture.longTriggered) return;
+    const deltaY = gesture.downY - event.clientY;
+    if (deltaY < SWIPE_MIN_DISTANCE_PX) return;
+    gesture.swipeTriggered = true;
+    if (gesture.longTimer !== null) {
+      window.clearTimeout(gesture.longTimer);
+      gesture.longTimer = null;
+    }
+    emitLocalSpark("star", pointToPercentX(event.currentTarget, event.clientX));
+  }
+
+  function onSparkPadPointerUp(event: React.PointerEvent<HTMLDivElement>) {
+    const gesture = gestureRef.current;
+    const xPercent = pointToPercentX(event.currentTarget, event.clientX);
+
+    if (gesture.longTimer !== null) {
+      window.clearTimeout(gesture.longTimer);
+      gesture.longTimer = null;
+    }
+
+    if (gesture.swipeTriggered || gesture.longTriggered) {
+      gesture.downAt = 0;
+      return;
+    }
+
+    const now = Date.now();
+    if (now - gesture.lastTapAt <= DOUBLE_TAP_WINDOW_MS) {
+      if (gesture.tapTimer !== null) {
+        window.clearTimeout(gesture.tapTimer);
+        gesture.tapTimer = null;
+      }
+      gesture.lastTapAt = 0;
+      emitLocalSpark("laugh", xPercent);
+    } else {
+      gesture.lastTapAt = now;
+      gesture.tapTimer = window.setTimeout(() => {
+        emitLocalSpark("heart", xPercent);
+        gesture.tapTimer = null;
+      }, DOUBLE_TAP_WINDOW_MS);
+    }
+    gesture.downAt = 0;
+  }
+
+  function onSparkPadPointerCancel() {
+    const gesture = gestureRef.current;
+    clearGestureTimers();
+    gesture.downAt = 0;
+    gesture.swipeTriggered = false;
+    gesture.longTriggered = false;
+  }
+
+  function onSparkPadTouchStart(event: React.TouchEvent<HTMLDivElement>) {
+    if (event.touches.length !== 2 || resolvedSource === "none") return;
+    const gesture = gestureRef.current;
+    if (gesture.twoFingerTimer !== null) {
+      window.clearTimeout(gesture.twoFingerTimer);
+      gesture.twoFingerTimer = null;
+    }
+    const firstTouch = event.touches[0];
+    if (!firstTouch) return;
+    const xPercent = pointToPercentX(event.currentTarget, firstTouch.clientX);
+    gesture.twoFingerTimer = window.setTimeout(() => {
+      emitLocalSpark("pulse", xPercent);
+      gesture.twoFingerTimer = null;
+    }, TWO_FINGER_HOLD_MS);
+  }
+
+  function onSparkPadTouchEnd() {
+    const gesture = gestureRef.current;
+    if (gesture.twoFingerTimer !== null) {
+      window.clearTimeout(gesture.twoFingerTimer);
+      gesture.twoFingerTimer = null;
+    }
+  }
+
+  function submitAfterglow() {
+    if (!userId) return;
+    const oneSentence = toSingleSentence(afterglowDraft);
+    if (!oneSentence) {
+      vibratePress();
+      return;
+    }
+    setMyAfterglowSentence(oneSentence);
+    setAfterglowDraft(oneSentence);
+    sendBroadcast("cinema_afterglow", {
+      senderId: userId,
+      sentence: oneSentence,
+    });
+    vibrateSuccess();
+  }
+
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-6">
+    <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
       <header className="glass-card p-6">
         <div className="flex items-center gap-2 text-purple-300/70 text-xs tracking-wide uppercase mb-3">
           <Clapperboard className="w-4 h-4" />
-          Cinema Sync
+          Cinema
         </div>
         <h1 className="text-3xl font-bold text-white mb-2">Watch Together</h1>
         <p className="text-sm text-purple-200/80">{loading ? "Loading…" : statusMessage}</p>
       </header>
 
+      <section
+        className="glass-card p-4 md:p-5 space-y-4"
+        style={{
+          background:
+            "linear-gradient(165deg, color-mix(in oklab, #080c18 86%, var(--card) 14%), color-mix(in oklab, #111a30 84%, var(--card) 16%))",
+        }}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="text-xs uppercase tracking-wider text-purple-200/70">Theatre room</p>
+            <h2 className="text-xl font-semibold text-white">Shared couch mode</h2>
+          </div>
+          <button
+            type="button"
+            onClick={beginSharedRitual}
+            className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium bg-purple-600/80 hover:bg-purple-600 touch-pressable"
+          >
+            <Sparkles className="w-4 h-4" />
+            Start pre-movie ritual
+          </button>
+        </div>
+
+        <div className="flex flex-wrap gap-2 text-xs text-purple-100/80">
+          <button
+            type="button"
+            onClick={() => setPreferredSource("youtube")}
+            disabled={!youtubeId}
+            className={`rounded-full px-3 py-1.5 border transition-colors ${
+              preferredSource === "youtube"
+                ? "bg-white/15 border-white/35"
+                : "bg-white/5 border-white/15 hover:bg-white/10"
+            } disabled:opacity-40 disabled:cursor-not-allowed`}
+          >
+            YouTube stage
+          </button>
+          <button
+            type="button"
+            onClick={() => setPreferredSource("direct")}
+            disabled={!videoSource}
+            className={`rounded-full px-3 py-1.5 border transition-colors ${
+              preferredSource === "direct"
+                ? "bg-white/15 border-white/35"
+                : "bg-white/5 border-white/15 hover:bg-white/10"
+            } disabled:opacity-40 disabled:cursor-not-allowed`}
+          >
+            Direct link stage
+          </button>
+        </div>
+
+        <div className="rounded-2xl border border-purple-500/20 bg-black/25 p-3">
+          <div className="mb-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2 text-purple-100/80">
+              <span className={`cinema-sync-dot ${syncAligned ? "cinema-sync-dot-good" : "cinema-sync-dot-drift"}`} />
+              <span
+                className={`cinema-sync-dot ${syncAligned ? "cinema-sync-dot-good" : "cinema-sync-dot-drift"}`}
+                style={!syncAligned ? { animationDelay: "0.28s" } : undefined}
+              />
+              <span>{syncAligned ? "Heartbeats aligned" : `Drift ${syncDriftSeconds.toFixed(2)}s`}</span>
+            </div>
+            <div className="flex items-center gap-2 text-purple-100/80">
+              <Users className="w-3.5 h-3.5" />
+              <span>{partnerActive ? "Partner present" : "Partner quiet"}</span>
+            </div>
+          </div>
+
+          <div className="mb-3 flex items-end justify-center gap-10 rounded-xl border border-white/10 bg-black/20 py-3">
+            <div
+              className={`cinema-figure ${partnerPausedHint ? "cinema-figure-curious" : ""}`}
+              style={{ background: "color-mix(in oklab, var(--color-blossom) 38%, black)" }}
+            />
+            <div
+              className={`cinema-figure cinema-figure-lean ${partnerLaughPulse % 2 === 1 ? "cinema-figure-laugh" : ""}`}
+              style={{ background: "color-mix(in oklab, var(--color-sky-blush) 40%, black)" }}
+            />
+          </div>
+
+          <div className="relative rounded-xl overflow-hidden border border-white/10 bg-[#080c18]">
+            {youtubeId ? (
+              <div className={resolvedSource === "youtube" ? "w-full" : "hidden"}>
+                <div id="usverse-youtube-player" className="w-full aspect-video rounded-none overflow-hidden" />
+              </div>
+            ) : null}
+
+            <video
+              ref={videoRef}
+              src={videoSource}
+              controls
+              playsInline
+              className={`${resolvedSource === "direct" ? "w-full aspect-video bg-black" : "hidden"}`}
+            />
+
+            {resolvedSource === "none" ? (
+              <div className="aspect-video grid place-items-center text-center px-6">
+                <div>
+                  <Zap className="w-10 h-10 mx-auto text-purple-200/60 mb-3" />
+                  <p className="text-sm text-purple-100/90">Load a video source to enter cinema mode.</p>
+                </div>
+              </div>
+            ) : null}
+
+            <div className="cinema-vignette" />
+
+            {sparkParticles.map((spark) => (
+              <span
+                key={spark.id}
+                className="cinema-spark"
+                style={{
+                  left: `${spark.xPercent}%`,
+                  color: spark.side === "left" ? "#ffb6cf" : "#b7dfff",
+                }}
+              >
+                {SPARK_META[spark.kind].emoji}
+              </span>
+            ))}
+
+            {ritualCountdown !== null ? (
+              <div className="absolute inset-0 z-30 grid place-items-center bg-black/58 countdown-poster">
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2">
+                  {Array.from({ length: 8 }).map((_, index) => (
+                    <span
+                      key={`kernel-${index}`}
+                      className="cinema-popcorn-kernel"
+                      style={{ animationDelay: `${index * 0.1}s` }}
+                    />
+                  ))}
+                </div>
+                <div className="text-center">
+                  <p className="text-xs uppercase tracking-[0.22em] text-purple-100/80 mb-2">Lights dimming</p>
+                  <div
+                    className="countdown-flip-digit"
+                    style={{
+                      fontSize: "clamp(4.2rem, 18vw, 6rem)",
+                      fontFamily: "var(--font-serif), Georgia, serif",
+                    }}
+                  >
+                    {ritualCountdown}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {resolvedSource !== "none" ? (
+              <div
+                className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/65 via-black/20 to-transparent"
+                onPointerDown={onSparkPadPointerDown}
+                onPointerMove={onSparkPadPointerMove}
+                onPointerUp={onSparkPadPointerUp}
+                onPointerCancel={onSparkPadPointerCancel}
+                onTouchStart={onSparkPadTouchStart}
+                onTouchEnd={onSparkPadTouchEnd}
+                onTouchCancel={onSparkPadTouchEnd}
+              >
+                <p className="absolute left-3 bottom-2 text-[10px] text-purple-100/80 tracking-wide">
+                  Tap, double tap, long press, swipe up, shake, or two-finger hold
+                </p>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            {([
+              ["heart", "💕"],
+              ["laugh", "😂"],
+              ["tear", "😭"],
+              ["star", "🌟"],
+              ["shock", "😱"],
+              ["pulse", "🤍"],
+            ] as Array<[SparkKind, string]>).map(([kind, emoji]) => (
+              <button
+                key={kind}
+                type="button"
+                onClick={() => emitLocalSpark(kind, kind === "shock" ? 50 : 18)}
+                className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-xs hover:bg-white/15 touch-pressable"
+              >
+                {emoji} {SPARK_META[kind].label}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-3">
+            <div className="flex items-center gap-2 text-xs text-purple-100/80 mb-2">
+              <Waves className="w-3.5 h-3.5" />
+              <span>Reaction waveform</span>
+            </div>
+            <div className="h-16 flex items-end gap-1">
+              {waveform.bars.map((height, index) => (
+                <span
+                  key={`wave-${index}`}
+                  className="cinema-wave-bar"
+                  style={{
+                    height: `${Math.max(10, height)}%`,
+                    opacity: index === clampedWaveCursor ? 1 : 0.45,
+                  }}
+                />
+              ))}
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={Math.max(0, waveform.bars.length - 1)}
+              value={clampedWaveCursor}
+              onChange={(event) => {
+                const next = Number(event.target.value);
+                setWaveCursor(clamp(next, 0, waveform.bars.length - 1));
+              }}
+              className="mt-2 w-full accent-[var(--color-peach)]"
+            />
+            <p className="mt-1 text-xs text-purple-100/75">{selectedWaveLabel}</p>
+          </div>
+        </div>
+      </section>
+
+      {afterglowOpen ? (
+        <section className="glass-card p-4 md:p-5 space-y-4">
+          <div>
+            <p className="text-xs uppercase tracking-wider text-purple-300/70">Afterglow</p>
+            <h2 className="text-2xl text-white" style={{ fontFamily: "var(--font-accent), cursive" }}>
+              What did you feel?
+            </h2>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-3">
+            <div className="rounded-xl border border-purple-500/20 bg-black/15 p-3">
+              <p className="text-xs uppercase tracking-wider text-purple-300/70 mb-2">Your sentence</p>
+              {myAfterglowSentence ? (
+                <p className="text-sm text-purple-100">{myAfterglowSentence}</p>
+              ) : (
+                <>
+                  <textarea
+                    value={afterglowDraft}
+                    onChange={(event) => setAfterglowDraft(event.target.value)}
+                    rows={3}
+                    placeholder="One sentence only"
+                    className="w-full rounded-xl bg-white/5 border border-purple-500/30 px-3 py-2 text-sm outline-none focus:border-purple-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={submitAfterglow}
+                    className="mt-2 rounded-lg px-3 py-1.5 text-xs bg-purple-600/80 hover:bg-purple-600 touch-pressable"
+                  >
+                    Save my sentence
+                  </button>
+                </>
+              )}
+            </div>
+
+            <div className="rounded-xl border border-purple-500/20 bg-black/15 p-3">
+              <p className="text-xs uppercase tracking-wider text-purple-300/70 mb-2">Partner sentence</p>
+              {partnerAfterglowSentence ? (
+                <p className="text-sm text-purple-100">{partnerAfterglowSentence}</p>
+              ) : (
+                <p className="text-sm text-purple-200/70">Waiting for her reflection…</p>
+              )}
+            </div>
+          </div>
+
+          {myAfterglowSentence && partnerAfterglowSentence ? (
+            <div className="rounded-2xl border border-purple-400/30 bg-gradient-to-br from-purple-900/25 via-black/20 to-rose-900/20 p-4 grid md:grid-cols-[130px_1fr] gap-4">
+              {posterArtUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={posterArtUrl}
+                  alt="Poster reference"
+                  className="w-full h-28 md:h-full object-cover rounded-xl border border-white/10"
+                />
+              ) : (
+                <div className="h-28 md:h-full rounded-xl border border-white/10 bg-black/25 grid place-items-center text-purple-200/70 text-xs px-3 text-center">
+                  Cinema memory card
+                </div>
+              )}
+              <div>
+                <p className="text-xs uppercase tracking-wider text-purple-300/70 mb-1">Cinema Memory</p>
+                <h3 className="text-lg font-semibold text-white">Private Film Festival Entry</h3>
+                <p className="text-xs text-purple-200/70 mb-3">{new Date().toLocaleString()}</p>
+                <div className="grid sm:grid-cols-2 gap-2 text-sm">
+                  <blockquote className="rounded-lg border border-white/10 bg-black/20 p-2 text-purple-100">
+                    “{myAfterglowSentence}”
+                  </blockquote>
+                  <blockquote className="rounded-lg border border-white/10 bg-black/20 p-2 text-purple-100">
+                    “{partnerAfterglowSentence}”
+                  </blockquote>
+                </div>
+                <p className="mt-3 text-xs text-purple-200/75">
+                  Sparks captured: {sparkLog.length} · simultaneous reactions: {simultaneousMoments}
+                </p>
+              </div>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
       <section className="glass-card p-5 space-y-4">
         <div className="flex items-center gap-2 text-white font-semibold">
           <Radio className="w-4 h-4 text-red-300" />
-          Tier 1 — YouTube + Supabase Broadcast
+          Tier 1 - YouTube + Supabase Broadcast
         </div>
         <p className="text-xs text-purple-200/70">
           Play, pause, and seek sync over Supabase Realtime Broadcast with timestamp lag compensation.
@@ -500,7 +1529,10 @@ export default function CinemaPage() {
         <div className="flex flex-col md:flex-row gap-2">
           <input
             value={youtubeInput}
-            onChange={(event) => setYoutubeInput(event.target.value)}
+            onChange={(event) => {
+              setYoutubeInput(event.target.value);
+              setPreferredSource("youtube");
+            }}
             placeholder="Paste YouTube URL or 11-char video ID"
             className="flex-1 rounded-xl bg-white/5 border border-purple-500/30 px-3 py-2 text-sm outline-none focus:border-purple-400"
           />
@@ -517,21 +1549,15 @@ export default function CinemaPage() {
             Sync Current Time
           </button>
         </div>
-        {youtubeId ? (
-          <div className="rounded-2xl border border-purple-500/20 bg-black/30 p-3">
-            <div id="usverse-youtube-player" className="w-full aspect-video rounded-xl overflow-hidden" />
-          </div>
-        ) : (
-          <div className="rounded-xl border border-amber-300/25 bg-amber-200/10 px-3 py-2 text-xs text-amber-100">
-            Enter a valid YouTube URL or video ID to start.
-          </div>
-        )}
+        <div className="rounded-xl border border-amber-300/25 bg-amber-200/10 px-3 py-2 text-xs text-amber-100">
+          Enter a valid YouTube URL or video ID, then switch source to YouTube stage.
+        </div>
       </section>
 
       <section className="glass-card p-5 space-y-4">
         <div className="flex items-center gap-2 text-white font-semibold">
           <Wifi className="w-4 h-4 text-emerald-300" />
-          Tier 2 — WebRTC P2P (Any Direct Video URL)
+          Tier 2 - WebRTC P2P (Any Direct Video URL)
         </div>
         <p className="text-xs text-purple-200/70">
           Supabase is used only for offer/answer/ICE signaling. Playback sync runs on a direct data channel.
@@ -545,7 +1571,10 @@ export default function CinemaPage() {
           />
           <button
             type="button"
-            onClick={() => setVideoSource(videoInput.trim())}
+            onClick={() => {
+              setVideoSource(videoInput.trim());
+              setPreferredSource("direct");
+            }}
             className="rounded-xl px-4 py-2 text-sm bg-white/10 hover:bg-white/15"
           >
             <MonitorPlay className="w-4 h-4 inline mr-1" />
@@ -577,15 +1606,6 @@ export default function CinemaPage() {
             {p2pError}
           </div>
         ) : null}
-        <div className="rounded-2xl border border-purple-500/20 bg-black/30 p-3">
-          <video
-            ref={videoRef}
-            src={videoSource}
-            controls
-            playsInline
-            className="w-full aspect-video rounded-xl bg-black"
-          />
-        </div>
         <div className="flex gap-2">
           <button
             type="button"
