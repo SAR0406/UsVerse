@@ -7,6 +7,15 @@ export const floatUp = {
   },
 };
 
+export const pageEntrance = {
+  hidden: { opacity: 0, y: 16 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] as const },
+  },
+};
+
 export const staggerChildren = {
   visible: { transition: { staggerChildren: 0.08 } },
 };
@@ -57,11 +66,27 @@ export const polaroidFall = {
 export const glowPulse = {
   animate: {
     boxShadow: [
-      "0 0 20px #FF6B9D44, 0 0 40px #FF6B9D22",
-      "0 0 30px #FF6B9D66, 0 0 60px #FF6B9D33",
-      "0 0 20px #FF6B9D44, 0 0 40px #FF6B9D22",
+      "0 0 20px color-mix(in oklab, var(--color-blossom) 44%, transparent), 0 0 40px color-mix(in oklab, var(--color-blossom) 22%, transparent)",
+      "0 0 30px color-mix(in oklab, var(--color-blossom) 60%, transparent), 0 0 60px color-mix(in oklab, var(--color-blossom) 33%, transparent)",
+      "0 0 20px color-mix(in oklab, var(--color-blossom) 44%, transparent), 0 0 40px color-mix(in oklab, var(--color-blossom) 22%, transparent)",
     ],
     transition: { duration: 2.5, repeat: Infinity, ease: "easeInOut" as const },
+  },
+};
+
+export const notificationBounce = {
+  hidden: { opacity: 0, y: -12, scale: 0.9 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { type: "spring" as const, stiffness: 360, damping: 20 },
+  },
+  exit: {
+    opacity: 0,
+    y: -8,
+    scale: 0.92,
+    transition: { duration: 0.2, ease: "easeInOut" as const },
   },
 };
 

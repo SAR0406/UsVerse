@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { differenceInCalendarDays, format, parseISO } from "date-fns";
+import AuraPresenceStage from "@/components/presence/AuraPresenceStage";
 import {
   Heart,
   MessageCircle,
@@ -38,13 +40,16 @@ export default async function DashboardPage() {
     .maybeSingle();
 
   let partnerName: string | null = null;
+  let meetDate: string | null = null;
 
   if (myProfile?.couple_id) {
     const { data: couple } = await supabase
       .from("couples")
-      .select("user1_id, user2_id")
+      .select("user1_id, user2_id, meet_date")
       .eq("id", myProfile.couple_id)
       .maybeSingle();
+
+    meetDate = couple?.meet_date ?? null;
 
     const partnerId = couple
       ? couple.user1_id === user.id
@@ -65,6 +70,7 @@ export default async function DashboardPage() {
   const greeting = getGreeting();
   const pulseLine = getPulseLine(partnerName);
   const focusCards = getFocusCards(partnerName);
+  const countdown = getCountdownSpotlight(meetDate);
 
   return (
     <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-7">
@@ -137,6 +143,29 @@ export default async function DashboardPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </section>
+      </div>
+
+      <div className="mt-5 grid gap-5 lg:grid-cols-[1.35fr_1fr]">
+        <AuraPresenceStage partnerName={partnerName} />
+        <section className="glass-card p-5 sm:p-6 border border-[color:var(--border)]/70 relative overflow-hidden">
+          <div className="absolute inset-0 pointer-events-none opacity-60 bg-[var(--gradient-moonlight)]" />
+          <div className="relative z-10">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-[color:var(--text-whisper)] mb-2">
+              Countdown Spotlight
+            </p>
+            <h3 className="text-2xl sm:text-3xl font-bold text-[color:var(--foreground)] leading-none">
+              {countdown.headline}
+            </h3>
+            <p className="text-sm text-[color:var(--text-soft)] mt-3">{countdown.subline}</p>
+            <p className="text-xs text-[color:var(--text-whisper)] mt-2">{countdown.detail}</p>
+            <Link
+              href="/countdown"
+              className="touch-pressable mt-4 inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] bg-[color:var(--surface-2)] px-3 py-1.5 text-xs text-[color:var(--foreground)]"
+            >
+              Open countdown <ArrowRight className="w-3 h-3" />
+            </Link>
           </div>
         </section>
       </div>
@@ -263,6 +292,52 @@ function getFocusCards(partnerName: string | null) {
       bg: "bg-pink-700",
     },
   ];
+}
+
+function getCountdownSpotlight(meetDate: string | null) {
+  if (!meetDate) {
+    return {
+      headline: "Set your day",
+      subline: "Add your next meeting date and let every sunrise feel purposeful.",
+      detail: "No date yet",
+    };
+  }
+
+  try {
+    const parsed = parseISO(meetDate);
+    const days = differenceInCalendarDays(parsed, new Date());
+
+    if (days < 0) {
+      return {
+        headline: "Together now",
+        subline: "The wait became a memory. Keep writing this chapter.",
+        detail: format(parsed, "MMMM d, yyyy"),
+      };
+    }
+
+    if (days === 0) {
+      return {
+        headline: "TODAY!",
+        subline: "Drop everything. Love has arrived right on time.",
+        detail: format(parsed, "MMMM d, yyyy"),
+      };
+    }
+
+    return {
+      headline: `${days} day${days === 1 ? "" : "s"}`,
+      subline:
+        days <= 7
+          ? "One small week between this moment and that first hug."
+          : "Each day is one page closer to your next real-world scene.",
+      detail: format(parsed, "MMMM d, yyyy"),
+    };
+  } catch {
+    return {
+      headline: "Time is waiting",
+      subline: "Your date needs a quick refresh before the magic starts.",
+      detail: "Invalid date",
+    };
+  }
 }
 
 const quickActions = [

@@ -2,7 +2,10 @@
 
 :root {
   /* Preferred font-family names with graceful platform fallbacks */
-  --font-accent: "Caveat", cursive;
+  --font-heading: var(--font-playfair), "Playfair Display", Georgia, serif;
+  --font-body: var(--font-nunito), "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-accent: var(--font-caveat), "Caveat", cursive;
+  --font-code: var(--font-jetbrains), "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   --color-blossom: #ff6b9d;
   --color-peach: #ffab76;
   --color-rose-mist: #ffd6e7;
@@ -48,9 +51,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-serif: "Playfair Display", Georgia, serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-sans: var(--font-body);
+  --font-serif: var(--font-heading);
+  --font-mono: var(--font-code);
 }
 
 body {
@@ -59,7 +62,7 @@ body {
     radial-gradient(circle at 80% 80%, rgba(184, 227, 255, 0.12), transparent 45%),
     var(--background);
   color: var(--foreground);
-  font-family: "Nunito", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-body);
   min-height: 100vh;
 }
 
@@ -155,6 +158,9 @@ body {
     linear-gradient(130deg, rgba(255, 107, 157, 0.22), rgba(255, 171, 118, 0.2), rgba(200, 182, 226, 0.24)),
     var(--card);
   background-size: 220% 220%;
+}
+
+.countdown-poster-animated {
   animation: countdown-sunset 16s ease-in-out infinite;
 }
 
@@ -167,7 +173,7 @@ body {
 }
 
 .countdown-flip-digit {
-  font-family: var(--font-serif), Georgia, serif;
+  font-family: var(--font-heading);
   font-size: clamp(2.4rem, 12vw, 3.5rem);
   line-height: 1;
   color: var(--foreground);
@@ -357,6 +363,43 @@ body {
 .bloom-send-card-launch {
   transform: translate(240px, -100px) rotate(25deg) scale(0.55);
   opacity: 0;
+}
+
+.aura-orb {
+  --aura-fill: var(--gradient-moonlight);
+  --aura-glow: var(--color-lilac-dream);
+  width: 3rem;
+  height: 3rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--aura-glow) 45%, transparent);
+  background: var(--aura-fill);
+  display: grid;
+  place-items: center;
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--aura-glow) 18%, transparent),
+    0 0 18px color-mix(in oklab, var(--aura-glow) 34%, transparent);
+}
+
+.aura-orb-active {
+  animation: pulse-glow 2.6s ease-in-out infinite;
+}
+
+.aura-orb-online {
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--color-mint-kiss) 26%, transparent),
+    0 0 16px color-mix(in oklab, var(--color-mint-kiss) 36%, transparent),
+    0 0 34px color-mix(in oklab, var(--aura-glow) 22%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-heartbeat,
+  .animate-float,
+  .animate-pulse-glow,
+  .countdown-particle-float,
+  .aura-orb-active,
+  .countdown-poster-animated {
+    animation: none !important;
+  }
 }
 
 .bloom-send-particle {

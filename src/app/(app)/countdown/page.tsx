@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useReducedMotion } from "framer-motion";
 import { Timer, Heart, Edit3, Save } from "lucide-react";
 import { differenceInCalendarDays, format, parseISO } from "date-fns";
 import { countdownCardParticles } from "@/lib/animations";
+import { vibrateCelebrate, vibrateSoftError, vibrateSuccess } from "@/lib/haptics";
 
 interface CountdownData {
   meetDate: string | null;
@@ -15,6 +17,7 @@ interface CountdownApiData extends CountdownData {
 }
 
 export default function CountdownPage() {
+  const reduceMotion = useReducedMotion();
   const [countdown, setCountdown] = useState<CountdownData>({
     meetDate: null,
     anniversaryDate: null,
@@ -26,6 +29,7 @@ export default function CountdownPage() {
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [now, setNow] = useState(new Date());
+  const celebratedRef = useRef(false);
 
   // Live clock
   useEffect(() => {
@@ -86,11 +90,14 @@ export default function CountdownPage() {
         setMeetDateInput(data.meetDate ?? "");
         setAnniversaryInput(data.anniversaryDate ?? "");
         setEditing(false);
+        vibrateSuccess();
       } else {
         setErrorMessage(json.error?.message ?? "Failed to save countdown");
+        vibrateSoftError();
       }
     } catch {
       setErrorMessage("Failed to save countdown");
+      vibrateSoftError();
     } finally {
       setSaving(false);
     }
@@ -128,6 +135,15 @@ export default function CountdownPage() {
 
   const meetPast = meetDays !== null && meetDays < 0;
 
+  useEffect(() => {
+    if (isToday && !celebratedRef.current) {
+      vibrateCelebrate();
+      celebratedRef.current = true;
+    }
+
+    if (!isToday) celebratedRef.current = false;
+  }, [isToday]);
+
   if (loading)
     return (
       <div className="flex items-center justify-center h-full p-20">
@@ -140,23 +156,23 @@ export default function CountdownPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Timer className="w-5 h-5 text-purple-400" />
-            <h1 className="text-2xl font-bold text-white">Countdown</h1>
+            <Timer className="w-5 h-5 text-[color:var(--color-lilac-dream)]" />
+            <h1 className="text-2xl font-bold text-[color:var(--foreground)]">Countdown</h1>
           </div>
-          <p className="text-purple-300/50 text-sm">
+          <p className="text-[color:var(--text-soft)] text-sm">
             Every second, closer to you. ⏳
           </p>
         </div>
         <button
           onClick={() => setEditing(!editing)}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl border border-purple-500/20 text-purple-300/60 hover:text-purple-300 hover:border-purple-500/40 text-sm transition-all"
+          className="touch-pressable flex items-center gap-2 px-4 py-2 rounded-xl border border-[color:var(--border)] text-[color:var(--text-soft)] hover:text-[color:var(--foreground)] hover:border-[color:var(--color-lilac-dream)]/40 text-sm transition-all"
         >
           <Edit3 className="w-3.5 h-3.5" />
           {editing ? "Cancel" : "Edit dates"}
         </button>
       </div>
       {errorMessage && (
-        <p className="mb-4 text-sm text-red-300/80">{errorMessage}</p>
+        <p className="mb-4 text-sm text-rose-200/80">{errorMessage}</p>
       )}
 
       {/* Edit form */}
@@ -174,7 +190,7 @@ export default function CountdownPage() {
                 type="date"
                 value={meetDateInput}
                 onChange={(e) => setMeetDateInput(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-white/5 border border-purple-500/20 text-white text-sm focus:outline-none focus:border-purple-500/50 [color-scheme:dark]"
+                className="w-full px-4 py-3 rounded-xl bg-[color:var(--surface-2)]/55 border border-[color:var(--border)] text-[color:var(--foreground)] text-sm focus:outline-none focus:border-[color:var(--color-lilac-dream)]/60 [color-scheme:dark]"
               />
             </div>
             <div>
@@ -185,7 +201,7 @@ export default function CountdownPage() {
                 type="date"
                 value={anniversaryInput}
                 onChange={(e) => setAnniversaryInput(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-white/5 border border-purple-500/20 text-white text-sm focus:outline-none focus:border-purple-500/50 [color-scheme:dark]"
+                className="w-full px-4 py-3 rounded-xl bg-[color:var(--surface-2)]/55 border border-[color:var(--border)] text-[color:var(--foreground)] text-sm focus:outline-none focus:border-[color:var(--color-lilac-dream)]/60 [color-scheme:dark]"
               />
             </div>
           </div>
@@ -193,7 +209,7 @@ export default function CountdownPage() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex items-center gap-2 px-5 py-2 rounded-xl bg-purple-600 text-white text-sm hover:bg-purple-500 disabled:opacity-40 transition-all"
+              className="touch-pressable flex items-center gap-2 px-5 py-2 rounded-xl bg-[var(--gradient-heartbeat)] text-white text-sm disabled:opacity-40 transition-all"
             >
               {saving ? (
                 <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -208,23 +224,27 @@ export default function CountdownPage() {
 
       {/* Main countdown — next meet */}
       <div
-        className="relative overflow-hidden rounded-3xl p-8 mb-6 text-center border border-white/15 countdown-poster"
+        className={`relative overflow-hidden rounded-3xl p-8 mb-6 text-center border border-white/15 countdown-poster ${
+          reduceMotion ? "" : "countdown-poster-animated"
+        }`}
       >
-        <div className="absolute inset-0 pointer-events-none">
-          {countdownCardParticles.map((particle) => (
-            <span
-              key={particle.id}
-              className="countdown-particle-float"
-              style={{
-                left: particle.left,
-                animationDelay: particle.delay,
-                animationDuration: particle.duration,
-              }}
-            >
-              {particle.symbol}
-            </span>
-          ))}
-        </div>
+        {!reduceMotion && (
+          <div className="absolute inset-0 pointer-events-none">
+            {countdownCardParticles.map((particle) => (
+              <span
+                key={particle.id}
+                className="countdown-particle-float"
+                style={{
+                  left: particle.left,
+                  animationDelay: particle.delay,
+                  animationDuration: particle.duration,
+                }}
+              >
+                {particle.symbol}
+              </span>
+            ))}
+          </div>
+        )}
         <div className="relative z-10">
           <div className="text-5xl mb-4">❤️</div>
         {countdown.meetDate ? (
@@ -249,7 +269,7 @@ export default function CountdownPage() {
                 <div className="countdown-flip-stage mb-5">
                   <div
                     key={`flip-${meetDays ?? "none"}`}
-                    className="countdown-flip-digit countdown-flip-in countdown-glow-gold"
+                    className={`countdown-flip-digit ${reduceMotion ? "" : "countdown-flip-in countdown-glow-gold"}`}
                     aria-live="polite"
                     aria-atomic="true"
                   >
@@ -303,7 +323,7 @@ export default function CountdownPage() {
             </p>
             <button
               onClick={() => setEditing(true)}
-              className="mt-4 px-6 py-2.5 rounded-full bg-purple-600 text-white text-sm hover:bg-purple-500 transition-all"
+              className="touch-pressable mt-4 px-6 py-2.5 rounded-full bg-[var(--gradient-heartbeat)] text-white text-sm transition-all"
             >
               Add date
             </button>
@@ -315,11 +335,11 @@ export default function CountdownPage() {
       {/* Anniversary */}
       {countdown.anniversaryDate && (
         <div className="glass-card p-6 text-center">
-          <Heart className="w-5 h-5 text-pink-400 mx-auto mb-3" />
+          <Heart className="w-5 h-5 text-[color:var(--color-blossom)] mx-auto mb-3" />
           <p className="text-purple-300/60 text-sm uppercase tracking-wider mb-2">
             Anniversary
           </p>
-          <p className="text-white font-semibold">
+          <p className="text-[color:var(--foreground)] font-semibold">
             {format(parseISO(countdown.anniversaryDate), "MMMM d, yyyy")}
           </p>
           {anniversaryDays !== null && anniversaryDays >= 0 && (
@@ -347,24 +367,26 @@ export default function CountdownPage() {
 
       {isToday && (
         <div className="fixed inset-0 z-50 pointer-events-none flex flex-col items-center justify-center bg-[color:var(--background)]/75 backdrop-blur-sm">
-          <div className="absolute inset-0 pointer-events-none">
-            {Array.from({ length: 28 }, (_, index) => {
-              const symbols = ["🎉", "💕", "✨", "🌸", "⭐"] as const;
-              return (
-                <span
-                  key={`celebrate-${index}`}
-                  className="countdown-particle-float"
-                  style={{
-                    left: `${(index * 13) % 100}%`,
-                    animationDelay: `${(index % 8) * 0.18}s`,
-                    animationDuration: `${3.2 + (index % 4) * 0.5}s`,
-                  }}
-                >
-                  {symbols[index % symbols.length]}
-                </span>
-              );
-            })}
-          </div>
+          {!reduceMotion && (
+            <div className="absolute inset-0 pointer-events-none">
+              {Array.from({ length: 28 }, (_, index) => {
+                const symbols = ["🎉", "💕", "✨", "🌸", "⭐"] as const;
+                return (
+                  <span
+                    key={`celebrate-${index}`}
+                    className="countdown-particle-float"
+                    style={{
+                      left: `${(index * 13) % 100}%`,
+                      animationDelay: `${(index % 8) * 0.18}s`,
+                      animationDuration: `${3.2 + (index % 4) * 0.5}s`,
+                    }}
+                  >
+                    {symbols[index % symbols.length]}
+                  </span>
+                );
+              })}
+            </div>
+          )}
           <p
             className="text-[4rem] leading-none mb-4"
             style={{ fontFamily: "var(--font-accent), cursive" }}

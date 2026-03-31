@@ -1,6 +1,35 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
+import { Caveat, JetBrains_Mono, Nunito, Playfair_Display } from "next/font/google";
 import "./globals.css";
+
+const nunito = Nunito({
+  subsets: ["latin"],
+  variable: "--font-nunito",
+  display: "swap",
+  weight: ["400", "500", "600", "700", "800"],
+});
+
+const playfairDisplay = Playfair_Display({
+  subsets: ["latin"],
+  variable: "--font-playfair",
+  display: "swap",
+  weight: ["500", "600", "700", "800"],
+});
+
+const caveat = Caveat({
+  subsets: ["latin"],
+  variable: "--font-caveat",
+  display: "swap",
+  weight: ["500", "600", "700"],
+});
+
+const jetBrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-jetbrains",
+  display: "swap",
+  weight: ["400", "500", "700"],
+});
 
 export const metadata: Metadata = {
   title: "UsVerse — Your Private Universe",
@@ -29,7 +58,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full antialiased">
+    <html
+      lang="en"
+      className={`${nunito.variable} ${playfairDisplay.variable} ${caveat.variable} ${jetBrainsMono.variable} h-full antialiased`}
+    >
       <body className="min-h-full flex flex-col">
         <Script id="usverse-theme-init" strategy="beforeInteractive">{`
           (function() {
