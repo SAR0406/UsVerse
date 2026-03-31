@@ -1,117 +1,143 @@
 import Link from "next/link";
-import { Home, Search, Tag, User, WandSparkles } from "lucide-react";
+import {
+  ArrowRight,
+  BookOpen,
+  Clapperboard,
+  Gamepad2,
+  Heart,
+  MessageCircle,
+  Timer,
+  WandSparkles,
+} from "lucide-react";
 
-const bars = [
-  "bg-[#B12267] w-3/4",
-  "bg-[#955322] w-2/3",
-  "bg-[#665A8E] w-1/2",
+const highlights = [
+  {
+    title: "Live Chat",
+    description: "Stay synced with a private, beautiful chat space made for two.",
+    icon: MessageCircle,
+  },
+  {
+    title: "Daily Sparks",
+    description: "Thoughtful prompts that keep your connection warm and playful.",
+    icon: Heart,
+  },
+  {
+    title: "Shared Diary",
+    description: "Capture moments, dreams, and memories in one cozy timeline.",
+    icon: BookOpen,
+  },
+  {
+    title: "Countdown Magic",
+    description: "Feel the excitement rise as special dates draw closer.",
+    icon: Timer,
+  },
+  {
+    title: "Bloom + Play",
+    description: "Create, doodle, and laugh together with fun interactive moments.",
+    icon: Gamepad2,
+  },
+  {
+    title: "Cinema Nights",
+    description: "Turn ordinary evenings into tiny date-night experiences.",
+    icon: Clapperboard,
+  },
 ];
-
-const chips = ["#B12267", "#955322", "#665A8E", "#C61556"];
 
 export default function LandingPage() {
   return (
-    <main className="min-h-screen bg-[#D7CC79] p-4 md:p-6 text-[#3f3a17]">
-      <div className="mx-auto max-w-7xl">
-        <div className="grid grid-cols-1 lg:grid-cols-[246px_1fr] gap-3">
-          <section className="space-y-3">
-            <ColorCard title="Primary" code="#FF6B9D" color="#FF6B9D" />
-            <ColorCard title="Secondary" code="#FFAB76" color="#FFAB76" />
-            <ColorCard title="Tertiary" code="#C8B6E2" color="#C8B6E2" />
-            <ColorCard title="Neutral" code="#FFF3B0" color="#FFF3B0" />
-          </section>
-
-          <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-            <Card>
-              <p className="text-[#a5a05b] text-xl">Headline</p>
-              <p className="font-serif text-[7rem] leading-none text-[#3B3806] mt-2 text-center">
-                Aa
-              </p>
-            </Card>
-
-            <Card className="flex items-center justify-center">
-              <div className="w-full max-w-[260px] space-y-2.5">
-                <div className="flex gap-2.5">
-                  <Pill className="bg-[#B12267] text-white">Primary</Pill>
-                  <Pill className="bg-[#E8DC8C] text-[#6D6628]">Secondary</Pill>
-                </div>
-                <div className="flex gap-2.5">
-                  <Pill className="bg-black text-[#D7CC79]">Inverted</Pill>
-                  <Pill className="border border-[#8F854A] text-[#6D6628]">Outlined</Pill>
-                </div>
-              </div>
-            </Card>
-
-            <Card className="flex items-center">
-              <div className="flex items-center gap-2 rounded-full border border-[#ADA256] px-4 py-3 w-full text-[#8B8342]">
-                <Search className="w-4 h-4" />
-                <span className="text-2xl">Search</span>
-              </div>
-            </Card>
-
-            <Card>
-              <p className="text-[#a5a05b] text-xl">Body</p>
-              <p className="font-serif text-[7rem] leading-none text-[#676228] mt-2 text-center">
-                Aa
-              </p>
-            </Card>
-
-            <Card className="flex items-center">
-              <div className="w-full space-y-2.5">
-                {bars.map((bar, index) => (
-                  <div key={index} className="h-2 rounded-full bg-[#DCD188]">
-                    <div className={`h-full rounded-full ${bar}`} />
-                  </div>
-                ))}
-              </div>
-            </Card>
-
-            <Card className="flex items-center justify-center">
-              <div className="rounded-3xl bg-[#DBD081] px-6 py-4 flex gap-9">
-                <RoundIcon className="bg-[#B12267] text-white">
-                  <Home className="w-4 h-4" />
-                </RoundIcon>
-                <Search className="w-5 h-5 text-[#6D6628]" />
-                <User className="w-5 h-5 text-[#6D6628]" />
-              </div>
-            </Card>
-
-            <Card>
-              <p className="text-[#a5a05b] text-xl">Label</p>
-              <p className="font-serif text-[7rem] leading-none text-[#676228] mt-2 text-center">
-                Aa
-              </p>
-            </Card>
-
-            <Card className="flex items-center justify-center">
-              <RoundIcon className="bg-[#C8B6E2] text-[#655d9a] w-11 h-11">
-                <Tag className="w-5 h-5" />
-              </RoundIcon>
-            </Card>
-
-            <Card className="flex items-center justify-center gap-5 flex-wrap">
-              <Pill className="bg-[#FF6B9D] text-[#4b102b] px-5 py-2.5 text-[30px]">
-                <span className="inline-flex items-center gap-2">
-                  <Tag className="w-4 h-4" /> Label
-                </span>
+    <main className="min-h-screen px-4 py-8 md:px-8 md:py-10">
+      <div className="mx-auto max-w-6xl space-y-4">
+        <section className="glass-card overflow-hidden p-6 md:p-10">
+          <div className="grid items-center gap-8 lg:grid-cols-[1.2fr_0.8fr]">
+            <div className="space-y-5">
+              <Pill className="border border-[var(--border)] text-[var(--text-soft)]">
+                An unforgettable first impression
               </Pill>
-              {chips.map((chip) => (
-                <RoundIcon key={chip} className="text-white" style={{ backgroundColor: chip }}>
-                  <WandSparkles className="w-4 h-4" />
-                </RoundIcon>
-              ))}
-            </Card>
-          </section>
-        </div>
+              <h1 className="font-serif text-4xl leading-tight md:text-6xl">
+                Your{" "}
+                <span className="gradient-text inline-flex items-center gap-2">
+                  Love Universe
+                  <Heart className="h-8 w-8 animate-heartbeat" />
+                </span>
+                <br />
+                starts here.
+              </h1>
+              <p className="max-w-2xl text-base text-[var(--text-soft)] md:text-lg">
+                UsVerse is a private digital world for couples—chat, memories, countdowns,
+                playful experiences, and little sparks of affection in one warm home.
+              </p>
+              <div className="flex flex-wrap items-center gap-3">
+                <Link
+                  href="/login"
+                  className="touch-pressable inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold text-[var(--dark-nebula)] animate-pulse-glow"
+                  style={{
+                    backgroundColor: "var(--color-butter)",
+                    border: "1px solid var(--border)",
+                  }}
+                >
+                  Enter UsVerse <ArrowRight className="h-4 w-4" />
+                </Link>
+                <a
+                  href="#features"
+                  className="touch-pressable inline-flex items-center rounded-full border border-[var(--border)] px-6 py-3 text-sm font-semibold text-[var(--foreground)]"
+                >
+                  Explore features
+                </a>
+              </div>
+            </div>
 
-        <div className="mt-5 text-center">
+            <Card className="space-y-4">
+              <p className="text-xs uppercase tracking-[0.25em] text-[var(--text-whisper)]">
+                Built for two hearts
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <Stat label="Private" value="100%" />
+                <Stat label="Moments" value="∞" />
+                <Stat label="Features" value="8+" />
+                <Stat label="Vibe" value="Love" />
+              </div>
+              <div className="rounded-2xl border border-[var(--border)] bg-black/10 p-4">
+                <p className="text-sm text-[var(--text-soft)]">
+                  “It feels like someone designed an app around our relationship, not just around
+                  tasks.”
+                </p>
+                <p className="mt-2 text-xs text-[var(--text-whisper)]">— UsVerse couple</p>
+              </div>
+            </Card>
+          </div>
+        </section>
+
+        <section id="features" className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {highlights.map(({ title, description, icon: Icon }) => (
+            <Card key={title} className="space-y-4">
+              <RoundIcon className="text-white" style={{ background: "var(--gradient-heartbeat)" }}>
+                <Icon className="h-5 w-5" />
+              </RoundIcon>
+              <div>
+                <h2 className="font-semibold">{title}</h2>
+                <p className="mt-1 text-sm text-[var(--text-soft)]">{description}</p>
+              </div>
+            </Card>
+          ))}
+        </section>
+
+        <section className="glass-card rounded-3xl p-6 text-center md:p-8">
+          <p className="text-sm uppercase tracking-[0.2em] text-[var(--text-whisper)]">Ready?</p>
+          <h2 className="mt-2 font-serif text-3xl md:text-4xl">
+            Make your relationship feel{" "}
+            <span className="inline-flex items-center gap-2 gradient-text">
+              magical <WandSparkles className="h-6 w-6" />
+            </span>
+          </h2>
           <Link
             href="/login"
-            className="inline-flex rounded-full bg-[#B12267] px-6 py-3 text-white text-sm font-semibold hover:brightness-110 transition"
+            className="touch-pressable mt-6 inline-flex items-center gap-2 rounded-full px-7 py-3 text-sm font-semibold text-white"
+            style={{ backgroundColor: "var(--dark-nebula)" }}
           >
-            Enter UsVerse
+            Create your shared space
+            <ArrowRight className="h-4 w-4" />
           </Link>
-        </div>
+        </section>
       </div>
     </main>
   );
@@ -160,36 +186,11 @@ function RoundIcon({
   );
 }
 
-function ColorCard({
-  title,
-  code,
-  color,
-}: {
-  title: string;
-  code: string;
-  color: string;
-}) {
+function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="overflow-hidden rounded-3xl bg-[#E7DD93]">
-      <div
-        className="h-[108px] px-4 pt-4 flex items-start justify-between text-[#2e2a10] font-semibold text-xl"
-        style={{ backgroundColor: color }}
-      >
-        <span>{title}</span>
-        <span className="font-medium">{code}</span>
-      </div>
-      <div className="h-[54px] grid grid-cols-10" role="list" aria-label={`${title} shade scale`}>
-        {Array.from({ length: 10 }).map((_, index) => (
-          <div
-            key={index}
-            role="listitem"
-            aria-label={`${Math.min(index * 9, 90)}% darker`}
-            style={{
-              backgroundColor: `color-mix(in oklab, ${color} ${100 - index * 9}%, black ${index * 9}%)`,
-            }}
-          />
-        ))}
-      </div>
+    <div className="rounded-2xl border border-[var(--border)] bg-black/5 p-3">
+      <p className="text-xl font-semibold">{value}</p>
+      <p className="text-xs uppercase tracking-widest text-[var(--text-whisper)]">{label}</p>
     </div>
   );
 }
