@@ -52,8 +52,20 @@ export default function GravityPage() {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (!raw) return [];
-      const parsed = JSON.parse(raw) as RoundRecord[];
-      return Array.isArray(parsed) ? parsed.slice(0, 5) : [];
+      const parsed = JSON.parse(raw) as unknown[];
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .filter(
+          (item): item is RoundRecord =>
+            typeof item === "object" &&
+            item !== null &&
+            typeof (item as RoundRecord).id === "string" &&
+            typeof (item as RoundRecord).round === "number" &&
+            typeof (item as RoundRecord).timeMs === "number" &&
+            typeof (item as RoundRecord).reward === "string" &&
+            typeof (item as RoundRecord).when === "string",
+        )
+        .slice(0, 5);
     } catch {
       return [];
     }
@@ -110,7 +122,9 @@ export default function GravityPage() {
     }
     const onOrientation = (e: DeviceOrientationEvent) => {
       const gamma = e.gamma ?? 0; // left-right tilt → horizontal
-      const beta = (e.beta ?? 0) - 20; // forward-back tilt minus natural hold offset → vertical
+      // beta: subtract ~20° to compensate for the natural forward-tilted hold angle of a phone,
+      // so "flat on table" maps to zero vertical force.
+      const beta = (e.beta ?? 0) - 20;
       inputRef.current.ax = (gamma / 90) * SENSOR_SCALE;
       inputRef.current.ay = (beta / 90) * SENSOR_SCALE;
     };
