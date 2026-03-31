@@ -4,10 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AURA — A Universe for Two</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Nunito:wght@300;400;600&family=Caveat:wght@400;600;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Nunito:wght@400;600&family=Caveat:wght@600&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Nunito:wght@400;600&family=Caveat:wght@600&display=swap"></noscript>
 <style>
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -23,10 +23,11 @@
   --cosmic:#4a1c7c;
   --text-soft:#F0D6FF;
   --text-whisper:#C4A8D4;
-  --glow-pink:0 0 40px #FF6B9D55,0 0 80px #FF6B9D22;
-  --glow-lilac:0 0 40px #C8B6E255,0 0 80px #C8B6E222;
+  --glow-pink:0 0 24px rgba(255,107,157,.32);
+  --glow-lilac:0 0 24px rgba(200,182,226,.22);
+  --border:rgba(200,182,226,.12);
 }
-html{scroll-behavior:smooth;cursor:none}
+html{scroll-behavior:smooth}
 body{
   background:#0D0720;
   color:#F0D6FF;
@@ -35,26 +36,17 @@ body{
   line-height:1.6;
 }
 
-/* ─── CUSTOM CURSOR ─── */
-#cursor{position:fixed;width:12px;height:12px;background:var(--blossom);border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);transition:transform .1s,width .2s,height .2s;mix-blend-mode:screen}
-#cursor-trail{position:fixed;width:40px;height:40px;border:1.5px solid #FF6B9D55;border-radius:50%;pointer-events:none;z-index:9998;transform:translate(-50%,-50%);transition:all .15s ease}
-.cursor-heart{position:fixed;pointer-events:none;z-index:9997;font-size:14px;animation:heartFloat 1.2s ease-out forwards}
-@keyframes heartFloat{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-60px) scale(0.5)}}
+/* cursor removed for performance */
 
-/* ─── NOISE TEXTURE ─── */
-body::before{
-  content:'';position:fixed;top:0;left:0;width:100%;height:100%;
-  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
-  opacity:.025;pointer-events:none;z-index:1;
-}
+/* noise texture removed for performance */
 
 /* ─── NAV ─── */
 nav{
   position:fixed;top:0;left:0;right:0;z-index:100;
   padding:1.5rem 4rem;
   display:flex;justify-content:space-between;align-items:center;
-  background:linear-gradient(to bottom,rgba(13,7,32,.9),transparent);
-  backdrop-filter:blur(10px);
+  background:rgba(13,7,32,.92);
+  border-bottom:1px solid var(--border);
 }
 .nav-logo{
   font-family:'Caveat',cursive;
@@ -68,14 +60,14 @@ nav{
 .nav-links a{
   color:var(--text-whisper);font-size:.9rem;text-decoration:none;
   letter-spacing:.08em;text-transform:uppercase;font-weight:600;
-  transition:color .3s;cursor:none;
+  transition:color .3s;
 }
 .nav-links a:hover{color:var(--blossom)}
 .nav-cta{
   background:linear-gradient(135deg,var(--blossom),var(--peach));
   color:#fff;padding:.6rem 1.8rem;border-radius:999px;
   font-size:.85rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
-  text-decoration:none;cursor:none;
+  text-decoration:none;
   box-shadow:var(--glow-pink);
   transition:transform .2s,box-shadow .2s;
 }
@@ -131,7 +123,7 @@ nav{
 .btn-primary{
   background:linear-gradient(135deg,var(--blossom),var(--peach));
   color:#fff;padding:1rem 2.5rem;border-radius:999px;
-  font-size:1rem;font-weight:700;text-decoration:none;cursor:none;
+  font-size:1rem;font-weight:700;text-decoration:none;
   box-shadow:var(--glow-pink);
   transition:transform .2s,box-shadow .2s;
   display:inline-flex;align-items:center;gap:.6rem;
@@ -139,7 +131,7 @@ nav{
 .btn-primary:hover{transform:translateY(-2px) scale(1.02);box-shadow:0 0 80px #FF6B9D88}
 .btn-ghost{
   color:var(--text-soft);padding:1rem 2rem;border-radius:999px;
-  font-size:1rem;font-weight:600;text-decoration:none;cursor:none;
+  font-size:1rem;font-weight:600;text-decoration:none;
   border:1px solid rgba(240,214,255,.15);
   transition:border-color .3s,color .3s;
   display:inline-flex;align-items:center;gap:.5rem;
@@ -284,13 +276,13 @@ nav{
   background:rgba(29,16,64,.9);border:1px solid rgba(200,182,226,.2);
   border-radius:999px;padding:.4rem 1rem;font-size:.75rem;
   color:var(--text-soft);display:flex;align-items:center;gap:.4rem;
-  backdrop-filter:blur(8px);white-space:nowrap;
+  white-space:nowrap;
 }
 .float-heart{font-size:1.5rem;animation:heartBeat 1.5s ease-in-out infinite}
 @keyframes heartBeat{0%,100%{transform:scale(1)}50%{transform:scale(1.2)}}
 
 /* ─── CANVAS PARTICLES ─── */
-#particle-canvas{position:fixed;inset:0;pointer-events:none;z-index:0}
+
 
 /* ─── SECTION SHARED ─── */
 section{position:relative;z-index:2}
@@ -323,7 +315,7 @@ section{position:relative;z-index:2}
   border-radius:24px;
   padding:2rem;
   transition:transform .3s,border-color .3s,box-shadow .3s;
-  cursor:none;position:relative;overflow:hidden;
+  position:relative;overflow:hidden;
 }
 .feature-card::before{
   content:'';position:absolute;inset:0;
@@ -387,7 +379,7 @@ section{position:relative;z-index:2}
   background:linear-gradient(135deg,rgba(28,16,64,.9),rgba(45,22,84,.7));
   border:1px solid rgba(200,182,226,.15);border-radius:28px;
   padding:2rem;width:220px;text-align:center;
-  transition:transform .3s,box-shadow .3s;cursor:none;
+  transition:transform .3s,box-shadow .3s;
 }
 .silent-card:hover{transform:translateY(-8px);box-shadow:0 20px 60px rgba(255,107,157,.2)}
 .silent-emoji{font-size:3rem;margin-bottom:1rem;display:block}
@@ -413,7 +405,7 @@ section{position:relative;z-index:2}
   background:linear-gradient(135deg,rgba(28,16,64,.9),rgba(45,22,84,.6));
   border:1px solid rgba(200,182,226,.12);border-radius:20px;
   padding:1.5rem;width:200px;
-  transition:transform .3s,border-color .3s;cursor:none;
+  transition:transform .3s,border-color .3s;
 }
 .sticker-pack:hover{transform:scale(1.03);border-color:rgba(255,107,157,.25)}
 .sticker-pack-icon{font-size:2.5rem;margin-bottom:.8rem;display:block}
@@ -435,7 +427,7 @@ section{position:relative;z-index:2}
 .game-card{
   background:linear-gradient(135deg,rgba(28,16,64,.9),rgba(45,22,84,.7));
   border:1px solid rgba(200,182,226,.1);border-radius:24px;
-  padding:2rem;cursor:none;position:relative;overflow:hidden;
+  padding:2rem;position:relative;overflow:hidden;
   transition:transform .3s,border-color .3s,box-shadow .3s;
 }
 .game-card::after{
@@ -534,7 +526,7 @@ section{position:relative;z-index:2}
   background:linear-gradient(135deg,rgba(28,16,64,.8),rgba(45,22,84,.5));
   border:1px solid rgba(200,182,226,.1);border-radius:20px;
   padding:2rem;text-align:left;
-  transition:transform .3s,border-color .3s;cursor:none;
+  transition:transform .3s,border-color .3s;
 }
 .testimonial-card:hover{transform:translateY(-4px);border-color:rgba(255,107,157,.2)}
 .t-stars{color:var(--blossom);font-size:1rem;margin-bottom:1rem;letter-spacing:.1em}
@@ -572,7 +564,7 @@ section{position:relative;z-index:2}
   background:rgba(28,16,64,.9);border:1px solid rgba(200,182,226,.15);
   border-radius:12px;padding:.7rem 1.3rem;
   display:flex;align-items:center;gap:.7rem;
-  text-decoration:none;cursor:none;
+  text-decoration:none;
   transition:border-color .3s,transform .2s;
 }
 .store-badge:hover{border-color:rgba(255,107,157,.3);transform:translateY(-2px)}
@@ -590,7 +582,7 @@ footer{
 .footer-brand{font-family:'Caveat',cursive;font-size:1.5rem;font-weight:700;background:linear-gradient(135deg,var(--blossom),var(--peach));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .footer-tagline{font-size:.8rem;color:var(--text-whisper);font-family:'Caveat',cursive;font-size:.95rem}
 .footer-links{display:flex;gap:2rem}
-.footer-links a{font-size:.8rem;color:var(--text-whisper);text-decoration:none;cursor:none;transition:color .3s}
+.footer-links a{font-size:.8rem;color:var(--text-whisper);text-decoration:none;transition:color .3s}
 .footer-links a:hover{color:var(--blossom)}
 .footer-heart{color:var(--blossom);animation:heartBeat 2s ease-in-out infinite}
 
@@ -629,13 +621,48 @@ footer{
   footer{flex-direction:column;text-align:center}
   .footer-links{justify-content:center}
 }
+
+/* ─── CSS PARTICLES (no canvas, no JS rAF) ─── */
+.particles{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.p{position:absolute;font-size:14px;opacity:0;animation:pfloat var(--d,12s) var(--delay,0s) linear infinite}
+@keyframes pfloat{
+  0%{transform:translateY(100vh) rotate(0deg);opacity:0}
+  5%{opacity:.3}
+  95%{opacity:.2}
+  100%{transform:translateY(-60px) rotate(360deg);opacity:0}
+}
+.p:nth-child(1){left:8%;--d:14s;--delay:0s}
+.p:nth-child(2){left:18%;--d:11s;--delay:2s}
+.p:nth-child(3){left:28%;--d:16s;--delay:5s}
+.p:nth-child(4){left:40%;--d:13s;--delay:1s}
+.p:nth-child(5){left:52%;--d:15s;--delay:3.5s}
+.p:nth-child(6){left:63%;--d:12s;--delay:7s}
+.p:nth-child(7){left:75%;--d:17s;--delay:4s}
+.p:nth-child(8){left:86%;--d:11s;--delay:6s}
+.p:nth-child(9){left:93%;--d:14s;--delay:2.5s}
+.p:nth-child(10){left:34%;--d:18s;--delay:8s}
+
+/* ─── SIGN IN BUTTON ─── */
+.nav-signin{
+  color:var(--text-soft);font-size:.875rem;text-decoration:none;
+  padding:.5rem 1.25rem;border-radius:999px;
+  border:1px solid rgba(240,214,255,.15);font-weight:600;letter-spacing:.06em;
+  transition:border-color .25s,color .25s;
+}
+.nav-signin:hover{border-color:var(--lilac);color:var(--lilac)}
+
+/* ─── REDUCED MOTION ─── */
+@media(prefers-reduced-motion:reduce){
+  .reveal{opacity:1;transform:none;transition:none}
+  .marquee-track,.p,.phone-wrap,.orb-ring,.app-pulse,.float-heart,
+  .dot,.footer-heart,.cinema-screen-glow,.couch-figure{animation:none}
+}
 </style>
 </head>
 <body>
 
-<canvas id="particle-canvas"></canvas>
-<div id="cursor"></div>
-<div id="cursor-trail"></div>
+<!-- CSS-only particles -->
+<div class="particles" aria-hidden="true"><span class="p">💕</span><span class="p">✨</span><span class="p">🌸</span><span class="p">💫</span><span class="p">⭐</span><span class="p">🌙</span><span class="p">💖</span><span class="p">💕</span><span class="p">✨</span><span class="p">🌸</span></div>
 
 <!-- ─── NAV ─── -->
 <nav>
@@ -644,6 +671,7 @@ footer{
     <a href="#features">Features</a>
     <a href="#games">Play Together</a>
     <a href="#cinema">Watch</a>
+    <a class="nav-signin" href="/login">Sign In</a>
     <a class="nav-cta" href="#cta">Get Early Access</a>
   </div>
 </nav>
@@ -1070,6 +1098,7 @@ footer{
     <a href="#">About</a>
     <a href="#">Privacy</a>
     <a href="#">Contact</a>
+    <a href="/login">Sign In</a>
   </div>
   <div style="font-size:.8rem;color:var(--text-whisper)">
     Made with <span class="footer-heart">❤️</span> for every long-distance heart
@@ -1077,132 +1106,17 @@ footer{
 </footer>
 
 <script>
-// ─── CURSOR ───
-const cursor = document.getElementById('cursor');
-const cursorTrail = document.getElementById('cursor-trail');
-let mx = 0, my = 0, lastHeart = 0;
-
-document.addEventListener('mousemove', e => {
-  mx = e.clientX; my = e.clientY;
-  cursor.style.left = mx + 'px'; cursor.style.top = my + 'px';
-  cursorTrail.style.left = mx + 'px'; cursorTrail.style.top = my + 'px';
-  // Heart trail
-  const now = Date.now();
-  if (now - lastHeart > 120) {
-    lastHeart = now;
-    const h = document.createElement('div');
-    h.className = 'cursor-heart';
-    h.textContent = ['💕','✨','🌸','💫'][Math.floor(Math.random()*4)];
-    h.style.cssText = `left:${mx}px;top:${my}px;transform:translate(-50%,-50%)`;
-    document.body.appendChild(h);
-    setTimeout(() => h.remove(), 1200);
+// Lightweight scroll reveal — IntersectionObserver, no external JS
+(function(){
+  if(!('IntersectionObserver' in window)){
+    document.querySelectorAll('.reveal').forEach(function(el){el.classList.add('visible');});
+    return;
   }
-});
-document.querySelectorAll('a,button').forEach(el => {
-  el.addEventListener('mouseenter', () => {
-    cursor.style.width = '20px'; cursor.style.height = '20px';
-    cursorTrail.style.width = '60px'; cursorTrail.style.height = '60px';
-  });
-  el.addEventListener('mouseleave', () => {
-    cursor.style.width = '12px'; cursor.style.height = '12px';
-    cursorTrail.style.width = '40px'; cursorTrail.style.height = '40px';
-  });
-});
-
-// ─── PARTICLES ───
-const canvas = document.getElementById('particle-canvas');
-const ctx = canvas.getContext('2d');
-let W, H, particles = [];
-
-const resize = () => { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; };
-resize(); window.addEventListener('resize', resize);
-
-const EMOJIS = ['💕','✨','🌸','💫','⭐','🌙','💖'];
-class Particle {
-  constructor() { this.reset(); }
-  reset() {
-    this.x = Math.random() * W;
-    this.y = H + 20;
-    this.emoji = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
-    this.size = 10 + Math.random() * 12;
-    this.speed = 0.3 + Math.random() * 0.6;
-    this.drift = (Math.random() - 0.5) * 0.4;
-    this.opacity = 0.2 + Math.random() * 0.4;
-    this.rotation = Math.random() * Math.PI * 2;
-    this.rotSpeed = (Math.random() - 0.5) * 0.01;
-  }
-  update() {
-    this.y -= this.speed; this.x += this.drift;
-    this.rotation += this.rotSpeed;
-    if (this.y < -30) this.reset();
-  }
-  draw() {
-    ctx.save();
-    ctx.globalAlpha = this.opacity;
-    ctx.translate(this.x, this.y);
-    ctx.rotate(this.rotation);
-    ctx.font = `${this.size}px serif`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(this.emoji, 0, 0);
-    ctx.restore();
-  }
-}
-
-for (let i = 0; i < 30; i++) {
-  const p = new Particle();
-  p.y = Math.random() * H; // distribute initially
-  particles.push(p);
-}
-
-const animate = () => {
-  ctx.clearRect(0, 0, W, H);
-  particles.forEach(p => { p.update(); p.draw(); });
-  requestAnimationFrame(animate);
-};
-animate();
-
-// ─── REVEAL ON SCROLL ───
-const observer = new IntersectionObserver(entries => {
-  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
-}, { threshold: 0.1 });
-document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
-
-// ─── FLOATING ELEMENT KEYFRAMES via JS ───
-const style = document.createElement('style');
-style.textContent = `
-@keyframes floatEl1{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-15px) rotate(2deg)}}
-@keyframes floatEl2{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
-@keyframes floatEl3{0%,100%{transform:translateY(0) rotate(2deg)}50%{transform:translateY(-12px) rotate(-1deg)}}
-`;
-document.head.appendChild(style);
-
-// ─── GSAP SCROLLTRIGGER ───
-gsap.registerPlugin(ScrollTrigger);
-// Hero title stagger
-gsap.from('.hero-title', {duration:1.2, y:60, opacity:0, ease:'power3.out', delay:.3});
-// Sticker pack parallax scroll
-gsap.to('.sticker-pack:nth-child(odd)', {y:-20, scrollTrigger:{trigger:'#stickers',scrub:1}});
-gsap.to('.sticker-pack:nth-child(even)', {y:20, scrollTrigger:{trigger:'#stickers',scrub:1}});
-// Feature card stagger
-gsap.from('.feature-card', {duration:.8, y:40, opacity:0, stagger:.1, scrollTrigger:{trigger:'#features',start:'top 70%'}});
-// Game card pop
-gsap.from('.game-card', {duration:.7, scale:.9, opacity:0, stagger:.15, scrollTrigger:{trigger:'#games',start:'top 70%'}});
-// Silent cards
-gsap.from('.silent-card', {duration:.8, y:30, opacity:0, stagger:.2, scrollTrigger:{trigger:'.silent-demo',start:'top 75%'}});
-
-// Click celebration
-document.querySelector('.btn-primary').addEventListener('click', e => {
-  for(let i=0;i<12;i++){
-    setTimeout(()=>{
-      const h=document.createElement('div');
-      h.className='cursor-heart';
-      h.textContent=['💕','✨','🌸','💖'][i%4];
-      h.style.cssText=`left:${e.clientX+(Math.random()-0.5)*100}px;top:${e.clientY+(Math.random()-0.5)*60}px;transform:translate(-50%,-50%);font-size:${14+Math.random()*10}px`;
-      document.body.appendChild(h);
-      setTimeout(()=>h.remove(),1200);
-    },i*50);
-  }
-});
+  var io=new IntersectionObserver(function(entries){
+    entries.forEach(function(e){if(e.isIntersecting)e.target.classList.add('visible');});
+  },{threshold:0.08});
+  document.querySelectorAll('.reveal').forEach(function(el){io.observe(el);});
+})();
 </script>
 </body>
 </html>
