@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Camera, Gamepad2, Heart, Home, RefreshCw, Smartphone, Trophy } from "lucide-react";
 
 type Cell = { x: number; y: number };
@@ -41,6 +41,19 @@ function rewardLabel(score: number): string {
 }
 
 export default function SnakeLoveNestPage() {
+  const [rewardHistory, setRewardHistory] = useState<Array<{ score: number; reward: string; when: string }>>(
+    () => {
+      if (typeof window === "undefined") return [];
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (!raw) return [];
+      try {
+        const parsed = JSON.parse(raw) as Array<{ score: number; reward: string; when: string }>;
+        return Array.isArray(parsed) ? parsed.slice(0, 6) : [];
+      } catch {
+        return [];
+      }
+    },
+  );
   const [partnerA, setPartnerA] = useState<Cell>(START_A);
   const [partnerB, setPartnerB] = useState<Cell>(START_B);
   const [heart, setHeart] = useState<Cell>({ x: 7, y: 7 });
@@ -51,9 +64,12 @@ export default function SnakeLoveNestPage() {
   const [sensorEnabled, setSensorEnabled] = useState(false);
   const [sensorDirection, setSensorDirection] = useState<{ dx: number; dy: number }>({ dx: 1, dy: 0 });
   const [cameraOn, setCameraOn] = useState(false);
-  const [rewardHistory, setRewardHistory] = useState<Array<{ score: number; reward: string; when: string }>>(
-    [],
-  );
+  const partnerARef = useRef(partnerA);
+  const partnerBRef = useRef(partnerB);
+  const heartRef = useRef(heart);
+  const scoreRef = useRef(score);
+  const tickMsRef = useRef(tickMs);
+  const matchStateRef = useRef<MatchState>(matchState);
 
   const motionSupported = useMemo(
     () =>
@@ -63,16 +79,28 @@ export default function SnakeLoveNestPage() {
   );
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-    try {
-      const parsed = JSON.parse(raw) as Array<{ score: number; reward: string; when: string }>;
-      if (Array.isArray(parsed)) setRewardHistory(parsed.slice(0, 6));
-    } catch {
-      // ignore corrupt local cache
-    }
-  }, []);
+    partnerARef.current = partnerA;
+  }, [partnerA]);
+
+  useEffect(() => {
+    partnerBRef.current = partnerB;
+  }, [partnerB]);
+
+  useEffect(() => {
+    heartRef.current = heart;
+  }, [heart]);
+
+  useEffect(() => {
+    scoreRef.current = score;
+  }, [score]);
+
+  useEffect(() => {
+    tickMsRef.current = tickMs;
+  }, [tickMs]);
+
+  useEffect(() => {
+    matchStateRef.current = matchState;
+  }, [matchState]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -97,30 +125,41 @@ export default function SnakeLoveNestPage() {
   useEffect(() => {
     if (matchState !== "playing") return;
     const id = window.setInterval(() => {
-      setPartnerA((prev) => nextCell(prev, sensorEnabled ? sensorDirection.dx : 1, sensorEnabled ? sensorDirection.dy : 0));
-      setPartnerB((prev) => nextCell(prev, -1, 0));
+      if (matchStateRef.current !== "playing") return;
+      const nextA = nextCell(
+        partnerARef.current,
+        sensorEnabled ? sensorDirection.dx : 1,
+        sensorEnabled ? sensorDirection.dy : 0,
+      );
+      const nextB = nextCell(partnerBRef.current, -1, 0);
+      setPartnerA(nextA);
+      setPartnerB(nextB);
+      partnerARef.current = nextA;
+      partnerBRef.current = nextB;
+
+      const occupied = [nextA, nextB];
+      if (occupied.some((cell) => sameCell(cell, heartRef.current))) {
+        const nextScore = scoreRef.current + 1;
+        const nextTick = Math.max(320, tickMsRef.current - 20);
+        const nextHeart = randomFreeCell(occupied);
+        setScore(nextScore);
+        setTickMs(nextTick);
+        setHeart(nextHeart);
+        scoreRef.current = nextScore;
+        tickMsRef.current = nextTick;
+        heartRef.current = nextHeart;
+      }
+
+      if (sameCell(nextA, nextB)) {
+        const reward = rewardLabel(scoreRef.current);
+        const item = { score: scoreRef.current, reward, when: new Date().toLocaleString() };
+        setRewardHistory((current) => [item, ...current].slice(0, 6));
+        setMatchState("finished");
+        matchStateRef.current = "finished";
+      }
     }, tickMs);
     return () => window.clearInterval(id);
   }, [matchState, sensorDirection.dx, sensorDirection.dy, sensorEnabled, tickMs]);
-
-  useEffect(() => {
-    if (matchState !== "playing") return;
-    const occupied = [partnerA, partnerB];
-    const gotHeart = occupied.some((cell) => sameCell(cell, heart));
-    if (!gotHeart) return;
-    setScore((value) => value + 1);
-    setTickMs((value) => Math.max(320, value - 20));
-    setHeart(randomFreeCell(occupied));
-  }, [heart, matchState, partnerA, partnerB]);
-
-  useEffect(() => {
-    if (matchState !== "playing") return;
-    if (!sameCell(partnerA, partnerB)) return;
-    const reward = rewardLabel(score);
-    const item = { score, reward, when: new Date().toLocaleString() };
-    setRewardHistory((current) => [item, ...current].slice(0, 6));
-    setMatchState("finished");
-  }, [matchState, partnerA, partnerB, score]);
 
   const board = useMemo(() => {
     const cells: Array<{ cell: Cell; kind: "empty" | "a" | "b" | "heart" }> = [];
