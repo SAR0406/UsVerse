@@ -236,6 +236,9 @@ export default function CountdownPage() {
                 </h2>
                 <p className="text-purple-300/60 text-sm">
                   {format(parseISO(countdown.meetDate), "MMMM d, yyyy")}
+                  {meetDays !== null && meetDays < 0 && (
+                    <span className="ml-2 text-purple-400/50">· {Math.abs(meetDays)} day{Math.abs(meetDays) !== 1 ? "s" : ""} ago</span>
+                  )}
                 </p>
               </>
             ) : (

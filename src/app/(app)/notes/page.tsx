@@ -183,6 +183,23 @@ export default function NotesPage() {
     );
   }
 
+  /* ── No-couple state ─────────────────────────── */
+  if (!coupleId) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] px-4 text-center">
+        <div className="text-5xl mb-4">📔</div>
+        <h2 className="text-xl font-semibold text-white mb-2">Shared Diary</h2>
+        <p className="text-sm text-[color:var(--text-soft)] max-w-xs">
+          Connect with your partner first — head to{" "}
+          <a href="/chat" className="text-purple-400 underline underline-offset-2 hover:text-purple-300">
+            Chat
+          </a>{" "}
+          and share your invite code to unlock your shared diary.
+        </p>
+      </div>
+    );
+  }
+
   const activeNote = notes[activeIndex] ?? null;
   const isFormOpen = creating || !!editingId;
 
