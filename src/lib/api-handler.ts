@@ -103,7 +103,7 @@ export async function withAuth(handler: AuthedHandler): Promise<NextResponse> {
       .from("profiles")
       .select("couple_id")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
 
     const result = await handler({
       userId: user.id,

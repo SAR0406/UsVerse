@@ -187,7 +187,7 @@ export async function POST(req: NextRequest) {
       .from("couples")
       .update({ user2_id: userId })
       .eq("id", target.id)
-      .eq("user2_id", null)   // prevent a race where someone else just joined
+      .is("user2_id", null)  // prevent a race where someone else just joined
       .select("id")
       .single();
 
