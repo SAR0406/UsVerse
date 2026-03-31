@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Crown, Gamepad2, Heart, Sparkles } from "lucide-react";
+import { Crown, Gamepad2, Heart, Home, Sparkles } from "lucide-react";
 
 type GameId = "wavelength" | "eclipse" | "telepathy" | "world-builder" | "gravity";
 
@@ -178,6 +178,13 @@ export default function PlayPage() {
         >
           <Gamepad2 className="w-4 h-4" />
           Open /play/snake
+        </Link>
+        <Link
+          href="/play/love-nest"
+          className="mt-3 ml-3 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium bg-indigo-500/60 hover:bg-indigo-500/80 transition-colors"
+        >
+          <Home className="w-4 h-4" />
+          Open /play/love-nest
         </Link>
       </section>
 
