@@ -17,6 +17,7 @@ export default function DailyPage() {
   const supabase = createClient();
   const [userId, setUserId] = useState<string | null>(null);
   const [coupleId, setCoupleId] = useState<string | null>(null);
+  const [partnerName, setPartnerName] = useState<string | null>(null);
   const [question, setQuestion] = useState<DailyQuestion | null>(null);
   const [myAnswer, setMyAnswer] = useState<string>("");
   const [partnerAnswer, setPartnerAnswer] = useState<DailyAnswer | null>(null);
@@ -71,8 +72,16 @@ export default function DailyPage() {
 
       // Resolve coupleId for real-time subscription
       const res = await fetch("/api/couple");
-      const json = (await res.json()) as { data?: { couple: { id: string } | null } };
-      if (json.data?.couple?.id) setCoupleId(json.data.couple.id);
+      const json = (await res.json()) as {
+        data?: {
+          couple: { id: string } | null;
+          partner?: { display_name?: string | null } | null;
+        };
+      };
+      if (json.data?.couple?.id) {
+        setCoupleId(json.data.couple.id);
+        setPartnerName(json.data.partner?.display_name ?? null);
+      }
 
       setLoading(false);
     }
@@ -199,7 +208,7 @@ export default function DailyPage() {
             ) : (
               <Send className="w-3 h-3" />
             )}
-            Share with her
+            Share answer
           </button>
         </div>
       </div>
@@ -208,7 +217,7 @@ export default function DailyPage() {
       <div className="glass-card p-6">
         <h3 className="text-sm font-medium text-purple-400/70 mb-3 uppercase tracking-wider flex items-center gap-2">
           <Heart className="w-3.5 h-3.5 text-pink-400" />
-          Her Answer
+          {partnerName ? `${partnerName}'s Answer` : "Their Answer"}
         </h3>
         {partnerAnswer ? (
           <div className="px-4 py-3 rounded-xl bg-pink-500/5 border border-pink-500/20">
@@ -219,8 +228,8 @@ export default function DailyPage() {
         ) : (
           <div className="text-center py-6 text-purple-400/30 text-sm">
             {savedAnswer
-              ? "Waiting for her answer… she might be thinking 💭"
-              : "Share your answer first, then see hers ✨"}
+              ? `Waiting for ${partnerName ?? "their"} answer… they might be thinking 💭`
+              : "Share your answer first, then see theirs ✨"}
           </div>
         )}
       </div>

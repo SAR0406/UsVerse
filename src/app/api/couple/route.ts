@@ -83,7 +83,10 @@ export async function POST(req: NextRequest) {
       if (error) throw error;
 
       // Link the user's profile to this couple
-      await db.from("profiles").upsert({ id: userId, couple_id: couple.id });
+      const { error: upsertErr } = await db
+        .from("profiles")
+        .upsert({ id: userId, couple_id: couple.id });
+      if (upsertErr) throw upsertErr;
 
       return created({
         couple:     couple as Pick<Couple, "id" | "invite_code">,
@@ -138,21 +141,20 @@ export async function POST(req: NextRequest) {
     let soloToDelete: string | null = null;
 
     if (coupleId) {
-      const { data: existing, error: existingErr } = await db
+      const { data: existing } = await db
         .from("couples")
         .select("id, user1_id, user2_id")
         .eq("id", coupleId)
-        .maybeSingle();
+        .single();
 
-      if (!existingErr && existing) {
-        if (existing.user1_id === userId && existing.user2_id === null) {
-          soloToDelete = existing.id;
-        } else {
-          throw new ConflictError("You are already in a couple");
-        }
-      } else {
-        // Profile points to a stale couple reference; clear and continue join.
+      if (!existing) {
+        // Profile points to a deleted/stale couple — clear it and continue
         await db.from("profiles").update({ couple_id: null }).eq("id", userId);
+      } else if (existing.user1_id === userId && existing.user2_id === null) {
+        // Caller owns an incomplete solo couple — safe to abandon
+        soloToDelete = existing.id;
+      } else {
+        throw new ConflictError("You are already in a couple");
       }
     }
 
@@ -163,10 +165,12 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (findErr || !target) throw new NotFoundError("Invite code");
-    if (target.user2_id) throw new ConflictError("This couple already has two members");
-    if (target.user1_id === userId || target.id === soloToDelete) {
-      throw new ForbiddenError("You cannot join your own couple link");
-    }
+    if (target.user2_id)    throw new ConflictError("This couple already has two members");
+    if (target.user1_id === userId) throw new ForbiddenError(
+      soloToDelete === target.id
+        ? "That\u2019s your own invite code \u2013 share it with your partner instead"
+        : "You cannot join your own couple link"
+    );
 
     // Delete the caller's solo placeholder (if any) before linking
     if (soloToDelete) {
@@ -177,16 +181,21 @@ export async function POST(req: NextRequest) {
       if (delErr) throw delErr;
     }
 
+    // Claim the empty slot — only succeeds when user2_id is still null.
+    // Requires the "Anyone can join incomplete couple" RLS policy on couples.
     const { data: joined, error: updateErr } = await db
       .from("couples")
       .update({ user2_id: userId })
       .eq("id", target.id)
-      .is("user2_id", null)
+      .is("user2_id", null)  // prevent a race where someone else just joined
       .select("id")
-      .maybeSingle();
+      .single();
 
-    if (updateErr) throw updateErr;
-    if (!joined) throw new ConflictError("This couple already has two members");
+    if (updateErr || !joined) {
+      throw new ConflictError(
+        "This couple was just taken. Please try another code or create your own."
+      );
+    }
 
     await db.from("profiles").upsert({ id: userId, couple_id: target.id });
 

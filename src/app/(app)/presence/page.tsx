@@ -68,6 +68,7 @@ export default function PresencePage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState<EventType | null>(null);
   const [lastSent, setLastSent] = useState<EventType | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
   const [vibrating, setVibrating] = useState(false);
   const [silentMenuOpen, setSilentMenuOpen] = useState(false);
   const [silentSending, setSilentSending] = useState(false);
@@ -142,20 +143,36 @@ export default function PresencePage() {
     };
   }, [coupleId, userId, supabase, triggerVibration]);
 
+  // Auto-dismiss the incoming silent message modal after 30 s so it never
+  // blocks the screen indefinitely if the user doesn't interact with it.
+  useEffect(() => {
+    if (!incomingSilentMessage) return;
+    const timer = setTimeout(() => setIncomingSilentMessage(null), 30_000);
+    return () => clearTimeout(timer);
+  }, [incomingSilentMessage]);
+
   async function sendPresence(type: EventType) {
     if (!coupleId || !userId) return;
     setSending(type);
-    await fetch("/api/presence", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        event_type: type,
-        idempotency_key: crypto.randomUUID(),
-      }),
-    });
-    setLastSent(type);
-    setTimeout(() => setLastSent(null), 3000);
-    setSending(null);
+    setSendError(null);
+    try {
+      const res = await fetch("/api/presence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event_type: type,
+          idempotency_key: crypto.randomUUID(),
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to send");
+      setLastSent(type);
+      setTimeout(() => setLastSent(null), 3000);
+    } catch {
+      setSendError("Couldn\u2019t send right now \u2014 try again in a moment.");
+      setTimeout(() => setSendError(null), 4000);
+    } finally {
+      setSending(null);
+    }
   }
 
   async function sendSilentEmotion(
@@ -222,6 +239,21 @@ export default function PresencePage() {
       </div>
     );
 
+  if (!coupleId)
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] px-4 text-center">
+        <div className="text-5xl mb-4">💓</div>
+        <h2 className="text-xl font-semibold text-white mb-2">Presence & Touch</h2>
+        <p className="text-sm text-purple-300/50 max-w-xs">
+          Connect with your partner first — head to{" "}
+          <a href="/chat" className="text-purple-400 underline underline-offset-2 hover:text-purple-300">
+            Chat
+          </a>{" "}
+          and share your invite code.
+        </p>
+      </div>
+    );
+
   return (
     <div className="p-6 max-w-2xl mx-auto">
       <div className="mb-8">
@@ -282,6 +314,13 @@ export default function PresencePage() {
       {lastSent && (
         <div className="mb-6 p-3 rounded-xl bg-purple-500/10 border border-purple-500/20 text-center text-purple-300 text-sm">
           ✨ Sent! She feels it now.
+        </div>
+      )}
+
+      {/* Send error */}
+      {sendError && (
+        <div className="mb-6 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-center text-red-300 text-sm">
+          {sendError}
         </div>
       )}
 

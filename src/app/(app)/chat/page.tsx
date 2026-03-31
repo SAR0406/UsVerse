@@ -33,6 +33,7 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [joining, setJoining] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [showAI, setShowAI] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<string[]>(
@@ -253,7 +254,15 @@ export default function ChatPage() {
   }
 
   async function handleJoin() {
-    if (!joinCode.trim()) return;
+    if (!joinCode.trim() || joining) return;
+
+    // Client-side guard: catch the common mistake of entering your own code
+    if (inviteCode && joinCode.trim().toUpperCase() === inviteCode.toUpperCase()) {
+      setJoinError("That\u2019s your own invite code \u2013 share it with your partner so they can enter it.");
+      return;
+    }
+
+    setJoining(true);
     setJoinError(null);
     try {
       const res = await fetch("/api/couple", {
@@ -281,6 +290,8 @@ export default function ChatPage() {
       await loadCoupleAndMessages();
     } catch {
       setJoinError("Connection error. Please try again.");
+    } finally {
+      setJoining(false);
     }
   }
 
@@ -326,10 +337,14 @@ export default function ChatPage() {
             />
             <button
               onClick={handleJoin}
-              disabled={!joinCode.trim()}
+              disabled={!joinCode.trim() || joining}
               className="px-4 py-2 rounded-xl bg-purple-600 text-white text-sm hover:bg-purple-500 transition-colors disabled:opacity-40 flex items-center gap-1"
             >
-              <LogIn className="w-4 h-4" /> Join
+              {joining ? (
+                <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <><LogIn className="w-4 h-4" /> Join</>
+              )}
             </button>
           </div>
           {joinError && (
@@ -399,10 +414,14 @@ export default function ChatPage() {
             />
             <button
               onClick={handleJoin}
-              disabled={!joinCode.trim()}
-              className="px-4 py-2 rounded-xl bg-purple-600 text-white text-sm hover:bg-purple-500 transition-colors disabled:opacity-40"
+              disabled={!joinCode.trim() || joining}
+              className="px-4 py-2 rounded-xl bg-purple-600 text-white text-sm hover:bg-purple-500 transition-colors disabled:opacity-40 flex items-center justify-center min-w-[60px]"
             >
-              Join
+              {joining ? (
+                <span className="inline-block w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                "Join"
+              )}
             </button>
           </div>
           {joinError && (
