@@ -98,8 +98,10 @@ export const CoupleActionSchema = z.discriminatedUnion("action", [
     action: z.literal("join"),
     invite_code: z
       .string()
+      .trim()
       .length(8, "Invite code must be exactly 8 characters")
-      .regex(/^[A-Z0-9]+$/, "Invite code must be uppercase letters/numbers"),
+      .regex(/^[A-Za-z0-9]+$/, "Invite code must be letters/numbers")
+      .transform((code) => code.toUpperCase()),
   }),
 ]);
 

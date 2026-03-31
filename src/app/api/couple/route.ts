@@ -134,11 +134,9 @@ export async function POST(req: NextRequest) {
     }
 
     // ── join ───────────────────────────────────────────────────────────────
-    //
-    // Allow joining even when the caller already has an *incomplete* solo
-    // couple (user2 = null and they are user1).  This is the common case
-    // where the frontend auto-created a placeholder couple on first visit.
-    // We atomically abandon that placeholder before completing the join.
+    // Keep join flow tolerant to stale profile state and race-safe:
+    // 1) allow abandoning only an incomplete solo couple
+    // 2) join target only if user2_id is still null
 
     let soloToDelete: string | null = null;
 
