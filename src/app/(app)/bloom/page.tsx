@@ -6,6 +6,12 @@ import {
   WandSparkles, Send, Sparkles, Flower2, Palette, Camera,
   Eraser, RotateCcw, Shuffle, Zap,
 } from "lucide-react";
+import {
+  vibrateCelebrate,
+  vibratePress,
+  vibrateSuccess,
+  vibrateTap,
+} from "@/lib/haptics";
 
 type CreationMode = "painter" | "assembler" | "transformer";
 type Brush = "heartline" | "starfall" | "whisper" | "ember" | "constellation";
@@ -72,28 +78,64 @@ const BRUSH_META: Record<Brush, { icon: string; tip: string }> = {
   constellation: { icon: "✦", tip: "Connect the stars" },
 };
 
+const BRUSH_ORDER: Brush[] = ["heartline", "starfall", "whisper", "ember", "constellation"];
+
+function normalizeHexColor(value: string): string {
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) return "#ff6b9d";
+  if (trimmed.startsWith("#") && (trimmed.length === 7 || trimmed.length === 4)) {
+    if (trimmed.length === 4) {
+      return `#${trimmed[1]}${trimmed[1]}${trimmed[2]}${trimmed[2]}${trimmed[3]}${trimmed[3]}`;
+    }
+    return trimmed;
+  }
+  const rgb = trimmed.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+  if (rgb) {
+    const red = Number(rgb[1]).toString(16).padStart(2, "0");
+    const green = Number(rgb[2]).toString(16).padStart(2, "0");
+    const blue = Number(rgb[3]).toString(16).padStart(2, "0");
+    return `#${red}${green}${blue}`;
+  }
+  return "#ff6b9d";
+}
+
+function rgbToHex(red: number, green: number, blue: number): string {
+  return `#${red.toString(16).padStart(2, "0")}${green.toString(16).padStart(2, "0")}${blue
+    .toString(16)
+    .padStart(2, "0")}`;
+}
+
 export default function BloomPage() {
   const [mode, setMode] = useState<CreationMode>("painter");
   const [brush, setBrush] = useState<Brush>("heartline");
+  const [carouselCenterIndex, setCarouselCenterIndex] = useState(0);
   const [brushSize, setBrushSize] = useState(10);
   const [eraserMode, setEraserMode] = useState(false);
   const [activeColor, setActiveColor] = useState("var(--color-blossom)");
   const [activeColorHex, setActiveColorHex] = useState("#ff6b9d");
+  const [gradientMode, setGradientMode] = useState(false);
+  const [gradientStops, setGradientStops] = useState<string[]>(["#ff6b9d", "#c8b6e2", "#b8e3ff"]);
+  const [memorySampleLabel, setMemorySampleLabel] = useState<string | null>(null);
   const [pouringColor, setPouringColor] = useState<string | null>(null);
   const [sparkles, setSparkles] = useState<SparkleParticle[]>([]);
   const [constellationCount, setConstellationCount] = useState(0);
+  const [constellationName, setConstellationName] = useState("");
+  const [showConstellationNamer, setShowConstellationNamer] = useState(false);
   const [sendStage, setSendStage] = useState<"idle" | "folding" | "launch" | "done">("idle");
   const [activeShelf, setActiveShelf] = useState<EmotionShelfId>(EMOTION_SHELVES[0].id);
   const [collageItems, setCollageItems] = useState<CollageItem[]>([]);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [transformFilter, setTransformFilter] = useState<TransformFilterValue>(TRANSFORM_FILTERS[0].value);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const [partnerActive, setPartnerActive] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
+  const colorSampleInputRef = useRef<HTMLInputElement | null>(null);
   const collageIdRef = useRef(0);
   const isDrawingRef = useRef(false);
   const lastPointRef = useRef<StrokePoint | null>(null);
   const constellationPointsRef = useRef<Array<{ x: number; y: number }>>([]);
+  const carouselDragStartXRef = useRef<number | null>(null);
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -101,6 +143,14 @@ export default function BloomPage() {
     sync();
     media.addEventListener("change", sync);
     return () => media.removeEventListener("change", sync);
+  }, []);
+
+  useEffect(() => {
+    function onPartnerState(event: Event) {
+      setPartnerActive(Boolean((event as CustomEvent<{ active?: boolean }>).detail?.active));
+    }
+    window.addEventListener("usverse:partner-active", onPartnerState as EventListener);
+    return () => window.removeEventListener("usverse:partner-active", onPartnerState as EventListener);
   }, []);
 
   useEffect(() => {
@@ -147,6 +197,50 @@ export default function BloomPage() {
     () => EMOTION_SHELVES.find((s) => s.id === activeShelf)?.stickers ?? [],
     [activeShelf],
   );
+
+  const moodColorSuggestion = useMemo(() => {
+    const hour = new Date().getHours();
+    if (partnerActive) {
+      return {
+        cssVar: "--color-blossom",
+        hex: "#ff6b9d",
+        line: "She is here now. Bloom in pink warmth.",
+      };
+    }
+    if (hour < 11) {
+      return {
+        cssVar: "--color-butter",
+        hex: "#fff3b0",
+        line: "Morning light feels soft. Try sun-butter yellow.",
+      };
+    }
+    if (hour < 17) {
+      return {
+        cssVar: "--color-mint-kiss",
+        hex: "#b8f0c8",
+        line: "Daylight energy: mint keeps things airy.",
+      };
+    }
+    if (hour < 22) {
+      return {
+        cssVar: "--color-peach",
+        hex: "#ffab76",
+        line: "Golden-hour mood. Peach feels like a voice note hug.",
+      };
+    }
+    return {
+      cssVar: "--color-lilac-dream",
+      hex: "#c8b6e2",
+      line: "Late-night calm. Lilac turns strokes into whispers.",
+    };
+  }, [partnerActive]);
+
+  useEffect(() => {
+    const index = BRUSH_ORDER.indexOf(brush);
+    if (index >= 0) {
+      setCarouselCenterIndex(index);
+    }
+  }, [brush]);
 
   const getStrokeWidth = (point: StrokePoint, baseWidth: number) => {
     const pressureFactor = 0.5 + point.pressure * 0.5;
@@ -200,6 +294,15 @@ export default function BloomPage() {
       ctx.strokeStyle = gradient;
       ctx.shadowBlur = 8;
       ctx.shadowColor = "var(--accent-glow)";
+    } else if (gradientMode) {
+      const gradient = ctx.createLinearGradient(from.x, from.y, to.x, to.y);
+      const lastIndex = Math.max(gradientStops.length - 1, 1);
+      gradientStops.forEach((stop, index) => {
+        gradient.addColorStop(index / lastIndex, stop);
+      });
+      ctx.strokeStyle = gradient;
+      ctx.shadowBlur = brush === "whisper" ? 8 : 2;
+      ctx.shadowColor = gradientStops[0] ?? activeColor;
     } else {
       ctx.strokeStyle = activeColor;
       ctx.shadowBlur = brush === "whisper" ? 10 : 0;
@@ -241,10 +344,15 @@ export default function BloomPage() {
     ctx.restore();
     points.push({ x: point.x, y: point.y });
     setConstellationCount(points.length);
+    if (points.length >= 7 && !showConstellationNamer && !constellationName) {
+      setShowConstellationNamer(true);
+      vibrateTap();
+    }
   }
 
   function handlePointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
     e.currentTarget.setPointerCapture(e.pointerId);
+    vibrateTap();
     const point = toPoint(e);
     if (!eraserMode && brush === "constellation") {
       placeConstellationStar(point);
@@ -281,33 +389,169 @@ export default function BloomPage() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     constellationPointsRef.current = [];
     setConstellationCount(0);
+    setConstellationName("");
+    setShowConstellationNamer(false);
+    vibratePress();
   }
 
   function chooseColor(colorCssVarName: string, hex: string) {
     const resolved = resolveCssVarColor(colorCssVarName);
     setActiveColor(resolved);
-    setActiveColorHex(hex);
+    setActiveColorHex(normalizeHexColor(hex));
     setEraserMode(false);
+    setGradientMode(false);
+    setMemorySampleLabel(null);
     setPouringColor(`var(${colorCssVarName})`);
+    vibrateTap();
     window.setTimeout(() => setPouringColor(null), 350);
   }
 
+  function applyGradientPreset() {
+    setGradientStops(["#ff6b9d", "#c8b6e2", "#b8e3ff"]);
+    setGradientMode(true);
+    setEraserMode(false);
+    setMemorySampleLabel(null);
+    setPouringColor("linear-gradient(180deg, #ff6b9d, #c8b6e2, #b8e3ff)");
+    vibratePress();
+    window.setTimeout(() => setPouringColor(null), 350);
+  }
+
+  async function sampleMemoryColor(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    try {
+      const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new window.Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error("image-load-failed"));
+        img.src = url;
+      });
+      const canvas = document.createElement("canvas");
+      canvas.width = 32;
+      canvas.height = 32;
+      const context = canvas.getContext("2d");
+      if (!context) return;
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      const data = context.getImageData(0, 0, canvas.width, canvas.height).data;
+      let redTotal = 0;
+      let greenTotal = 0;
+      let blueTotal = 0;
+      let count = 0;
+      for (let index = 0; index < data.length; index += 4) {
+        redTotal += data[index] ?? 0;
+        greenTotal += data[index + 1] ?? 0;
+        blueTotal += data[index + 2] ?? 0;
+        count += 1;
+      }
+      if (!count) return;
+      const sampledHex = rgbToHex(
+        Math.round(redTotal / count),
+        Math.round(greenTotal / count),
+        Math.round(blueTotal / count),
+      );
+      setActiveColor(sampledHex);
+      setActiveColorHex(sampledHex);
+      setMemorySampleLabel("Memory sampled");
+      setGradientMode(false);
+      setEraserMode(false);
+      setPouringColor(sampledHex);
+      vibrateSuccess();
+      window.setTimeout(() => setPouringColor(null), 350);
+    } catch {
+      // Keep calm if sampling fails; user can retry instantly.
+    } finally {
+      URL.revokeObjectURL(url);
+      event.target.value = "";
+    }
+  }
+
+  function applyMoodColor() {
+    chooseColor(moodColorSuggestion.cssVar, moodColorSuggestion.hex);
+    setMemorySampleLabel("Mood matched");
+  }
+
   function triggerSendCeremony() {
+    vibratePress();
+    window.dispatchEvent(
+      new CustomEvent("usverse:notification-drop", {
+        detail: { x: 0.88, y: 0.16 },
+      }),
+    );
     if (prefersReducedMotion) {
       setSendStage("done");
+      vibrateSuccess();
       window.setTimeout(() => setSendStage("idle"), 1900);
       return;
     }
     setSendStage("folding");
     window.setTimeout(() => setSendStage("launch"), 440);
-    window.setTimeout(() => setSendStage("done"), 1060);
+    window.setTimeout(() => {
+      setSendStage("done");
+      vibrateCelebrate();
+      window.dispatchEvent(
+        new CustomEvent("usverse:emotion", {
+          detail: { kind: "missing_you" },
+        }),
+      );
+      const AudioCtor = window.AudioContext;
+      if (AudioCtor) {
+        const audioContext = new AudioCtor();
+        const oscillator = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        oscillator.connect(gain);
+        gain.connect(audioContext.destination);
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(740, audioContext.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(980, audioContext.currentTime + 0.28);
+        gain.gain.setValueAtTime(0.0001, audioContext.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.06, audioContext.currentTime + 0.03);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 0.4);
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.4);
+        window.setTimeout(() => {
+          void audioContext.close();
+        }, 520);
+      }
+    }, 1060);
     window.setTimeout(() => setSendStage("idle"), 2600);
+  }
+
+  function selectBrush(nextBrush: Brush) {
+    setBrush(nextBrush);
+    setEraserMode(false);
+    vibrateTap();
+  }
+
+  function rotateCarousel(direction: -1 | 1) {
+    setCarouselCenterIndex((previous) => {
+      const next = (previous + direction + BRUSH_ORDER.length) % BRUSH_ORDER.length;
+      selectBrush(BRUSH_ORDER[next] ?? "heartline");
+      return next;
+    });
+  }
+
+  function onCarouselPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    carouselDragStartXRef.current = event.clientX;
+  }
+
+  function onCarouselPointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    if (carouselDragStartXRef.current === null) return;
+    const delta = event.clientX - carouselDragStartXRef.current;
+    if (Math.abs(delta) < 32) return;
+    rotateCarousel(delta > 0 ? -1 : 1);
+    carouselDragStartXRef.current = event.clientX;
+  }
+
+  function onCarouselPointerUp() {
+    carouselDragStartXRef.current = null;
   }
 
   function addCollageSticker(emoji: string) {
     collageIdRef.current += 1;
     const index = collageIdRef.current;
     const id = `${emoji}-${index}`;
+    vibrateTap();
     setCollageItems((items) => [
       ...items,
       {
@@ -323,6 +567,7 @@ export default function BloomPage() {
   }
 
   function togglePin(itemId: string) {
+    vibrateTap();
     setCollageItems((items) =>
       items.map((item) =>
         item.id === itemId ? { ...item, pinned: !item.pinned, vx: 0, vy: 0 } : item,
@@ -332,6 +577,7 @@ export default function BloomPage() {
 
   function shakeCollage() {
     if (prefersReducedMotion) return;
+    vibratePress();
     setCollageItems((items) =>
       items.map((item, index) => ({
         ...item,
@@ -344,11 +590,18 @@ export default function BloomPage() {
   function handleImageUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
+    vibrateTap();
     const nextPreview = URL.createObjectURL(file);
     setImagePreview((previous) => {
       if (previous) URL.revokeObjectURL(previous);
       return nextPreview;
     });
+  }
+
+  function saveConstellationName() {
+    if (!constellationName.trim()) return;
+    setShowConstellationNamer(false);
+    vibrateSuccess();
   }
 
   /* ── Mode metadata ─────────────────────────────────── */
@@ -431,7 +684,10 @@ export default function BloomPage() {
               return (
                 <button
                   key={m.id}
-                  onClick={() => setMode(m.id)}
+                  onClick={() => {
+                    setMode(m.id);
+                    vibrateTap();
+                  }}
                   className={`relative rounded-xl py-2.5 px-3 flex flex-col sm:flex-row items-center justify-center sm:gap-2 transition-all duration-200 touch-pressable ${
                     active ? "text-white" : "text-[color:var(--text-soft)] hover:text-[color:var(--foreground)]"
                   }`}
@@ -497,30 +753,153 @@ export default function BloomPage() {
                         </p>
                       </div>
                     )}
+                    {showConstellationNamer && (
+                      <div className="absolute inset-0 bg-black/45 backdrop-blur-[1px] grid place-items-center p-4">
+                        <div className="w-full max-w-xs rounded-2xl border border-[color:var(--border)] bg-[color:var(--card)]/95 p-4 shadow-xl">
+                          <p className="text-xs text-[color:var(--text-whisper)] uppercase tracking-wider mb-1">
+                            New constellation
+                          </p>
+                          <p className="text-sm text-[color:var(--foreground)] mb-3">
+                            Name the stars you just made.
+                          </p>
+                          <input
+                            value={constellationName}
+                            onChange={(event) => setConstellationName(event.target.value)}
+                            placeholder="Name this constellation"
+                            className="w-full rounded-xl bg-[color:var(--surface-2)]/70 border border-[color:var(--border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-lilac-dream)]"
+                          />
+                          <div className="mt-3 flex items-center gap-2 justify-end">
+                            <button
+                              type="button"
+                              onClick={() => setShowConstellationNamer(false)}
+                              className="px-3 py-1.5 text-xs rounded-lg border border-[color:var(--border)] text-[color:var(--text-soft)] hover:text-[color:var(--foreground)] transition-colors"
+                            >
+                              Later
+                            </button>
+                            <button
+                              type="button"
+                              onClick={saveConstellationName}
+                              disabled={!constellationName.trim()}
+                              className="px-3 py-1.5 text-xs rounded-lg text-white disabled:opacity-50 touch-pressable"
+                              style={{
+                                background:
+                                  "linear-gradient(135deg, var(--color-blossom), var(--color-lilac-dream))",
+                              }}
+                            >
+                              Save
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Inline bottom toolbar */}
                   <div className="p-3 bg-[color:var(--card)]/40 backdrop-blur-sm border-t border-[color:var(--border)]/50">
-                    {/* Brush row */}
+                    {/* Brush carousel */}
+                    <div
+                      className="relative mb-3 rounded-xl border border-[color:var(--border)]/70 bg-[color:var(--surface-2)]/35 px-10 py-2"
+                      onPointerDown={onCarouselPointerDown}
+                      onPointerMove={onCarouselPointerMove}
+                      onPointerUp={onCarouselPointerUp}
+                      onPointerCancel={onCarouselPointerUp}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => rotateCarousel(-1)}
+                        className="absolute left-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border border-[color:var(--border)] text-[color:var(--text-soft)] hover:text-[color:var(--foreground)]"
+                        aria-label="Previous brush"
+                      >
+                        ‹
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => rotateCarousel(1)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border border-[color:var(--border)] text-[color:var(--text-soft)] hover:text-[color:var(--foreground)]"
+                        aria-label="Next brush"
+                      >
+                        ›
+                      </button>
+
+                      <div className="grid grid-cols-5 gap-1 perspective-[700px]">
+                        {BRUSH_ORDER.map((value, index) => {
+                          const offset = index - carouselCenterIndex;
+                          const wrappedOffset =
+                            offset > 2
+                              ? offset - BRUSH_ORDER.length
+                              : offset < -2
+                                ? offset + BRUSH_ORDER.length
+                                : offset;
+                          const angle = wrappedOffset * -16;
+                          const translateZ = Math.max(0, 22 - Math.abs(wrappedOffset) * 7);
+                          const active = brush === value && !eraserMode;
+
+                          return (
+                            <button
+                              key={value}
+                              type="button"
+                              title={BRUSH_META[value].tip}
+                              onClick={() => selectBrush(value)}
+                              className={`rounded-xl py-2 text-center transition-all touch-pressable ${
+                                active
+                                  ? "text-[color:var(--dark-void)]"
+                                  : "text-[color:var(--text-soft)] hover:text-[color:var(--foreground)]"
+                              }`}
+                              style={{
+                                transform: `rotateY(${angle}deg) translateZ(${translateZ}px)`,
+                                background: active
+                                  ? "linear-gradient(135deg, var(--color-peach), var(--color-butter))"
+                                  : "color-mix(in oklab, var(--card) 76%, transparent)",
+                                opacity: 1 - Math.abs(wrappedOffset) * 0.12,
+                              }}
+                            >
+                              <span className="block text-base leading-none">{BRUSH_META[value].icon}</span>
+                              <span className="block mt-1 text-[10px] capitalize">{value}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
                     <div className="flex flex-wrap items-center gap-1.5 mb-2.5">
-                      {(["heartline", "starfall", "whisper", "ember", "constellation"] as const).map(
-                        (b) => (
-                          <button
-                            key={b}
-                            onClick={() => { setBrush(b); setEraserMode(false); }}
-                            title={BRUSH_META[b].tip}
-                            className={`px-2.5 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1 touch-pressable ${
-                              brush === b && !eraserMode
-                                ? "bg-[color:var(--color-lilac-dream)] text-[color:var(--dark-void)] shadow-sm"
-                                : "border border-[color:var(--border)] text-[color:var(--text-soft)] hover:border-[color:var(--color-lilac-dream)]/50"
-                            }`}
-                          >
-                            <span>{BRUSH_META[b].icon}</span>
-                            <span className="hidden sm:inline capitalize">{b}</span>
-                          </button>
-                        ),
-                      )}
-                      {/* Eraser */}
+                      <button
+                        type="button"
+                        onClick={applyMoodColor}
+                        className="px-2.5 py-1.5 rounded-full text-xs font-medium border border-[color:var(--border)] text-[color:var(--text-soft)] hover:text-[color:var(--foreground)] transition-colors touch-pressable"
+                      >
+                        Mood Color
+                      </button>
+                      <button
+                        type="button"
+                        onClick={applyGradientPreset}
+                        className={`px-2.5 py-1.5 rounded-full text-xs font-medium border transition-all touch-pressable ${
+                          gradientMode
+                            ? "border-transparent text-[color:var(--dark-void)]"
+                            : "border-[color:var(--border)] text-[color:var(--text-soft)] hover:text-[color:var(--foreground)]"
+                        }`}
+                        style={
+                          gradientMode
+                            ? { background: "linear-gradient(135deg, #ff6b9d, #c8b6e2, #b8e3ff)" }
+                            : undefined
+                        }
+                      >
+                        Gradient Pen
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => colorSampleInputRef.current?.click()}
+                        className="px-2.5 py-1.5 rounded-full text-xs font-medium border border-[color:var(--border)] text-[color:var(--text-soft)] hover:text-[color:var(--foreground)] transition-colors touch-pressable"
+                      >
+                        Memory Sample
+                      </button>
+                      <input
+                        ref={colorSampleInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={sampleMemoryColor}
+                        className="sr-only"
+                      />
+
                       <button
                         onClick={() => setEraserMode((v) => !v)}
                         title="Eraser"
@@ -540,6 +919,14 @@ export default function BloomPage() {
                       >
                         <RotateCcw className="w-3.5 h-3.5" />
                       </button>
+                    </div>
+
+                    <div className="mb-2.5 rounded-xl border border-[color:var(--border)]/55 bg-[color:var(--surface-2)]/35 px-3 py-2">
+                      <p className="text-[11px] text-[color:var(--text-whisper)] leading-relaxed">
+                        {memorySampleLabel
+                          ? `${memorySampleLabel}: ${activeColorHex}`
+                          : moodColorSuggestion.line}
+                      </p>
                     </div>
 
                     {/* Color + size row */}
