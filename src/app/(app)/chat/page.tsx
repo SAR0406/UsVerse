@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Send, Bot, MessageCircle } from "lucide-react";
+import { Send, Bot, MessageCircle, Heart, LogIn } from "lucide-react";
 import type { Message, Profile } from "@/types/database";
 import { formatDistanceToNow } from "date-fns";
 
@@ -32,6 +32,8 @@ export default function ChatPage() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const [showAI, setShowAI] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<string[]>(
     DEFAULT_AI_SUGGESTIONS
@@ -44,6 +46,7 @@ export default function ChatPage() {
   const [composerError, setComposerError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // ── Load couple state + messages (never auto-creates) ──────────────────
   const loadCoupleAndMessages = useCallback(async () => {
     setPageError(null);
     const coupleRes = await fetch("/api/couple");
@@ -57,38 +60,31 @@ export default function ChatPage() {
     const coupleData = coupleJson.data;
 
     if (!coupleData?.couple) {
-      const createRes = await fetch("/api/couple", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "create" }),
-      });
-      const createJson = (await createRes.json()) as {
-        data?: { couple: { id: string }; inviteCode: string };
-        error?: { message?: string };
-      };
-      if (!createRes.ok) {
-        throw new Error(createJson.error?.message ?? "Failed to create your couple space");
-      }
-      if (createJson.data) {
-        setCoupleId(createJson.data.couple.id);
-        setInviteCode(createJson.data.inviteCode);
-      }
+      // No couple yet — show the onboarding screen
+      setCoupleId(null);
+      setInviteCode(null);
+      setPartner(null);
+      setMessages([]);
       return;
     }
 
     setCoupleId(coupleData.couple.id);
     if (coupleData.inviteCode) setInviteCode(coupleData.inviteCode);
+    else setInviteCode(null);
     if (coupleData.partner) setPartner(coupleData.partner);
+    else setPartner(null);
 
-    const msgRes = await fetch("/api/messages?limit=100");
-    const msgJson = (await msgRes.json()) as {
-      data?: { messages: Message[] };
-      error?: { message?: string };
-    };
-    if (!msgRes.ok) {
-      throw new Error(msgJson.error?.message ?? "Failed to load messages");
+    if (coupleData.partner) {
+      const msgRes = await fetch("/api/messages?limit=100");
+      const msgJson = (await msgRes.json()) as {
+        data?: { messages: Message[] };
+        error?: { message?: string };
+      };
+      if (!msgRes.ok) {
+        throw new Error(msgJson.error?.message ?? "Failed to load messages");
+      }
+      if (msgJson.data?.messages) setMessages(msgJson.data.messages);
     }
-    if (msgJson.data?.messages) setMessages(msgJson.data.messages);
   }, []);
 
   useEffect(() => {
@@ -138,6 +134,62 @@ export default function ChatPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // ── Explicitly create a new solo couple ────────────────────────────────
+  async function handleCreate() {
+    setCreating(true);
+    setPageError(null);
+    try {
+      const res = await fetch("/api/couple", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "create" }),
+      });
+      const json = (await res.json()) as {
+        data?: { couple: { id: string }; inviteCode: string };
+        error?: { message?: string };
+      };
+      if (!res.ok) {
+        setPageError(json.error?.message ?? "Failed to create your couple space");
+        return;
+      }
+      if (json.data) {
+        setCoupleId(json.data.couple.id);
+        setInviteCode(json.data.inviteCode);
+      }
+    } catch {
+      setPageError("Connection error. Please try again.");
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  // ── Leave an incomplete solo couple ────────────────────────────────────
+  async function handleLeave() {
+    setLeaving(true);
+    setJoinError(null);
+    try {
+      const res = await fetch("/api/couple", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "leave" }),
+      });
+      if (!res.ok) {
+        const json = (await res.json()) as { error?: { message?: string } };
+        setJoinError(json.error?.message ?? "Failed to cancel. Please try again.");
+        return;
+      }
+      setCoupleId(null);
+      setInviteCode(null);
+      setPartner(null);
+      setJoinCode("");
+      setJoinError(null);
+    } catch {
+      setJoinError("Connection error. Please try again.");
+    } finally {
+      setLeaving(false);
+    }
+  }
 
   async function sendMessage(content: string) {
     if (!content.trim() || !coupleId) return;
@@ -225,6 +277,7 @@ export default function ChatPage() {
         return;
       }
       setInviteCode(null);
+      setJoinCode("");
       await loadCoupleAndMessages();
     } catch {
       setJoinError("Connection error. Please try again.");
@@ -233,6 +286,61 @@ export default function ChatPage() {
 
   if (loading) return <LoadingSkeleton />;
 
+  // ── No couple yet: onboarding screen ───────────────────────────────────
+  if (!coupleId) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] px-4 py-10">
+        <div className="glass-card w-full max-w-sm p-7 text-center">
+          <div className="w-14 h-14 mx-auto mb-4 rounded-full bg-gradient-to-br from-purple-600 to-pink-500 flex items-center justify-center">
+            <Heart className="w-7 h-7 text-white" />
+          </div>
+          <h2 className="text-xl font-bold text-white mb-1">Start your universe</h2>
+          <p className="text-sm text-purple-300/60 mb-6">
+            Create a shared space and invite your partner, or enter their code to connect.
+          </p>
+
+          {pageError && (
+            <p className="mb-4 text-xs text-red-400 border border-red-500/20 rounded-xl px-3 py-2 bg-red-500/10">
+              {pageError}
+            </p>
+          )}
+
+          <button
+            onClick={handleCreate}
+            disabled={creating}
+            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 mb-4"
+          >
+            {creating ? "Creating…" : "✨ Create new space"}
+          </button>
+
+          <p className="text-purple-300/40 text-xs mb-4">— or join your partner —</p>
+
+          <div className="flex gap-2">
+            <input
+              value={joinCode}
+              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+              onKeyDown={(e) => { if (e.key === "Enter") void handleJoin(); }}
+              placeholder="Enter code…"
+              maxLength={8}
+              className="flex-1 px-3 py-2 rounded-xl bg-white/5 border border-purple-500/20 text-white placeholder-purple-300/30 text-sm focus:outline-none focus:border-purple-500/50 uppercase tracking-widest"
+            />
+            <button
+              onClick={handleJoin}
+              disabled={!joinCode.trim()}
+              className="px-4 py-2 rounded-xl bg-purple-600 text-white text-sm hover:bg-purple-500 transition-colors disabled:opacity-40 flex items-center gap-1"
+            >
+              <LogIn className="w-4 h-4" /> Join
+            </button>
+          </div>
+          {joinError && (
+            <p className="text-red-400 text-xs mt-2">{joinError}</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Full chat view (couple exists) ─────────────────────────────────────
   return (
     <div className="flex flex-col h-screen md:h-[calc(100vh)] max-h-screen">
       {/* Header */}
@@ -245,7 +353,7 @@ export default function ChatPage() {
             {partner?.display_name ?? "Your Partner"}
           </h2>
           <p className={`text-xs ${partner ? "text-emerald-300/80" : "text-amber-300/80"}`}>
-            {partner ? "In your universe ✨" : "Waiting to connect… Share or join a code below."}
+            {partner ? "In your universe ✨" : "Waiting to connect… Share or enter a code below."}
           </p>
         </div>
       </div>
@@ -255,37 +363,44 @@ export default function ChatPage() {
         </div>
       )}
 
-      {/* Invite section */}
-      {inviteCode && !partner && (
+      {/* Pending invite section: solo couple, no partner yet */}
+      {!partner && (
         <div className="mx-4 mt-4 glass-card p-4 shrink-0">
-          <p className="text-sm text-purple-300/80 mb-3">
-            Share this code with your partner to connect:
-          </p>
-          <div className="flex items-center gap-3 mb-4">
-            <div className="flex-1 px-4 py-2 rounded-xl bg-purple-600/20 border border-purple-500/30 text-purple-300 font-mono text-lg text-center tracking-widest">
-              {inviteCode}
-            </div>
-            <button
-              onClick={() => navigator.clipboard.writeText(inviteCode)}
-              className="px-3 py-2 rounded-xl bg-purple-600/20 text-purple-300 text-xs hover:bg-purple-600/30 transition-colors"
-            >
-              Copy
-            </button>
-          </div>
-          <p className="text-center text-purple-300/40 text-xs mb-3">— or —</p>
+          {inviteCode && (
+            <>
+              <p className="text-sm text-purple-300/80 mb-3">
+                Share this code with your partner to connect:
+              </p>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex-1 px-4 py-2 rounded-xl bg-purple-600/20 border border-purple-500/30 text-purple-300 font-mono text-lg text-center tracking-widest">
+                  {inviteCode}
+                </div>
+                <button
+                  onClick={() => navigator.clipboard.writeText(inviteCode)}
+                  className="px-3 py-2 rounded-xl bg-purple-600/20 text-purple-300 text-xs hover:bg-purple-600/30 transition-colors"
+                >
+                  Copy
+                </button>
+              </div>
+              <p className="text-center text-purple-300/40 text-xs mb-3">— or —</p>
+            </>
+          )}
           <p className="text-sm text-purple-300/80 mb-2">
-            Join with partner&apos;s code:
+            Join with your partner&apos;s code:
           </p>
           <div className="flex gap-2">
             <input
               value={joinCode}
-              onChange={(e) => setJoinCode(e.target.value)}
+              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+              onKeyDown={(e) => { if (e.key === "Enter") void handleJoin(); }}
               placeholder="Enter code…"
-              className="flex-1 px-3 py-2 rounded-xl bg-white/5 border border-purple-500/20 text-white placeholder-purple-300/30 text-sm focus:outline-none focus:border-purple-500/50"
+              maxLength={8}
+              className="flex-1 px-3 py-2 rounded-xl bg-white/5 border border-purple-500/20 text-white placeholder-purple-300/30 text-sm focus:outline-none focus:border-purple-500/50 uppercase tracking-widest"
             />
             <button
               onClick={handleJoin}
-              className="px-4 py-2 rounded-xl bg-purple-600 text-white text-sm hover:bg-purple-500 transition-colors"
+              disabled={!joinCode.trim()}
+              className="px-4 py-2 rounded-xl bg-purple-600 text-white text-sm hover:bg-purple-500 transition-colors disabled:opacity-40"
             >
               Join
             </button>
@@ -293,12 +408,21 @@ export default function ChatPage() {
           {joinError && (
             <p className="text-red-400 text-xs mt-2">{joinError}</p>
           )}
+          {inviteCode && (
+            <button
+              onClick={handleLeave}
+              disabled={leaving}
+              className="mt-3 text-xs text-purple-400/50 hover:text-purple-400/80 transition-colors underline underline-offset-2"
+            >
+              {leaving ? "Cancelling…" : "Cancel and start over"}
+            </button>
+          )}
         </div>
       )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-        {messages.length === 0 && !inviteCode && (
+        {messages.length === 0 && partner && (
           <div className="flex flex-col items-center justify-center h-full text-center py-20">
             <div className="text-5xl mb-4">💬</div>
             <p className="text-purple-300/60">
@@ -393,16 +517,17 @@ export default function ChatPage() {
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
-                sendMessage(input);
+                void sendMessage(input);
               }
             }}
-            placeholder="Say something beautiful…"
+            placeholder={partner ? "Say something beautiful…" : "Connect with your partner first ✨"}
+            disabled={!partner}
             rows={1}
-            className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-purple-500/20 text-white placeholder-purple-300/30 text-sm focus:outline-none focus:border-purple-500/50 resize-none"
+            className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 border border-purple-500/20 text-white placeholder-purple-300/30 text-sm focus:outline-none focus:border-purple-500/50 resize-none disabled:opacity-40"
           />
           <button
-            onClick={() => sendMessage(input)}
-            disabled={!input.trim() || sending}
+            onClick={() => void sendMessage(input)}
+            disabled={!input.trim() || sending || !partner}
             className="p-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 text-white disabled:opacity-40 hover:opacity-90 transition-all"
           >
             <Send className="w-4 h-4" />

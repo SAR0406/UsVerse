@@ -5,7 +5,12 @@
  *
  * POST /api/couple
  *   { action: "create" }              → creates a new couple, returns invite_code
- *   { action: "join", invite_code }   → joins an existing couple
+ *   { action: "join", invite_code }   → joins an existing couple by invite code.
+ *                                       If the caller has an incomplete solo couple
+ *                                       (user2 = null, they are user1), it is
+ *                                       abandoned automatically before joining.
+ *   { action: "leave" }               → abandons an incomplete solo couple
+ *                                       (user2 = null).  Clears couple_id on profile.
  *
  *   Rate limited: 5 actions / 60 s per user to prevent code-guessing.
  */
@@ -54,7 +59,7 @@ export async function GET(_req: NextRequest) {
   });
 }
 
-// ─── POST — create or join a couple ────────────────────────────────────────
+// ─── POST — create, join, or leave a couple ────────────────────────────────
 
 export async function POST(req: NextRequest) {
   return withAuth(async ({ userId, coupleId, db }) => {
@@ -86,8 +91,68 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // ── leave ──────────────────────────────────────────────────────────────
+    if (body.action === "leave") {
+      // Idempotent: no couple → already left
+      if (!coupleId) return ok({ left: true });
+
+      const { data: existing, error: fetchErr } = await db
+        .from("couples")
+        .select("id, user1_id, user2_id")
+        .eq("id", coupleId)
+        .single();
+
+      if (fetchErr || !existing) {
+        // Profile points to a stale couple — just clear the reference
+        await db.from("profiles").update({ couple_id: null }).eq("id", userId);
+        return ok({ left: true });
+      }
+
+      if (existing.user2_id !== null) {
+        throw new ConflictError(
+          "Cannot leave a couple that already has two members. Contact support."
+        );
+      }
+
+      if (existing.user1_id !== userId) {
+        throw new ForbiddenError("You are not the owner of this couple link");
+      }
+
+      // Delete the incomplete couple and clear the profile reference
+      const { error: delErr } = await db
+        .from("couples")
+        .delete()
+        .eq("id", existing.id);
+      if (delErr) throw delErr;
+
+      await db.from("profiles").update({ couple_id: null }).eq("id", userId);
+
+      return ok({ left: true });
+    }
+
     // ── join ───────────────────────────────────────────────────────────────
-    if (coupleId) throw new ConflictError("You are already in a couple");
+    //
+    // Allow joining even when the caller already has an *incomplete* solo
+    // couple (user2 = null and they are user1).  This is the common case
+    // where the frontend auto-created a placeholder couple on first visit.
+    // We atomically abandon that placeholder before completing the join.
+
+    let soloToDelete: string | null = null;
+
+    if (coupleId) {
+      const { data: existing } = await db
+        .from("couples")
+        .select("id, user1_id, user2_id")
+        .eq("id", coupleId)
+        .single();
+
+      if (existing?.user1_id === userId && existing.user2_id === null) {
+        // Caller owns an incomplete solo couple — safe to abandon
+        soloToDelete = existing.id;
+      } else {
+        throw new ConflictError("You are already in a couple");
+      }
+    }
 
     const { data: target, error: findErr } = await db
       .from("couples")
@@ -98,6 +163,15 @@ export async function POST(req: NextRequest) {
     if (findErr || !target) throw new NotFoundError("Invite code");
     if (target.user2_id)    throw new ConflictError("This couple already has two members");
     if (target.user1_id === userId) throw new ForbiddenError("You cannot join your own couple link");
+
+    // Delete the caller's solo placeholder (if any) before linking
+    if (soloToDelete) {
+      const { error: delErr } = await db
+        .from("couples")
+        .delete()
+        .eq("id", soloToDelete);
+      if (delErr) throw delErr;
+    }
 
     const { error: updateErr } = await db
       .from("couples")

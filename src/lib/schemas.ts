@@ -93,6 +93,7 @@ export type UpdateNoteInput = z.infer<typeof UpdateNoteSchema>;
 
 export const CoupleActionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("create") }),
+  z.object({ action: z.literal("leave") }),
   z.object({
     action: z.literal("join"),
     invite_code: z
