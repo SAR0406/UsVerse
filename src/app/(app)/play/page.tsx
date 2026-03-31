@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Crown, Gamepad2, Sparkles } from "lucide-react";
+import { Crown, Gamepad2, Heart, Home, Sparkles } from "lucide-react";
 
 type GameId = "wavelength" | "eclipse" | "telepathy" | "world-builder" | "gravity";
 
@@ -12,6 +12,7 @@ type ArcadeMachine = {
   machine: string;
   concept: string;
   emoji: string;
+  href?: string;
 };
 
 const ARCADE_MACHINES: ArcadeMachine[] = [
@@ -49,6 +50,7 @@ const ARCADE_MACHINES: ArcadeMachine[] = [
     machine: "Retro arcade cabinet",
     concept: "Tilt together to move one shared ball into a target you can't solve alone.",
     emoji: "🕹️",
+    href: "/play/gravity",
   },
 ];
 
@@ -151,6 +153,17 @@ export default function PlayPage() {
               <p className="text-xs text-purple-200/60 mt-1">{machine.machine}</p>
               <p className="text-xs text-purple-300/60 leading-relaxed mt-3">{machine.concept}</p>
 
+              {machine.href ? (
+                <Link
+                  href={machine.href}
+                  onClick={(e) => e.stopPropagation()}
+                  className="mt-3 inline-flex items-center gap-1 text-[11px] text-purple-100 bg-purple-500/40 hover:bg-purple-500/60 px-2 py-1 rounded-full transition-colors"
+                >
+                  <Gamepad2 className="w-3 h-3" />
+                  Play now
+                </Link>
+              ) : null}
+
               {isPartnerActive ? (
                 <div className="mt-4 inline-flex items-center gap-1 text-[11px] text-pink-200 bg-pink-400/15 px-2 py-1 rounded-full">
                   <Sparkles className="w-3 h-3" />
@@ -160,6 +173,33 @@ export default function PlayPage() {
             </button>
           );
         })}
+      </section>
+
+      <section className="glass-card p-6 border border-pink-400/20">
+        <div className="flex items-center gap-2 text-pink-200/80 text-xs tracking-wide uppercase mb-3">
+          <Heart className="w-4 h-4" />
+          New couple mode
+        </div>
+        <h2 className="text-xl font-semibold text-white">Choose your couple mode</h2>
+        <p className="text-sm text-purple-200/80 mt-2">
+          Pick between fast romantic Snake rounds and the shared house-life Love Nest experience.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Link
+            href="/play/snake"
+            className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium bg-pink-500/70 hover:bg-pink-500/90 transition-colors"
+          >
+            <Gamepad2 className="w-4 h-4" />
+            Open /play/snake
+          </Link>
+          <Link
+            href="/play/love-nest"
+            className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium bg-indigo-500/60 hover:bg-indigo-500/80 transition-colors"
+          >
+            <Home className="w-4 h-4" />
+            Open /play/love-nest
+          </Link>
+        </div>
       </section>
 
       <section className="glass-card p-6">
