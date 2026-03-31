@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AURA — A Universe for Two</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Nunito:wght@300;400;600&family=Caveat:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --blossom:#FF6B9D;
+  --peach:#FFAB76;
+  --rose-mist:#FFD6E7;
+  --lilac:#C8B6E2;
+  --sky:#B8E3FF;
+  --butter:#FFF3B0;
+  --void:#0D0720;
+  --nebula:#1C1040;
+  --stardust:#2D1654;
+  --cosmic:#4a1c7c;
+  --text-soft:#F0D6FF;
+  --text-whisper:#C4A8D4;
+  --glow-pink:0 0 40px #FF6B9D55,0 0 80px #FF6B9D22;
+  --glow-lilac:0 0 40px #C8B6E255,0 0 80px #C8B6E222;
+}
+html{scroll-behavior:smooth;cursor:none}
+body{
+  background:#0D0720;
+  color:#F0D6FF;
+  font-family:'Nunito',sans-serif;
+  overflow-x:hidden;
+  line-height:1.6;
+}
+
+/* ─── CUSTOM CURSOR ─── */
+#cursor{position:fixed;width:12px;height:12px;background:var(--blossom);border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);transition:transform .1s,width .2s,height .2s;mix-blend-mode:screen}
+#cursor-trail{position:fixed;width:40px;height:40px;border:1.5px solid #FF6B9D55;border-radius:50%;pointer-events:none;z-index:9998;transform:translate(-50%,-50%);transition:all .15s ease}
+.cursor-heart{position:fixed;pointer-events:none;z-index:9997;font-size:14px;animation:heartFloat 1.2s ease-out forwards}
+@keyframes heartFloat{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-60px) scale(0.5)}}
+
+/* ─── NOISE TEXTURE ─── */
+body::before{
+  content:'';position:fixed;top:0;left:0;width:100%;height:100%;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+  opacity:.025;pointer-events:none;z-index:1;
+}
+
+/* ─── NAV ─── */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  padding:1.5rem 4rem;
+  display:flex;justify-content:space-between;align-items:center;
+  background:linear-gradient(to bottom,rgba(13,7,32,.9),transparent);
+  backdrop-filter:blur(10px);
+}
+.nav-logo{
+  font-family:'Caveat',cursive;
+  font-size:1.8rem;
+  font-weight:700;
+  background:linear-gradient(135deg,var(--blossom),var(--peach));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  letter-spacing:.05em;
+}
+.nav-links{display:flex;gap:2.5rem;align-items:center}
+.nav-links a{
+  color:var(--text-whisper);font-size:.9rem;text-decoration:none;
+  letter-spacing:.08em;text-transform:uppercase;font-weight:600;
+  transition:color .3s;cursor:none;
+}
+.nav-links a:hover{color:var(--blossom)}
+.nav-cta{
+  background:linear-gradient(135deg,var(--blossom),var(--peach));
+  color:#fff;padding:.6rem 1.8rem;border-radius:999px;
+  font-size:.85rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  text-decoration:none;cursor:none;
+  box-shadow:var(--glow-pink);
+  transition:transform .2s,box-shadow .2s;
+}
+.nav-cta:hover{transform:scale(1.05);box-shadow:0 0 60px #FF6B9D88}
+
+/* ─── HERO ─── */
+#hero{
+  min-height:100vh;
+  display:flex;align-items:center;justify-content:center;
+  position:relative;overflow:hidden;
+  padding:8rem 4rem 4rem;
+}
+.hero-bg{
+  position:absolute;inset:0;
+  background:radial-gradient(ellipse 80% 60% at 50% 40%,rgba(200,182,226,.12),transparent 70%),
+             radial-gradient(ellipse 40% 40% at 20% 80%,rgba(255,107,157,.1),transparent 60%),
+             radial-gradient(ellipse 40% 40% at 80% 20%,rgba(184,227,255,.08),transparent 60%);
+}
+.hero-grid{
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:4rem;align-items:center;
+  max-width:1200px;width:100%;position:relative;z-index:2;
+}
+.hero-eyebrow{
+  display:inline-flex;align-items:center;gap:.6rem;
+  background:rgba(255,107,157,.1);border:1px solid rgba(255,107,157,.2);
+  padding:.4rem 1rem;border-radius:999px;margin-bottom:1.5rem;
+}
+.hero-eyebrow span{font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:var(--blossom);font-weight:700}
+.hero-eyebrow .dot{width:6px;height:6px;background:var(--blossom);border-radius:50%;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.3)}}
+
+.hero-title{
+  font-family:'Playfair Display',serif;
+  font-size:clamp(3rem,6vw,5.5rem);
+  line-height:1.08;
+  letter-spacing:-.02em;
+  margin-bottom:1.5rem;
+}
+.hero-title em{font-style:italic;color:var(--blossom)}
+.hero-title .line-accent{
+  background:linear-gradient(135deg,var(--blossom),var(--peach),var(--lilac));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+
+.hero-sub{
+  font-size:1.15rem;color:var(--text-whisper);
+  max-width:42ch;margin-bottom:2.5rem;font-weight:300;line-height:1.8;
+}
+.hero-sub strong{color:var(--rose-mist);font-weight:600}
+
+.hero-actions{display:flex;gap:1rem;align-items:center;flex-wrap:wrap}
+.btn-primary{
+  background:linear-gradient(135deg,var(--blossom),var(--peach));
+  color:#fff;padding:1rem 2.5rem;border-radius:999px;
+  font-size:1rem;font-weight:700;text-decoration:none;cursor:none;
+  box-shadow:var(--glow-pink);
+  transition:transform .2s,box-shadow .2s;
+  display:inline-flex;align-items:center;gap:.6rem;
+}
+.btn-primary:hover{transform:translateY(-2px) scale(1.02);box-shadow:0 0 80px #FF6B9D88}
+.btn-ghost{
+  color:var(--text-soft);padding:1rem 2rem;border-radius:999px;
+  font-size:1rem;font-weight:600;text-decoration:none;cursor:none;
+  border:1px solid rgba(240,214,255,.15);
+  transition:border-color .3s,color .3s;
+  display:inline-flex;align-items:center;gap:.5rem;
+}
+.btn-ghost:hover{border-color:var(--lilac);color:var(--lilac)}
+
+.hero-trust{
+  display:flex;align-items:center;gap:.8rem;margin-top:2rem;
+}
+.trust-avatars{display:flex}
+.trust-avatar{
+  width:32px;height:32px;border-radius:50%;
+  border:2px solid var(--void);
+  background:linear-gradient(135deg,var(--blossom),var(--lilac));
+  margin-left:-8px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.6rem;font-weight:700;color:#fff;
+}
+.trust-text{font-size:.82rem;color:var(--text-whisper)}
+.trust-text strong{color:var(--blossom)}
+
+/* ─── PHONE MOCKUP ─── */
+.hero-visual{
+  position:relative;display:flex;justify-content:center;align-items:center;
+}
+.phone-wrap{
+  position:relative;
+  animation:floatPhone 6s ease-in-out infinite;
+}
+@keyframes floatPhone{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-20px) rotate(2deg)}}
+.phone{
+  width:260px;height:520px;
+  background:linear-gradient(160deg,#1C1040,#2D1654);
+  border-radius:44px;
+  border:1.5px solid rgba(200,182,226,.25);
+  box-shadow:0 0 0 8px rgba(29,16,64,.8),var(--glow-lilac),inset 0 1px 0 rgba(255,255,255,.05);
+  position:relative;overflow:hidden;
+  z-index:2;
+}
+.phone-notch{
+  position:absolute;top:16px;left:50%;transform:translateX(-50%);
+  width:80px;height:20px;background:#0D0720;border-radius:10px;z-index:5;
+}
+.phone-screen{
+  position:absolute;inset:0;padding:52px 16px 20px;
+  display:flex;flex-direction:column;gap:12px;overflow:hidden;
+}
+/* App UI inside phone */
+.app-status-bar{display:flex;justify-content:space-between;align-items:center;font-size:.55rem;color:rgba(240,214,255,.5);padding:0 4px}
+.app-header{text-align:center;margin-bottom:4px}
+.app-header-title{font-family:'Caveat',cursive;font-size:1.1rem;color:var(--text-soft);font-weight:700}
+.app-date{font-size:.58rem;color:var(--text-whisper);margin-top:2px}
+
+/* orbs */
+.orbs-container{display:flex;justify-content:space-around;align-items:center;padding:8px 0}
+.orb{
+  width:72px;height:72px;border-radius:50%;position:relative;
+  display:flex;align-items:center;justify-content:center;
+}
+.orb-you{background:radial-gradient(circle,rgba(255,107,157,.4),rgba(255,107,157,.05));box-shadow:0 0 20px #FF6B9D44}
+.orb-her{background:radial-gradient(circle,rgba(184,227,255,.4),rgba(184,227,255,.05));box-shadow:0 0 20px #B8E3FF44}
+.orb-avatar{font-size:1.6rem}
+.orb-label{
+  position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);
+  font-size:.55rem;color:var(--text-whisper);white-space:nowrap;
+  font-family:'Caveat',cursive;font-size:.75rem;
+}
+.orb-status{
+  position:absolute;bottom:-32px;left:50%;transform:translateX(-50%);
+  font-size:.5rem;color:var(--blossom);white-space:nowrap;
+}
+.orb-ring{
+  position:absolute;inset:-6px;border-radius:50%;
+  border:1px solid rgba(255,107,157,.3);
+  animation:orbBreath 3s ease-in-out infinite;
+}
+@keyframes orbBreath{0%,100%{transform:scale(1);opacity:.5}50%{transform:scale(1.08);opacity:1}}
+
+.app-divider{height:1px;background:rgba(200,182,226,.1);margin:4px 0}
+
+/* countdown in phone */
+.app-countdown{
+  background:linear-gradient(135deg,rgba(255,107,157,.15),rgba(200,182,226,.1));
+  border:1px solid rgba(255,107,157,.2);border-radius:16px;
+  padding:10px 12px;text-align:center;
+}
+.countdown-num{
+  font-family:'Playfair Display',serif;
+  font-size:2rem;font-weight:900;
+  background:linear-gradient(135deg,var(--blossom),var(--peach));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  line-height:1;
+}
+.countdown-label{font-size:.55rem;color:var(--text-whisper);margin-top:2px;font-family:'Caveat',cursive;font-size:.8rem}
+
+/* polaroids in phone */
+.app-memories{display:flex;gap:8px;overflow:hidden}
+.mini-polaroid{
+  background:#fff;border-radius:6px;padding:4px 4px 14px;
+  flex-shrink:0;width:72px;
+  box-shadow:0 4px 12px rgba(0,0,0,.3);
+  transform:rotate(-3deg);
+}
+.mini-polaroid:nth-child(2){transform:rotate(2deg)}
+.mini-photo{
+  width:64px;height:56px;border-radius:4px;
+  background:linear-gradient(135deg,var(--blossom),var(--lilac));
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.2rem;
+}
+.mini-caption{font-family:'Caveat',cursive;font-size:.65rem;color:#666;text-align:center;margin-top:4px;line-height:1.2}
+
+/* pulse button in phone */
+.app-pulse{
+  background:linear-gradient(135deg,var(--blossom),var(--peach));
+  border-radius:999px;padding:8px 16px;
+  text-align:center;font-size:.65rem;font-weight:700;color:#fff;
+  box-shadow:0 0 20px #FF6B9D66;
+  animation:pulseGlow 2s ease-in-out infinite;
+}
+@keyframes pulseGlow{0%,100%{box-shadow:0 0 20px #FF6B9D66}50%{box-shadow:0 0 35px #FF6B9D99}}
+
+/* floating elements around phone */
+.float-el{
+  position:absolute;
+  z-index:3;
+  pointer-events:none;
+}
+.float-polaroid{
+  background:#fff;padding:8px 8px 24px;border-radius:8px;
+  box-shadow:0 8px 30px rgba(0,0,0,.4);
+  font-family:'Caveat',cursive;
+}
+.float-polaroid-photo{
+  width:80px;height:70px;border-radius:4px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:2rem;
+}
+.float-polaroid-text{font-size:.8rem;color:#555;text-align:center;margin-top:6px;line-height:1.2}
+
+.float-pill{
+  background:rgba(29,16,64,.9);border:1px solid rgba(200,182,226,.2);
+  border-radius:999px;padding:.4rem 1rem;font-size:.75rem;
+  color:var(--text-soft);display:flex;align-items:center;gap:.4rem;
+  backdrop-filter:blur(8px);white-space:nowrap;
+}
+.float-heart{font-size:1.5rem;animation:heartBeat 1.5s ease-in-out infinite}
+@keyframes heartBeat{0%,100%{transform:scale(1)}50%{transform:scale(1.2)}}
+
+/* ─── CANVAS PARTICLES ─── */
+#particle-canvas{position:fixed;inset:0;pointer-events:none;z-index:0}
+
+/* ─── SECTION SHARED ─── */
+section{position:relative;z-index:2}
+.section-label{
+  display:inline-flex;align-items:center;gap:.5rem;
+  font-size:.72rem;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--blossom);font-weight:700;margin-bottom:1rem;
+}
+.section-label::before{content:'';width:24px;height:1px;background:var(--blossom)}
+
+/* ─── FEATURES ─── */
+#features{padding:8rem 4rem;max-width:1200px;margin:0 auto}
+.features-header{text-align:center;margin-bottom:5rem}
+.features-title{
+  font-family:'Playfair Display',serif;
+  font-size:clamp(2.5rem,4vw,4rem);
+  line-height:1.15;margin-bottom:1rem;
+}
+.features-title em{font-style:italic;color:var(--blossom)}
+.features-sub{color:var(--text-whisper);font-size:1.1rem;max-width:50ch;margin:0 auto}
+
+.features-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:1.5rem;
+}
+.feature-card{
+  background:linear-gradient(135deg,rgba(28,16,64,.8),rgba(45,22,84,.5));
+  border:1px solid rgba(200,182,226,.1);
+  border-radius:24px;
+  padding:2rem;
+  transition:transform .3s,border-color .3s,box-shadow .3s;
+  cursor:none;position:relative;overflow:hidden;
+}
+.feature-card::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(circle at 50% 0%,rgba(255,107,157,.08),transparent 60%);
+  opacity:0;transition:opacity .3s;
+}
+.feature-card:hover{
+  transform:translateY(-6px);
+  border-color:rgba(255,107,157,.25);
+  box-shadow:0 20px 60px rgba(255,107,157,.1);
+}
+.feature-card:hover::before{opacity:1}
+.feature-card.large{grid-column:span 2}
+.feature-card.tall{min-height:280px}
+
+.feature-icon{
+  width:52px;height:52px;border-radius:16px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.5rem;margin-bottom:1.2rem;
+}
+.feature-name{
+  font-family:'Playfair Display',serif;
+  font-size:1.35rem;font-weight:700;margin-bottom:.6rem;color:var(--text-soft);
+}
+.feature-desc{color:var(--text-whisper);font-size:.9rem;line-height:1.7}
+.feature-tag{
+  display:inline-block;margin-top:1rem;
+  background:rgba(255,107,157,.12);border:1px solid rgba(255,107,157,.2);
+  color:var(--blossom);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;
+  padding:.3rem .8rem;border-radius:999px;font-weight:700;
+}
+
+/* Feature card special visuals */
+.fc-presence{background:linear-gradient(135deg,rgba(255,107,157,.15),rgba(200,182,226,.1))}
+.fc-pulse{background:linear-gradient(135deg,rgba(200,182,226,.15),rgba(184,227,255,.08))}
+.fc-ai{background:linear-gradient(135deg,rgba(255,171,118,.12),rgba(255,107,157,.08))}
+
+/* ─── EMOTION SECTION ─── */
+#emotion{
+  padding:8rem 4rem;
+  background:linear-gradient(180deg,transparent,rgba(28,16,64,.5),transparent);
+  overflow:hidden;
+}
+.emotion-inner{max-width:1200px;margin:0 auto;text-align:center}
+.emotion-title{
+  font-family:'Playfair Display',serif;font-style:italic;
+  font-size:clamp(2.5rem,5vw,4.5rem);
+  line-height:1.2;margin-bottom:1.5rem;
+}
+.emotion-title span{
+  background:linear-gradient(135deg,var(--blossom),var(--peach),var(--lilac));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+
+/* silent mode demo */
+.silent-demo{
+  display:flex;justify-content:center;gap:3rem;align-items:center;
+  margin:4rem 0;flex-wrap:wrap;
+}
+.silent-card{
+  background:linear-gradient(135deg,rgba(28,16,64,.9),rgba(45,22,84,.7));
+  border:1px solid rgba(200,182,226,.15);border-radius:28px;
+  padding:2rem;width:220px;text-align:center;
+  transition:transform .3s,box-shadow .3s;cursor:none;
+}
+.silent-card:hover{transform:translateY(-8px);box-shadow:0 20px 60px rgba(255,107,157,.2)}
+.silent-emoji{font-size:3rem;margin-bottom:1rem;display:block}
+.silent-text{font-family:'Caveat',cursive;font-size:1.1rem;color:var(--text-soft);margin-bottom:.5rem}
+.silent-sub{font-size:.8rem;color:var(--text-whisper);line-height:1.5}
+
+.arrow-conn{font-size:2rem;color:rgba(200,182,226,.3)}
+
+/* ─── STICKER SHOWCASE ─── */
+#stickers{padding:8rem 4rem;max-width:1200px;margin:0 auto;overflow:hidden}
+.sticker-header{margin-bottom:3rem}
+.sticker-title{font-family:'Playfair Display',serif;font-size:clamp(2rem,4vw,3.5rem);line-height:1.2;max-width:16ch}
+.sticker-title em{font-style:italic;color:var(--blossom)}
+
+.sticker-scroll{
+  display:flex;gap:1rem;overflow-x:auto;padding:1rem 0;
+  scrollbar-width:none;
+}
+.sticker-scroll::-webkit-scrollbar{display:none}
+
+.sticker-pack{
+  flex-shrink:0;
+  background:linear-gradient(135deg,rgba(28,16,64,.9),rgba(45,22,84,.6));
+  border:1px solid rgba(200,182,226,.12);border-radius:20px;
+  padding:1.5rem;width:200px;
+  transition:transform .3s,border-color .3s;cursor:none;
+}
+.sticker-pack:hover{transform:scale(1.03);border-color:rgba(255,107,157,.25)}
+.sticker-pack-icon{font-size:2.5rem;margin-bottom:.8rem;display:block}
+.sticker-pack-name{font-family:'Caveat',cursive;font-size:1.2rem;color:var(--text-soft);font-weight:700;margin-bottom:.4rem}
+.sticker-pack-count{font-size:.75rem;color:var(--text-whisper)}
+.sticker-previews{display:flex;gap:.4rem;margin-top:.8rem;flex-wrap:wrap}
+.sticker-preview{font-size:1.3rem}
+
+/* ─── GAMES SECTION ─── */
+#games{
+  padding:8rem 4rem;
+  background:radial-gradient(ellipse 80% 60% at 50% 50%,rgba(74,28,124,.15),transparent 70%);
+}
+.games-inner{max-width:1200px;margin:0 auto}
+.games-grid{
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:2rem;margin-top:3rem;
+}
+.game-card{
+  background:linear-gradient(135deg,rgba(28,16,64,.9),rgba(45,22,84,.7));
+  border:1px solid rgba(200,182,226,.1);border-radius:24px;
+  padding:2rem;cursor:none;position:relative;overflow:hidden;
+  transition:transform .3s,border-color .3s,box-shadow .3s;
+}
+.game-card::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(255,107,157,.06),rgba(200,182,226,.04));
+  opacity:0;transition:opacity .3s;
+}
+.game-card:hover{transform:translateY(-4px);border-color:rgba(200,182,226,.25);box-shadow:0 20px 60px rgba(74,28,124,.3)}
+.game-card:hover::after{opacity:1}
+.game-num{
+  font-family:'Playfair Display',serif;font-style:italic;
+  font-size:3rem;font-weight:900;
+  background:linear-gradient(135deg,rgba(255,107,157,.3),rgba(200,182,226,.2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  position:absolute;top:1rem;right:1.5rem;
+}
+.game-icon{font-size:2rem;margin-bottom:1rem}
+.game-name{font-family:'Playfair Display',serif;font-size:1.4rem;margin-bottom:.6rem;color:var(--text-soft)}
+.game-desc{color:var(--text-whisper);font-size:.9rem;line-height:1.7}
+.game-badge{
+  display:inline-block;margin-top:1rem;
+  font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--lilac);font-weight:700;
+  padding:.25rem .7rem;border-radius:999px;
+  border:1px solid rgba(200,182,226,.2);
+}
+
+/* ─── WATCH TOGETHER ─── */
+#cinema{padding:8rem 4rem;max-width:1200px;margin:0 auto}
+.cinema-grid{display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:center}
+.cinema-visual{
+  background:linear-gradient(135deg,rgba(28,16,64,.9),rgba(13,7,32,.95));
+  border:1px solid rgba(200,182,226,.12);border-radius:28px;
+  padding:2rem;position:relative;overflow:hidden;
+}
+.cinema-screen{
+  background:#000;border-radius:16px;aspect-ratio:16/9;
+  display:flex;align-items:center;justify-content:center;
+  font-size:3rem;position:relative;overflow:hidden;
+  border:1px solid rgba(255,255,255,.05);
+}
+.cinema-screen-glow{
+  position:absolute;inset:0;
+  background:radial-gradient(ellipse 60% 60% at 50% 50%,rgba(255,107,157,.15),transparent);
+  animation:cinemaGlow 4s ease-in-out infinite;
+}
+@keyframes cinemaGlow{0%,100%{opacity:.5}50%{opacity:1}}
+.cinema-couch{
+  display:flex;justify-content:center;gap:2rem;margin-top:1rem;
+}
+.couch-figure{
+  text-align:center;font-size:1.5rem;
+  animation:figureIdle 4s ease-in-out infinite;
+}
+.couch-figure:nth-child(2){animation-delay:2s}
+@keyframes figureIdle{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+.couch-name{font-family:'Caveat',cursive;font-size:.85rem;color:var(--text-whisper);margin-top:4px}
+
+.sparks-demo{
+  display:flex;justify-content:center;gap:.6rem;flex-wrap:wrap;margin-top:1rem;
+}
+.spark-item{
+  background:rgba(255,107,157,.1);border:1px solid rgba(255,107,157,.15);
+  border-radius:999px;padding:.3rem .7rem;font-size:.75rem;color:var(--text-soft);
+  display:flex;align-items:center;gap:.3rem;
+}
+
+.cinema-text .section-label{justify-content:flex-start}
+.cinema-text h2{font-family:'Playfair Display',serif;font-size:clamp(2rem,3.5vw,3rem);line-height:1.2;margin-bottom:1rem}
+.cinema-text h2 em{font-style:italic;color:var(--blossom)}
+.cinema-text p{color:var(--text-whisper);line-height:1.8;margin-bottom:1.5rem}
+.cinema-feature{display:flex;align-items:flex-start;gap:.8rem;margin-bottom:1rem}
+.cinema-feature-dot{width:8px;height:8px;background:var(--blossom);border-radius:50%;margin-top:.45rem;flex-shrink:0}
+.cinema-feature p{font-size:.9rem;color:var(--text-whisper);line-height:1.6}
+.cinema-feature p strong{color:var(--text-soft)}
+
+/* ─── SCROLLING MARQUEE ─── */
+.marquee-section{padding:3rem 0;overflow:hidden;border-top:1px solid rgba(200,182,226,.06);border-bottom:1px solid rgba(200,182,226,.06)}
+.marquee-track{display:flex;gap:0;white-space:nowrap;animation:marquee 20s linear infinite}
+@keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.marquee-item{
+  display:inline-flex;align-items:center;gap:.8rem;
+  padding:0 2.5rem;font-family:'Caveat',cursive;font-size:1.3rem;font-weight:700;
+  color:rgba(240,214,255,.2);
+}
+.marquee-item span{color:var(--blossom);font-size:.8rem}
+
+/* ─── TESTIMONIALS ─── */
+#testimonials{padding:8rem 4rem;max-width:1200px;margin:0 auto;text-align:center}
+.testimonials-title{font-family:'Playfair Display',serif;font-size:clamp(2rem,4vw,3.5rem);line-height:1.2;margin-bottom:.8rem}
+.testimonials-title em{font-style:italic;color:var(--blossom)}
+.testimonials-sub{color:var(--text-whisper);margin-bottom:4rem}
+
+.testimonials-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem}
+.testimonial-card{
+  background:linear-gradient(135deg,rgba(28,16,64,.8),rgba(45,22,84,.5));
+  border:1px solid rgba(200,182,226,.1);border-radius:20px;
+  padding:2rem;text-align:left;
+  transition:transform .3s,border-color .3s;cursor:none;
+}
+.testimonial-card:hover{transform:translateY(-4px);border-color:rgba(255,107,157,.2)}
+.t-stars{color:var(--blossom);font-size:1rem;margin-bottom:1rem;letter-spacing:.1em}
+.t-quote{
+  font-family:'Caveat',cursive;font-size:1.15rem;color:var(--text-soft);
+  line-height:1.6;margin-bottom:1.5rem;
+}
+.t-author{display:flex;align-items:center;gap:.8rem}
+.t-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1rem}
+.t-name{font-size:.85rem;color:var(--text-soft);font-weight:600}
+.t-handle{font-size:.75rem;color:var(--text-whisper)}
+
+/* ─── CTA SECTION ─── */
+#cta{
+  padding:10rem 4rem;
+  background:radial-gradient(ellipse 80% 80% at 50% 50%,rgba(74,28,124,.25),transparent 70%);
+  text-align:center;
+}
+.cta-inner{max-width:700px;margin:0 auto}
+.cta-eyebrow{
+  font-family:'Caveat',cursive;font-size:1.3rem;color:var(--blossom);
+  margin-bottom:1rem;
+}
+.cta-title{
+  font-family:'Playfair Display',serif;
+  font-size:clamp(2.5rem,5vw,4.5rem);
+  line-height:1.1;margin-bottom:1.5rem;
+}
+.cta-title em{font-style:italic;background:linear-gradient(135deg,var(--blossom),var(--peach));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.cta-sub{color:var(--text-whisper);font-size:1.1rem;max-width:44ch;margin:0 auto 2.5rem;line-height:1.8}
+.cta-actions{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap}
+
+.cta-stores{display:flex;gap:1rem;justify-content:center;margin-top:1.5rem;flex-wrap:wrap}
+.store-badge{
+  background:rgba(28,16,64,.9);border:1px solid rgba(200,182,226,.15);
+  border-radius:12px;padding:.7rem 1.3rem;
+  display:flex;align-items:center;gap:.7rem;
+  text-decoration:none;cursor:none;
+  transition:border-color .3s,transform .2s;
+}
+.store-badge:hover{border-color:rgba(255,107,157,.3);transform:translateY(-2px)}
+.store-icon{font-size:1.3rem}
+.store-text{text-align:left}
+.store-text small{display:block;font-size:.65rem;color:var(--text-whisper);text-transform:uppercase;letter-spacing:.08em}
+.store-text strong{font-size:.9rem;color:var(--text-soft)}
+
+/* ─── FOOTER ─── */
+footer{
+  padding:3rem 4rem;
+  border-top:1px solid rgba(200,182,226,.06);
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;
+}
+.footer-brand{font-family:'Caveat',cursive;font-size:1.5rem;font-weight:700;background:linear-gradient(135deg,var(--blossom),var(--peach));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.footer-tagline{font-size:.8rem;color:var(--text-whisper);font-family:'Caveat',cursive;font-size:.95rem}
+.footer-links{display:flex;gap:2rem}
+.footer-links a{font-size:.8rem;color:var(--text-whisper);text-decoration:none;cursor:none;transition:color .3s}
+.footer-links a:hover{color:var(--blossom)}
+.footer-heart{color:var(--blossom);animation:heartBeat 2s ease-in-out infinite}
+
+/* ─── REVEAL ANIMATIONS ─── */
+.reveal{opacity:0;transform:translateY(30px);transition:opacity .8s ease,transform .8s ease}
+.reveal.visible{opacity:1;transform:translateY(0)}
+.reveal-delay-1{transition-delay:.1s}
+.reveal-delay-2{transition-delay:.2s}
+.reveal-delay-3{transition-delay:.3s}
+.reveal-delay-4{transition-delay:.4s}
+
+/* ─── SCROLLBAR ─── */
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:var(--void)}
+::-webkit-scrollbar-thumb{background:linear-gradient(var(--blossom),var(--lilac));border-radius:99px}
+
+/* ─── SELECTION ─── */
+::selection{background:rgba(255,107,157,.3);color:#fff}
+
+/* ─── RESPONSIVE ─── */
+@media(max-width:900px){
+  nav{padding:1.2rem 2rem}
+  .nav-links{display:none}
+  #hero{padding:6rem 2rem 4rem}
+  .hero-grid{grid-template-columns:1fr;text-align:center}
+  .hero-sub{max-width:100%}
+  .hero-actions{justify-content:center}
+  .hero-trust{justify-content:center}
+  .hero-visual{display:none}
+  .features-grid{grid-template-columns:1fr}
+  .feature-card.large{grid-column:span 1}
+  #features,#emotion,#stickers,#games,#cinema,#testimonials,#cta{padding:5rem 2rem}
+  .games-grid{grid-template-columns:1fr}
+  .cinema-grid{grid-template-columns:1fr}
+  .testimonials-grid{grid-template-columns:1fr}
+  footer{flex-direction:column;text-align:center}
+  .footer-links{justify-content:center}
+}
+</style>
+</head>
+<body>
+
+<canvas id="particle-canvas"></canvas>
+<div id="cursor"></div>
+<div id="cursor-trail"></div>
+
+<!-- ─── NAV ─── -->
+<nav>
+  <div class="nav-logo">aura 💕</div>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#games">Play Together</a>
+    <a href="#cinema">Watch</a>
+    <a class="nav-cta" href="#cta">Get Early Access</a>
+  </div>
+</nav>
+
+<!-- ─── HERO ─── -->
+<section id="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-grid">
+    <div class="hero-content">
+      <div class="hero-eyebrow reveal">
+        <div class="dot"></div>
+        <span>Built for two hearts, any distance</span>
+      </div>
+      <h1 class="hero-title reveal reveal-delay-1">
+        Your love,<br>
+        <em>alive</em> across<br>
+        <span class="line-accent">every mile</span>
+      </h1>
+      <p class="hero-sub reveal reveal-delay-2">
+        AURA is not a messaging app. It's a <strong>private universe</strong> — 
+        where distance disappears and every pixel carries your heartbeat 
+        to the person who holds it.
+      </p>
+      <div class="hero-actions reveal reveal-delay-3">
+        <a href="#cta" class="btn-primary">💕 Get Early Access</a>
+        <a href="#features" class="btn-ghost">✦ See how it works</a>
+      </div>
+      <div class="hero-trust reveal reveal-delay-4">
+        <div class="trust-avatars">
+          <div class="trust-avatar">A</div>
+          <div class="trust-avatar">K</div>
+          <div class="trust-avatar">R</div>
+          <div class="trust-avatar">M</div>
+        </div>
+        <p class="trust-text"><strong>4,200+</strong> couples on the waiting list</p>
+      </div>
+    </div>
+
+    <div class="hero-visual">
+      <div class="phone-wrap">
+        <!-- Floating elements -->
+        <div class="float-el" style="top:-40px;right:-80px;animation:floatEl1 5s ease-in-out infinite">
+          <div class="float-polaroid">
+            <div class="float-polaroid-photo" style="background:linear-gradient(135deg,#FF6B9D,#C8B6E2)">☕</div>
+            <div class="float-polaroid-text">morning for two</div>
+          </div>
+        </div>
+        <div class="float-el" style="bottom:60px;left:-100px;animation:floatEl2 7s ease-in-out infinite">
+          <div class="float-pill">💭 She's thinking of you</div>
+        </div>
+        <div class="float-el" style="top:100px;left:-70px;animation:floatEl3 6s ease-in-out infinite">
+          <div class="float-pill">🫂 Hug sent!</div>
+        </div>
+        <div class="float-el" style="bottom:20px;right:-60px;animation:floatEl1 8s ease-in-out infinite">
+          <div class="float-heart">💖</div>
+        </div>
+
+        <!-- Phone -->
+        <div class="phone">
+          <div class="phone-notch"></div>
+          <div class="phone-screen">
+            <div class="app-status-bar">
+              <span>9:41</span>
+              <span>●●●</span>
+            </div>
+            <div class="app-header">
+              <div class="app-header-title">our universe ✨</div>
+              <div class="app-date" style="font-family:'Caveat',cursive;font-size:.8rem;color:var(--text-whisper)">Wednesday, March 31</div>
+            </div>
+            <div class="orbs-container">
+              <div style="position:relative;text-align:center">
+                <div class="orb orb-you"><div class="orb-ring"></div><div class="orb-avatar">🧑</div></div>
+                <div style="margin-top:24px;font-family:'Caveat',cursive;font-size:.8rem;color:var(--text-whisper)">you</div>
+                <div style="font-size:.6rem;color:var(--blossom);margin-top:2px">missing her 💔</div>
+              </div>
+              <div style="font-size:1.2rem;color:rgba(200,182,226,.3)">✦</div>
+              <div style="position:relative;text-align:center">
+                <div class="orb orb-her"><div class="orb-ring" style="border-color:rgba(184,227,255,.3);animation-delay:1.5s"></div><div class="orb-avatar">👩</div></div>
+                <div style="margin-top:24px;font-family:'Caveat',cursive;font-size:.8rem;color:var(--text-whisper)">her</div>
+                <div style="font-size:.6rem;color:var(--sky);margin-top:2px">thinking of you 💭</div>
+              </div>
+            </div>
+            <div class="app-divider"></div>
+            <div class="app-countdown">
+              <div class="countdown-num">47</div>
+              <div class="countdown-label">days until we meet again 🗓️</div>
+            </div>
+            <div class="app-memories">
+              <div class="mini-polaroid">
+                <div class="mini-photo">🌅</div>
+                <div class="mini-caption">sunset for you</div>
+              </div>
+              <div class="mini-polaroid">
+                <div class="mini-photo" style="background:linear-gradient(135deg,#C8B6E2,#B8E3FF)">🌸</div>
+                <div class="mini-caption">she sent this</div>
+              </div>
+            </div>
+            <div class="app-pulse">💕 Thinking of you</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── MARQUEE ─── -->
+<div class="marquee-section">
+  <div class="marquee-track">
+    <div class="marquee-item">Shared Presence <span>✦</span></div>
+    <div class="marquee-item">Virtual Touch <span>✦</span></div>
+    <div class="marquee-item">Sticker Studio <span>✦</span></div>
+    <div class="marquee-item">Cinema Together <span>✦</span></div>
+    <div class="marquee-item">AI Love Guide <span>✦</span></div>
+    <div class="marquee-item">Memory Wall <span>✦</span></div>
+    <div class="marquee-item">Silent Mode <span>✦</span></div>
+    <div class="marquee-item">Digital Room <span>✦</span></div>
+    <div class="marquee-item">Shared Presence <span>✦</span></div>
+    <div class="marquee-item">Virtual Touch <span>✦</span></div>
+    <div class="marquee-item">Sticker Studio <span>✦</span></div>
+    <div class="marquee-item">Cinema Together <span>✦</span></div>
+    <div class="marquee-item">AI Love Guide <span>✦</span></div>
+    <div class="marquee-item">Memory Wall <span>✦</span></div>
+    <div class="marquee-item">Silent Mode <span>✦</span></div>
+    <div class="marquee-item">Digital Room <span>✦</span></div>
+  </div>
+</div>
+
+<!-- ─── FEATURES ─── -->
+<section id="features">
+  <div class="features-header reveal">
+    <div class="section-label">Everything you feel</div>
+    <h2 class="features-title">Not features.<br><em>Feelings.</em></h2>
+    <p class="features-sub">Every piece of AURA was designed for one question: does this make distance disappear?</p>
+  </div>
+  <div class="features-grid">
+    <div class="feature-card fc-presence large tall reveal">
+      <div class="feature-icon" style="background:rgba(255,107,157,.15)">💫</div>
+      <div class="feature-name">Aura Presence</div>
+      <p class="feature-desc">Not just "online." See <em>what she's feeling</em> right now — studying, happy, missing you — visualized as a glowing orb that breathes in real time. Two worlds, one heartbeat.</p>
+      <div class="feature-tag">Real-time</div>
+    </div>
+    <div class="feature-card tall reveal reveal-delay-1">
+      <div class="feature-icon" style="background:rgba(200,182,226,.15)">🫂</div>
+      <div class="feature-name">Pulse Touch</div>
+      <p class="feature-desc">Tap to think of her. Hold to hug. Double-tap to kiss. Her phone vibrates with your rhythm. Touch replaced by feeling.</p>
+      <div class="feature-tag">Haptic</div>
+    </div>
+    <div class="feature-card reveal reveal-delay-2">
+      <div class="feature-icon" style="background:rgba(255,171,118,.15)">📸</div>
+      <div class="feature-name">HeartFrame</div>
+      <p class="feature-desc">Your photos arrive on her home screen as polaroids — silent, warm, present. No notification. Just you, being there.</p>
+    </div>
+    <div class="feature-card reveal reveal-delay-3">
+      <div class="feature-icon" style="background:rgba(184,227,255,.15)">🤫</div>
+      <div class="feature-name">Silent Mode</div>
+      <p class="feature-desc">When words fail, tap one emotion. She sees: "He's missing you right now 💔" — no typing, pure feeling.</p>
+      <div class="feature-tag">Emotional AI</div>
+    </div>
+    <div class="feature-card fc-ai large reveal reveal-delay-1">
+      <div class="feature-icon" style="background:rgba(255,171,118,.15)">🧠</div>
+      <div class="feature-name">Aurora AI</div>
+      <p class="feature-desc">Your quiet companion. Detects when you've both gone silent. Suggests the right word, the right photo, the right moment — without ever being intrusive. Relationship intelligence, not surveillance.</p>
+      <div class="feature-tag">AI-Powered</div>
+    </div>
+    <div class="feature-card reveal reveal-delay-2">
+      <div class="feature-icon" style="background:rgba(255,243,176,.15)">⏳</div>
+      <div class="feature-name">Countdown</div>
+      <p class="feature-desc">47 days. A number that pulses like a heartbeat — and explodes in confetti when it hits zero.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ─── SILENT MODE SECTION ─── -->
+<section id="emotion">
+  <div class="emotion-inner">
+    <div class="reveal">
+      <div class="section-label" style="justify-content:center">Silent Mode</div>
+      <h2 class="emotion-title">
+        Sometimes love is<br>
+        <span>too big for words</span>
+      </h2>
+      <p style="color:var(--text-whisper);max-width:48ch;margin:0 auto 1rem;font-size:1.05rem;line-height:1.8">
+        One tap. No typing. Just a wave of feeling that arrives on her screen like a soft hand on her shoulder.
+      </p>
+    </div>
+    <div class="silent-demo reveal reveal-delay-1">
+      <div class="silent-card">
+        <span class="silent-emoji">💔</span>
+        <div class="silent-text">Missing you</div>
+        <div class="silent-sub">She sees: "He's missing you right now" with a soft lilac wash</div>
+      </div>
+      <div class="arrow-conn">→</div>
+      <div class="silent-card">
+        <span class="silent-emoji">💭</span>
+        <div class="silent-text">Thinking of you</div>
+        <div class="silent-sub">A thought bubble floats up her screen. No words. Just presence.</div>
+      </div>
+      <div class="arrow-conn">→</div>
+      <div class="silent-card">
+        <span class="silent-emoji">🤍</span>
+        <div class="silent-text">I'm here</div>
+        <div class="silent-sub">"He just wanted you to know he's here." A pearl-white glow.</div>
+      </div>
+    </div>
+    <div class="reveal reveal-delay-2" style="text-align:center;margin-top:2rem">
+      <p style="font-family:'Caveat',cursive;font-size:1.4rem;color:var(--text-whisper);font-style:italic">
+        "She responded with one 💕. That was enough."
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ─── STICKERS ─── -->
+<section id="stickers">
+  <div class="sticker-header reveal">
+    <div class="section-label">Bloom Studio</div>
+    <h2 class="sticker-title">
+      Stickers that<br>
+      <em>only exist</em><br>
+      between you two
+    </h2>
+  </div>
+  <p class="reveal reveal-delay-1" style="color:var(--text-whisper);max-width:50ch;margin-bottom:2.5rem;line-height:1.8">
+    Draw with pressure-sensitive ink, assemble photo collages with physics, or transform your selfie into a Ghibli painting. Every sticker you send is a one-of-a-kind artifact made by your hands, for her eyes.
+  </p>
+  <div class="sticker-scroll reveal reveal-delay-2">
+    <div class="sticker-pack">
+      <span class="sticker-pack-icon">🐻</span>
+      <div class="sticker-pack-name">Lovey's World</div>
+      <div class="sticker-pack-count">12 animated stickers</div>
+      <div class="sticker-previews">🐻💕🌸😴🌙💌✨🎀</div>
+    </div>
+    <div class="sticker-pack">
+      <span class="sticker-pack-icon">💫</span>
+      <div class="sticker-pack-name">Soft Emotions</div>
+      <div class="sticker-pack-count">10 illustrated feelings</div>
+      <div class="sticker-previews">💫🌊🌸🔥⭐🌀🌈💧</div>
+    </div>
+    <div class="sticker-pack">
+      <span class="sticker-pack-icon">☕</span>
+      <div class="sticker-pack-name">Daily Life</div>
+      <div class="sticker-pack-count">14 everyday moments</div>
+      <div class="sticker-previews">☕🛏️📱🎵✏️🌅🍜🕯️</div>
+    </div>
+    <div class="sticker-pack">
+      <span class="sticker-pack-icon">🤫</span>
+      <div class="sticker-pack-name">Silence Speaks</div>
+      <div class="sticker-pack-count">8 wordless feelings</div>
+      <div class="sticker-previews">🤫🌧️🪑🕊️💔🌑🧸🪟</div>
+    </div>
+    <div class="sticker-pack">
+      <span class="sticker-pack-icon">✏️</span>
+      <div class="sticker-pack-name">Draw It Yourself</div>
+      <div class="sticker-pack-count">Create your own</div>
+      <div class="sticker-previews">🎨✏️🖌️🌟</div>
+    </div>
+    <div class="sticker-pack" style="background:linear-gradient(135deg,rgba(255,107,157,.15),rgba(200,182,226,.1));border-color:rgba(255,107,157,.2)">
+      <span class="sticker-pack-icon">📷</span>
+      <div class="sticker-pack-name">Photo to Art</div>
+      <div class="sticker-pack-count">AI-powered transforms</div>
+      <div class="sticker-previews" style="color:var(--text-whisper);font-size:.75rem;margin-top:.5rem">Ghibli · Neon · Ink · Cartoon</div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── GAMES ─── -->
+<section id="games">
+  <div class="games-inner">
+    <div class="reveal">
+      <div class="section-label">Play Together</div>
+      <h2 style="font-family:'Playfair Display',serif;font-size:clamp(2rem,4vw,3.5rem);line-height:1.2;max-width:20ch">
+        Games that teach you how to <em style="color:var(--blossom)">love better</em>
+      </h2>
+      <p style="color:var(--text-whisper);max-width:50ch;margin-top:1rem;line-height:1.8">
+        Not distractions. Each game is a microscope — revealing how she thinks, what she feels, how your love looks from the outside.
+      </p>
+    </div>
+    <div class="games-grid">
+      <div class="game-card reveal reveal-delay-1">
+        <div class="game-num">01</div>
+        <div class="game-icon">🌊</div>
+        <div class="game-name">Wavelength</div>
+        <p class="game-desc">Both see the same abstract visual. Both describe its emotion. If your answers align — the app says "You are on the same wavelength 💕" and confetti explodes.</p>
+        <div class="game-badge">Emotion Sync</div>
+      </div>
+      <div class="game-card reveal reveal-delay-2">
+        <div class="game-num">02</div>
+        <div class="game-icon">⭐</div>
+        <div class="game-name">Eclipse</div>
+        <p class="game-desc">Build a deck of your shared memories. Battle to prove who remembers better. Your memories become a personal constellation map — she owns the stars she remembers clearest.</p>
+        <div class="game-badge">Memory Map</div>
+      </div>
+      <div class="game-card reveal reveal-delay-3">
+        <div class="game-num">03</div>
+        <div class="game-icon">📡</div>
+        <div class="game-name">Telepathy</div>
+        <p class="game-desc">Communicate an emotion using only: a color, a 3-second hum, and a drawn gesture. No words. The most intimate game ever made.</p>
+        <div class="game-badge">Non-Verbal</div>
+      </div>
+      <div class="game-card reveal reveal-delay-1">
+        <div class="game-num">04</div>
+        <div class="game-icon">⚡</div>
+        <div class="game-name">Gravity</div>
+        <p class="game-desc">Tilt your phones to guide a shared ball together. Physically impossible to win alone. The ball's color blends to match both of you over time.</p>
+        <div class="game-badge">Real Physics</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── CINEMA ─── -->
+<section id="cinema">
+  <div class="cinema-grid">
+    <div class="cinema-visual reveal">
+      <div class="cinema-screen">
+        <div class="cinema-screen-glow"></div>
+        <span style="position:relative;z-index:1;font-size:2rem">🎬</span>
+      </div>
+      <div class="cinema-couch">
+        <div class="couch-figure">🧑<div class="couch-name">you</div></div>
+        <div class="couch-figure">👩<div class="couch-name">her</div></div>
+      </div>
+      <div class="sparks-demo">
+        <div class="spark-item">💕 <span>hearts (tap)</span></div>
+        <div class="spark-item">😂 <span>laugh (double)</span></div>
+        <div class="spark-item">🌟 <span>wow (swipe up)</span></div>
+        <div class="spark-item">🤍 <span>silence (2-finger)</span></div>
+      </div>
+    </div>
+    <div class="cinema-text">
+      <div class="section-label reveal">Cinema Mode</div>
+      <h2 class="reveal reveal-delay-1">Watch together.<br><em>Feel together.</em></h2>
+      <p class="reveal reveal-delay-2">Before the film, a shared countdown — 3...2...1 — so you begin in the exact same breath. During it, spark gestures float from your side of the virtual couch to hers in real time.</p>
+      <div class="cinema-feature reveal reveal-delay-2">
+        <div class="cinema-feature-dot"></div>
+        <p><strong>No chat during the film.</strong> Sparks only — gesture-based reactions that feel physical, not textual.</p>
+      </div>
+      <div class="cinema-feature reveal reveal-delay-3">
+        <div class="cinema-feature-dot"></div>
+        <p><strong>Reaction Waveform</strong> — after the movie, scrub through a visual history of every moment you both reacted.</p>
+      </div>
+      <div class="cinema-feature reveal reveal-delay-4">
+        <div class="cinema-feature-dot"></div>
+        <p><strong>Afterglow.</strong> One sentence each about how the film made you feel. Saved forever as a Cinema Memory.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── TESTIMONIALS ─── -->
+<section id="testimonials">
+  <div class="section-label reveal" style="justify-content:center">Early Testers</div>
+  <h2 class="testimonials-title reveal reveal-delay-1"><em>They felt it</em> too</h2>
+  <p class="testimonials-sub reveal reveal-delay-2">From our beta testers across 14 countries</p>
+  <div class="testimonials-grid">
+    <div class="testimonial-card reveal">
+      <div class="t-stars">★★★★★</div>
+      <div class="t-quote">"When she sent me her first Bloom sticker, I cried. It was her handwriting. I didn't expect that."</div>
+      <div class="t-author">
+        <div class="t-avatar" style="background:linear-gradient(135deg,#FF6B9D,#FFAB76)">A</div>
+        <div><div class="t-name">Arjun M.</div><div class="t-handle">Mumbai → London</div></div>
+      </div>
+    </div>
+    <div class="testimonial-card reveal reveal-delay-1">
+      <div class="t-stars">★★★★★</div>
+      <div class="t-quote">"Silent Mode broke me. I tapped 'missing you' and she called me 2 minutes later. She just... knew."</div>
+      <div class="t-author">
+        <div class="t-avatar" style="background:linear-gradient(135deg,#C8B6E2,#B8E3FF)">K</div>
+        <div><div class="t-name">Kenji T.</div><div class="t-handle">Tokyo → Paris</div></div>
+      </div>
+    </div>
+    <div class="testimonial-card reveal reveal-delay-2">
+      <div class="t-stars">★★★★★</div>
+      <div class="t-quote">"Our room has 47 polaroids on the wall and a bookshelf of every question we've answered. It's us."</div>
+      <div class="t-author">
+        <div class="t-avatar" style="background:linear-gradient(135deg,#FFF3B0,#FFAB76)">R</div>
+        <div><div class="t-name">Riya S.</div><div class="t-handle">Delhi → New York</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ─── CTA ─── -->
+<section id="cta">
+  <div class="cta-inner">
+    <div class="cta-eyebrow reveal">✦ Early Access is open ✦</div>
+    <h2 class="cta-title reveal reveal-delay-1">
+      Give her<br>
+      <em>a universe</em>
+    </h2>
+    <p class="cta-sub reveal reveal-delay-2">
+      Not an app. Not a subscription. A private world that only you two have ever seen — and only love can open.
+    </p>
+    <div class="cta-actions reveal reveal-delay-3">
+      <a href="#" class="btn-primary" style="font-size:1.1rem;padding:1.1rem 3rem">💕 Join the Waitlist</a>
+    </div>
+    <div class="cta-stores reveal reveal-delay-4">
+      <a href="#" class="store-badge">
+        <div class="store-icon">🍎</div>
+        <div class="store-text"><small>Coming to</small><strong>App Store</strong></div>
+      </a>
+      <a href="#" class="store-badge">
+        <div class="store-icon">🤖</div>
+        <div class="store-text"><small>Coming to</small><strong>Google Play</strong></div>
+      </a>
+      <a href="#" class="store-badge">
+        <div class="store-icon">🌐</div>
+        <div class="store-text"><small>Available as</small><strong>Web App</strong></div>
+      </a>
+    </div>
+    <p class="reveal" style="margin-top:2rem;font-family:'Caveat',cursive;font-size:1.1rem;color:var(--text-whisper)">
+      Free for couples. Always. Because love shouldn't cost a subscription.
+    </p>
+  </div>
+</section>
+
+<!-- ─── FOOTER ─── -->
+<footer>
+  <div>
+    <div class="footer-brand">aura 💕</div>
+    <div class="footer-tagline">A universe for two.</div>
+  </div>
+  <div class="footer-links">
+    <a href="#">About</a>
+    <a href="#">Privacy</a>
+    <a href="#">Contact</a>
+  </div>
+  <div style="font-size:.8rem;color:var(--text-whisper)">
+    Made with <span class="footer-heart">❤️</span> for every long-distance heart
+  </div>
+</footer>
+
+<script>
+// ─── CURSOR ───
+const cursor = document.getElementById('cursor');
+const cursorTrail = document.getElementById('cursor-trail');
+let mx = 0, my = 0, lastHeart = 0;
+
+document.addEventListener('mousemove', e => {
+  mx = e.clientX; my = e.clientY;
+  cursor.style.left = mx + 'px'; cursor.style.top = my + 'px';
+  cursorTrail.style.left = mx + 'px'; cursorTrail.style.top = my + 'px';
+  // Heart trail
+  const now = Date.now();
+  if (now - lastHeart > 120) {
+    lastHeart = now;
+    const h = document.createElement('div');
+    h.className = 'cursor-heart';
+    h.textContent = ['💕','✨','🌸','💫'][Math.floor(Math.random()*4)];
+    h.style.cssText = `left:${mx}px;top:${my}px;transform:translate(-50%,-50%)`;
+    document.body.appendChild(h);
+    setTimeout(() => h.remove(), 1200);
+  }
+});
+document.querySelectorAll('a,button').forEach(el => {
+  el.addEventListener('mouseenter', () => {
+    cursor.style.width = '20px'; cursor.style.height = '20px';
+    cursorTrail.style.width = '60px'; cursorTrail.style.height = '60px';
+  });
+  el.addEventListener('mouseleave', () => {
+    cursor.style.width = '12px'; cursor.style.height = '12px';
+    cursorTrail.style.width = '40px'; cursorTrail.style.height = '40px';
+  });
+});
+
+// ─── PARTICLES ───
+const canvas = document.getElementById('particle-canvas');
+const ctx = canvas.getContext('2d');
+let W, H, particles = [];
+
+const resize = () => { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; };
+resize(); window.addEventListener('resize', resize);
+
+const EMOJIS = ['💕','✨','🌸','💫','⭐','🌙','💖'];
+class Particle {
+  constructor() { this.reset(); }
+  reset() {
+    this.x = Math.random() * W;
+    this.y = H + 20;
+    this.emoji = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
+    this.size = 10 + Math.random() * 12;
+    this.speed = 0.3 + Math.random() * 0.6;
+    this.drift = (Math.random() - 0.5) * 0.4;
+    this.opacity = 0.2 + Math.random() * 0.4;
+    this.rotation = Math.random() * Math.PI * 2;
+    this.rotSpeed = (Math.random() - 0.5) * 0.01;
+  }
+  update() {
+    this.y -= this.speed; this.x += this.drift;
+    this.rotation += this.rotSpeed;
+    if (this.y < -30) this.reset();
+  }
+  draw() {
+    ctx.save();
+    ctx.globalAlpha = this.opacity;
+    ctx.translate(this.x, this.y);
+    ctx.rotate(this.rotation);
+    ctx.font = `${this.size}px serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(this.emoji, 0, 0);
+    ctx.restore();
+  }
+}
+
+for (let i = 0; i < 30; i++) {
+  const p = new Particle();
+  p.y = Math.random() * H; // distribute initially
+  particles.push(p);
+}
+
+const animate = () => {
+  ctx.clearRect(0, 0, W, H);
+  particles.forEach(p => { p.update(); p.draw(); });
+  requestAnimationFrame(animate);
+};
+animate();
+
+// ─── REVEAL ON SCROLL ───
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+// ─── FLOATING ELEMENT KEYFRAMES via JS ───
+const style = document.createElement('style');
+style.textContent = `
+@keyframes floatEl1{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-15px) rotate(2deg)}}
+@keyframes floatEl2{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+@keyframes floatEl3{0%,100%{transform:translateY(0) rotate(2deg)}50%{transform:translateY(-12px) rotate(-1deg)}}
+`;
+document.head.appendChild(style);
+
+// ─── GSAP SCROLLTRIGGER ───
+gsap.registerPlugin(ScrollTrigger);
+// Hero title stagger
+gsap.from('.hero-title', {duration:1.2, y:60, opacity:0, ease:'power3.out', delay:.3});
+// Sticker pack parallax scroll
+gsap.to('.sticker-pack:nth-child(odd)', {y:-20, scrollTrigger:{trigger:'#stickers',scrub:1}});
+gsap.to('.sticker-pack:nth-child(even)', {y:20, scrollTrigger:{trigger:'#stickers',scrub:1}});
+// Feature card stagger
+gsap.from('.feature-card', {duration:.8, y:40, opacity:0, stagger:.1, scrollTrigger:{trigger:'#features',start:'top 70%'}});
+// Game card pop
+gsap.from('.game-card', {duration:.7, scale:.9, opacity:0, stagger:.15, scrollTrigger:{trigger:'#games',start:'top 70%'}});
+// Silent cards
+gsap.from('.silent-card', {duration:.8, y:30, opacity:0, stagger:.2, scrollTrigger:{trigger:'.silent-demo',start:'top 75%'}});
+
+// Click celebration
+document.querySelector('.btn-primary').addEventListener('click', e => {
+  for(let i=0;i<12;i++){
+    setTimeout(()=>{
+      const h=document.createElement('div');
+      h.className='cursor-heart';
+      h.textContent=['💕','✨','🌸','💖'][i%4];
+      h.style.cssText=`left:${e.clientX+(Math.random()-0.5)*100}px;top:${e.clientY+(Math.random()-0.5)*60}px;transform:translate(-50%,-50%);font-size:${14+Math.random()*10}px`;
+      document.body.appendChild(h);
+      setTimeout(()=>h.remove(),1200);
+    },i*50);
+  }
+});
+</script>
+</body>
+</html>
