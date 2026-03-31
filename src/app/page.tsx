@@ -51,7 +51,7 @@ export default function LandingPage() {
           <div className="grid items-center gap-8 lg:grid-cols-[1.2fr_0.8fr]">
             <div className="space-y-5">
               <Pill className="border border-[var(--border)] text-[var(--text-soft)]">
-                First impression, unforgettable
+                An unforgettable first impression
               </Pill>
               <h1 className="font-serif text-4xl leading-tight md:text-6xl">
                 Your{" "}
@@ -69,8 +69,11 @@ export default function LandingPage() {
               <div className="flex flex-wrap items-center gap-3">
                 <Link
                   href="/login"
-                  className="touch-pressable inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold text-white animate-pulse-glow"
-                  style={{ background: "var(--gradient-heartbeat)" }}
+                  className="touch-pressable inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm font-semibold text-[var(--dark-nebula)] animate-pulse-glow"
+                  style={{
+                    backgroundColor: "var(--color-butter)",
+                    border: "1px solid var(--border)",
+                  }}
                 >
                   Enter UsVerse <ArrowRight className="h-4 w-4" />
                 </Link>
@@ -98,6 +101,7 @@ export default function LandingPage() {
                   “It feels like someone designed an app around our relationship, not just around
                   tasks.”
                 </p>
+                <p className="mt-2 text-xs text-[var(--text-whisper)]">— UsVerse couple</p>
               </div>
             </Card>
           </div>
@@ -128,7 +132,7 @@ export default function LandingPage() {
           <Link
             href="/login"
             className="touch-pressable mt-6 inline-flex items-center gap-2 rounded-full px-7 py-3 text-sm font-semibold text-white"
-            style={{ background: "var(--gradient-moonlight)" }}
+            style={{ backgroundColor: "var(--dark-nebula)" }}
           >
             Create your shared space
             <ArrowRight className="h-4 w-4" />
