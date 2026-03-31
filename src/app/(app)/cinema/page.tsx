@@ -60,6 +60,8 @@ const ICE_SERVERS: RTCIceServer[] = [
     credential: "openrelayproject",
   },
 ];
+const DRIFT_THRESHOLD_SECONDS = 0.5;
+const SUPPRESS_DURATION_MS = 250;
 
 function extractYouTubeId(input: string): string | null {
   const value = input.trim();
@@ -93,12 +95,12 @@ export default function CinemaPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [coupleId, setCoupleId] = useState<string | null>(null);
 
-  const [youtubeInput, setYoutubeInput] = useState("https://www.youtube.com/watch?v=jfKfPfyJRdk");
+  const [youtubeInput, setYoutubeInput] = useState("");
   const [youtubeReady, setYoutubeReady] = useState(false);
   const [youtubeApiReady, setYoutubeApiReady] = useState(false);
 
-  const [videoInput, setVideoInput] = useState("https://www.w3schools.com/html/mov_bbb.mp4");
-  const [videoSource, setVideoSource] = useState("https://www.w3schools.com/html/mov_bbb.mp4");
+  const [videoInput, setVideoInput] = useState("");
+  const [videoSource, setVideoSource] = useState("");
   const [p2pStatus, setP2pStatus] = useState<P2PStatus>("idle");
   const [p2pRole, setP2pRole] = useState<P2PRole>("none");
   const [p2pError, setP2pError] = useState<string | null>(null);
@@ -139,14 +141,14 @@ export default function CinemaPage() {
     const drift = Math.abs(player.getCurrentTime() - correctedTime);
 
     suppressYouTubeRef.current = true;
-    if (payload.action === "seek" || drift > 0.5) {
+    if (payload.action === "seek" || drift > DRIFT_THRESHOLD_SECONDS) {
       player.seekTo(correctedTime, true);
     }
     if (payload.action === "play") player.playVideo();
     if (payload.action === "pause") player.pauseVideo();
     window.setTimeout(() => {
       suppressYouTubeRef.current = false;
-    }, 250);
+    }, SUPPRESS_DURATION_MS);
   }, []);
 
   const closePeer = useCallback(() => {
@@ -165,7 +167,7 @@ export default function CinemaPage() {
     const corrected = payload.timestamp + lag;
 
     suppressVideoRef.current = true;
-    if (payload.action === "seek" || Math.abs(video.currentTime - corrected) > 0.5) {
+    if (payload.action === "seek" || Math.abs(video.currentTime - corrected) > DRIFT_THRESHOLD_SECONDS) {
       video.currentTime = corrected;
     }
     if (payload.action === "play") {
@@ -176,7 +178,7 @@ export default function CinemaPage() {
     }
     window.setTimeout(() => {
       suppressVideoRef.current = false;
-    }, 250);
+    }, SUPPRESS_DURATION_MS);
   }, []);
 
   const setupDataChannel = useCallback(
@@ -201,8 +203,9 @@ export default function CinemaPage() {
         try {
           const payload = JSON.parse(event.data) as CinemaSyncPayload;
           applyP2PSync(payload);
-        } catch {
-          setP2pError("Received invalid P2P sync payload.");
+        } catch (error) {
+          console.warn("Invalid P2P sync payload received", { error, raw: event.data });
+          setP2pError("Received invalid P2P sync payload. Try reconnecting.");
         }
       };
     },
@@ -252,47 +255,54 @@ export default function CinemaPage() {
     for (const candidate of queued) {
       try {
         await connection.addIceCandidate(candidate);
-      } catch {
-        setP2pError("Could not apply one ICE candidate.");
+      } catch (error) {
+        console.warn("Failed to apply ICE candidate", { error, candidate, state: connection.connectionState });
+        setP2pError("Could not apply ICE candidate. Connection may be unstable.");
       }
     }
   }, []);
 
   const handleSignal = useCallback(
     async (payload: SignalPayload) => {
-      if (!userId || payload.senderId === userId) return;
+      try {
+        if (!userId || payload.senderId === userId) return;
 
-      if (payload.kind === "offer" && payload.sdp) {
-        setP2pStatus("connecting");
-        setP2pRole("guest");
-        const connection = createPeerConnection("guest");
-        await connection.setRemoteDescription(payload.sdp);
-        await flushPendingCandidates(connection);
-        const answer = await connection.createAnswer();
-        await connection.setLocalDescription(answer);
-        sendBroadcast("cinema_signal", {
-          senderId: userId,
-          kind: "answer",
-          sdp: answer,
-        });
-        return;
-      }
-
-      const connection = peerConnectionRef.current;
-      if (!connection) return;
-
-      if (payload.kind === "answer" && payload.sdp && p2pRole === "host") {
-        await connection.setRemoteDescription(payload.sdp);
-        await flushPendingCandidates(connection);
-        return;
-      }
-
-      if (payload.kind === "ice" && payload.candidate) {
-        if (connection.remoteDescription) {
-          await connection.addIceCandidate(payload.candidate);
+        if (payload.kind === "offer" && payload.sdp) {
+          setP2pStatus("connecting");
+          setP2pRole("guest");
+          const connection = createPeerConnection("guest");
+          await connection.setRemoteDescription(payload.sdp);
+          await flushPendingCandidates(connection);
+          const answer = await connection.createAnswer();
+          await connection.setLocalDescription(answer);
+          sendBroadcast("cinema_signal", {
+            senderId: userId,
+            kind: "answer",
+            sdp: answer,
+          });
           return;
         }
-        pendingCandidatesRef.current.push(payload.candidate);
+
+        const connection = peerConnectionRef.current;
+        if (!connection) return;
+
+        if (payload.kind === "answer" && payload.sdp && p2pRole === "host") {
+          await connection.setRemoteDescription(payload.sdp);
+          await flushPendingCandidates(connection);
+          return;
+        }
+
+        if (payload.kind === "ice" && payload.candidate) {
+          if (connection.remoteDescription) {
+            await connection.addIceCandidate(payload.candidate);
+            return;
+          }
+          pendingCandidatesRef.current.push(payload.candidate);
+        }
+      } catch (error) {
+        console.warn("Failed to process WebRTC signal", { error, kind: payload.kind });
+        setP2pStatus("error");
+        setP2pError("WebRTC signaling failed. Try reconnecting.");
       }
     },
     [createPeerConnection, flushPendingCandidates, p2pRole, sendBroadcast, userId],
@@ -379,7 +389,7 @@ export default function CinemaPage() {
     ytPlayerRef.current?.destroy();
     ytPlayerRef.current = new window.YT.Player("usverse-youtube-player", {
       videoId: youtubeId,
-      playerVars: { playsinline: 1, rel: 0 },
+      playerVars: { playsinline: 1, rel: 0 }, // value 1 enables inline playback on mobile browsers
       events: {
         onReady: () => setYoutubeReady(true),
         onStateChange: (event) => {
@@ -401,12 +411,10 @@ export default function CinemaPage() {
     };
   }, [sendYoutubeSync, youtubeApiReady, youtubeId]);
 
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const sendP2PSync = (action: SyncAction) => {
-      if (!userId || suppressVideoRef.current || dataChannelRef.current?.readyState !== "open") return;
+  const sendP2PSync = useCallback(
+    (action: SyncAction) => {
+      const video = videoRef.current;
+      if (!video || !userId || suppressVideoRef.current || dataChannelRef.current?.readyState !== "open") return;
       const payload: CinemaSyncPayload = {
         senderId: userId,
         action,
@@ -414,7 +422,13 @@ export default function CinemaPage() {
         sentAt: Date.now(),
       };
       dataChannelRef.current.send(JSON.stringify(payload));
-    };
+    },
+    [userId],
+  );
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
 
     const onPlay = () => sendP2PSync("play");
     const onPause = () => sendP2PSync("pause");
@@ -429,26 +443,32 @@ export default function CinemaPage() {
       video.removeEventListener("pause", onPause);
       video.removeEventListener("seeked", onSeeked);
     };
-  }, [userId]);
+  }, [sendP2PSync]);
 
   async function startHosting() {
     if (!userId) return;
-    setP2pStatus("connecting");
-    setP2pError(null);
-    setP2pRole("host");
+    try {
+      setP2pStatus("connecting");
+      setP2pError(null);
+      setP2pRole("host");
 
-    const connection = createPeerConnection("host");
-    const syncChannel = connection.createDataChannel("cinema-sync");
-    setupDataChannel(syncChannel);
+      const connection = createPeerConnection("host");
+      const syncChannel = connection.createDataChannel("cinema-sync");
+      setupDataChannel(syncChannel);
 
-    const offer = await connection.createOffer();
-    await connection.setLocalDescription(offer);
+      const offer = await connection.createOffer();
+      await connection.setLocalDescription(offer);
 
-    sendBroadcast("cinema_signal", {
-      senderId: userId,
-      kind: "offer",
-      sdp: offer,
-    });
+      sendBroadcast("cinema_signal", {
+        senderId: userId,
+        kind: "offer",
+        sdp: offer,
+      });
+    } catch (error) {
+      console.warn("Failed to start P2P host", error);
+      setP2pStatus("error");
+      setP2pError("Could not create P2P host session.");
+    }
   }
 
   function endP2P() {
