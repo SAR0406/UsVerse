@@ -83,7 +83,10 @@ export async function POST(req: NextRequest) {
       if (error) throw error;
 
       // Link the user's profile to this couple
-      await db.from("profiles").upsert({ id: userId, couple_id: couple.id });
+      const { error: upsertErr } = await db
+        .from("profiles")
+        .upsert({ id: userId, couple_id: couple.id });
+      if (upsertErr) throw upsertErr;
 
       return created({
         couple:     couple as Pick<Couple, "id" | "invite_code">,
@@ -146,7 +149,10 @@ export async function POST(req: NextRequest) {
         .eq("id", coupleId)
         .single();
 
-      if (existing?.user1_id === userId && existing.user2_id === null) {
+      if (!existing) {
+        // Profile points to a deleted/stale couple — clear it and continue
+        await db.from("profiles").update({ couple_id: null }).eq("id", userId);
+      } else if (existing.user1_id === userId && existing.user2_id === null) {
         // Caller owns an incomplete solo couple — safe to abandon
         soloToDelete = existing.id;
       } else {
@@ -162,7 +168,11 @@ export async function POST(req: NextRequest) {
 
     if (findErr || !target) throw new NotFoundError("Invite code");
     if (target.user2_id)    throw new ConflictError("This couple already has two members");
-    if (target.user1_id === userId) throw new ForbiddenError("You cannot join your own couple link");
+    if (target.user1_id === userId) throw new ForbiddenError(
+      soloToDelete === target.id
+        ? "That\u2019s your own invite code \u2013 share it with your partner instead"
+        : "You cannot join your own couple link"
+    );
 
     // Delete the caller's solo placeholder (if any) before linking
     if (soloToDelete) {
@@ -173,12 +183,21 @@ export async function POST(req: NextRequest) {
       if (delErr) throw delErr;
     }
 
-    const { error: updateErr } = await db
+    // Claim the empty slot — only succeeds when user2_id is still null.
+    // Requires the "Anyone can join incomplete couple" RLS policy on couples.
+    const { data: joined, error: updateErr } = await db
       .from("couples")
       .update({ user2_id: userId })
-      .eq("id", target.id);
+      .eq("id", target.id)
+      .eq("user2_id", null)   // prevent a race where someone else just joined
+      .select("id")
+      .single();
 
-    if (updateErr) throw updateErr;
+    if (updateErr || !joined) {
+      throw new ConflictError(
+        "This couple was just taken. Please try another code or create your own."
+      );
+    }
 
     await db.from("profiles").upsert({ id: userId, couple_id: target.id });
 

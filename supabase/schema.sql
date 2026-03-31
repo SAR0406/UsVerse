@@ -152,6 +152,13 @@ create policy "Couple members can update couple"
     user1_id = auth.uid() or user2_id = auth.uid()
   );
 
+-- Allow any authenticated user to join an incomplete couple
+-- (set themselves as user2 when user2_id is currently null)
+create policy "Anyone can join incomplete couple"
+  on public.couples for update
+  using (user2_id is null)
+  with check (user2_id = auth.uid());
+
 -- Allow anyone to read couple by invite_code (for joining)
 create policy "Anyone can read couple by invite code"
   on public.couples for select using (true);

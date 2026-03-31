@@ -254,6 +254,13 @@ export default function ChatPage() {
 
   async function handleJoin() {
     if (!joinCode.trim()) return;
+
+    // Client-side guard: catch the common mistake of entering your own code
+    if (inviteCode && joinCode.trim().toUpperCase() === inviteCode.toUpperCase()) {
+      setJoinError("That\u2019s your own invite code \u2013 share it with your partner so they can enter it.");
+      return;
+    }
+
     setJoinError(null);
     try {
       const res = await fetch("/api/couple", {
