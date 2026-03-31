@@ -73,11 +73,11 @@ export default async function DashboardPage() {
           <div className="absolute -top-20 -right-16 h-56 w-56 rounded-full bg-[radial-gradient(circle_at_center,rgba(255,107,157,0.32)_0%,transparent_65%)] pointer-events-none" />
           <div className="absolute -bottom-24 -left-20 h-56 w-56 rounded-full bg-[radial-gradient(circle_at_center,rgba(152,90,255,0.3)_0%,transparent_70%)] pointer-events-none" />
 
-          <p className="text-purple-200/70 text-sm mb-2">{greeting}</p>
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white leading-tight">
+          <p className="text-[color:var(--text-soft)] text-sm mb-2">{greeting}</p>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[color:var(--foreground)] leading-tight">
             Welcome back, <span className="gradient-text">{displayName}</span>
           </h1>
-          <p className="text-sm sm:text-base text-purple-100/75 mt-3 max-w-2xl">
+          <p className="text-sm sm:text-base text-[color:var(--text-soft)] mt-3 max-w-2xl">
             {pulseLine}
           </p>
 
@@ -100,7 +100,7 @@ export default async function DashboardPage() {
         </section>
 
         <section className="glass-card p-5 sm:p-6 border border-purple-400/15">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-purple-300/55 mb-3">
+          <p className="text-[11px] uppercase tracking-[0.2em] text-[color:var(--text-whisper)] mb-3">
             Relationship signal
           </p>
           <div
@@ -126,14 +126,14 @@ export default async function DashboardPage() {
             {focusCards.map((card) => (
               <div
                 key={card.title}
-                className="rounded-xl border border-white/10 bg-black/10 px-3.5 py-3 flex items-start gap-3"
+                className="rounded-xl border border-[color:var(--border)] bg-[color:var(--surface-2)] px-3.5 py-3 flex items-start gap-3"
               >
                 <div className={`h-9 w-9 rounded-lg flex items-center justify-center ${card.bg}`}>
                   <card.icon className="w-4 h-4 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-white">{card.title}</p>
-                  <p className="text-xs text-purple-100/65 mt-0.5">{card.desc}</p>
+                  <p className="text-sm font-semibold text-[color:var(--foreground)]">{card.title}</p>
+                  <p className="text-xs text-[color:var(--text-soft)] mt-0.5">{card.desc}</p>
                 </div>
               </div>
             ))}
@@ -144,8 +144,8 @@ export default async function DashboardPage() {
       {/* Quick Actions */}
       <div className="mt-6">
         <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="text-lg sm:text-xl font-semibold text-white">Launch your shared universe</h2>
-          <p className="text-xs text-purple-200/50">tap any card to continue your story</p>
+          <h2 className="text-lg sm:text-xl font-semibold text-[color:var(--foreground)]">Launch your shared universe</h2>
+          <p className="text-xs text-[color:var(--text-whisper)]">tap any card to continue your story</p>
         </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -162,17 +162,17 @@ export default async function DashboardPage() {
               <action.icon className="w-5 h-5 text-white" />
             </div>
             <div className="flex items-center justify-between gap-2">
-              <h3 className="font-semibold text-white mb-1">{action.title}</h3>
+              <h3 className="font-semibold text-[color:var(--foreground)] mb-1">{action.title}</h3>
               {action.badge && (
-                <span className="text-[10px] px-2 py-0.5 rounded-full border border-purple-400/30 text-purple-200/80">
+                <span className="text-[10px] px-2 py-0.5 rounded-full border border-purple-400/30 text-[color:var(--text-soft)]">
                   {action.badge}
                 </span>
               )}
             </div>
-            <p className="text-xs text-purple-300/50 leading-relaxed mb-3">
+            <p className="text-xs text-[color:var(--text-soft)] leading-relaxed mb-3">
               {action.desc}
             </p>
-            <div className="flex items-center gap-1 text-purple-400/60 text-xs group-hover:text-purple-400 transition-colors">
+            <div className="flex items-center gap-1 text-[color:var(--text-whisper)] text-xs group-hover:text-[color:var(--foreground)] transition-colors">
               Open <ArrowRight className="w-3 h-3" />
             </div>
           </Link>
@@ -182,24 +182,24 @@ export default async function DashboardPage() {
       <div className="mt-6 grid gap-4 lg:grid-cols-[1.2fr_1fr]">
         <div className="glass-card p-6 text-center">
           <Sparkles className="w-5 h-5 text-purple-400 mx-auto mb-3" />
-          <p className="text-purple-100 font-light italic text-lg leading-relaxed">
+          <p className="text-[color:var(--foreground)] font-light italic text-lg leading-relaxed">
             &ldquo;{getDailyQuote()}&rdquo;
           </p>
-          <p className="text-purple-400/40 text-xs mt-3">Daily reminder</p>
+          <p className="text-[color:var(--text-whisper)] text-xs mt-3">Daily reminder</p>
         </div>
         <div className="glass-card p-5 border border-purple-500/15">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-purple-300/55 mb-3">
+          <p className="text-[11px] uppercase tracking-[0.2em] text-[color:var(--text-whisper)] mb-3">
             First impression lane
           </p>
           <ul className="space-y-3">
             {firstImpressionLane.map((item) => (
               <li key={item.title} className="flex items-start gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-white/10 border border-white/10 flex items-center justify-center">
-                  <item.icon className="w-3.5 h-3.5 text-purple-200" />
+                <div className="w-7 h-7 rounded-lg bg-[color:var(--surface-2)] border border-[color:var(--border)] flex items-center justify-center">
+                  <item.icon className="w-3.5 h-3.5 text-[color:var(--text-soft)]" />
                 </div>
                 <div>
-                  <p className="text-sm text-white font-medium">{item.title}</p>
-                  <p className="text-xs text-purple-200/60">{item.desc}</p>
+                  <p className="text-sm text-[color:var(--foreground)] font-medium">{item.title}</p>
+                  <p className="text-xs text-[color:var(--text-soft)]">{item.desc}</p>
                 </div>
               </li>
             ))}

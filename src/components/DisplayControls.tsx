@@ -75,11 +75,11 @@ export default function DisplayControls() {
           : "Enable notifications";
 
   return (
-    <div className="flex items-center gap-2 mt-2 md:mt-4">
+    <div className="flex flex-wrap items-center gap-2 mt-2 md:mt-4">
       <button
         type="button"
         onClick={toggleTheme}
-        className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border border-purple-500/20 text-purple-200/80 hover:text-purple-200 hover:bg-white/5 transition-all"
+        className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border border-[color:var(--border)] text-[color:var(--text-soft)] hover:text-[color:var(--foreground)] hover:bg-[color:var(--surface-2)] transition-all"
         aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
       >
         {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
@@ -90,7 +90,7 @@ export default function DisplayControls() {
         type="button"
         onClick={enableNotifications}
         disabled={busy || notificationState === "unsupported" || notificationState === "granted"}
-        className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border border-purple-500/20 text-purple-200/70 hover:text-purple-200 hover:bg-white/5 transition-all disabled:opacity-55"
+        className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border border-[color:var(--border)] text-[color:var(--text-soft)] hover:text-[color:var(--foreground)] hover:bg-[color:var(--surface-2)] transition-all disabled:opacity-55"
         aria-label={notifLabel}
       >
         {notificationState === "granted" ? (

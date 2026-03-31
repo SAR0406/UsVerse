@@ -60,8 +60,8 @@ export default function Navbar() {
                 href={href}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
                   active
-                    ? "bg-purple-600/20 text-purple-300 border border-purple-500/30"
-                    : "text-purple-300/50 hover:text-purple-300 hover:bg-white/5"
+                    ? "bg-purple-600/20 text-[color:var(--foreground)] border border-purple-500/30"
+                    : "text-[color:var(--text-whisper)] hover:text-[color:var(--foreground)] hover:bg-[color:var(--surface-2)]"
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -92,7 +92,7 @@ export default function Navbar() {
                 key={href}
                 href={href}
                 className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg transition-all ${
-                  active ? "text-purple-400" : "text-purple-400/40"
+                  active ? "text-[color:var(--foreground)]" : "text-[color:var(--text-whisper)]"
                 }`}
               >
                 <Icon className="w-5 h-5" />
