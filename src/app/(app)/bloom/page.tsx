@@ -9,6 +9,7 @@ import {
 import {
   vibrateCelebrate,
   vibratePress,
+  vibrateSoftError,
   vibrateSuccess,
   vibrateTap,
 } from "@/lib/haptics";
@@ -128,6 +129,8 @@ export default function BloomPage() {
   const [transformFilter, setTransformFilter] = useState<TransformFilterValue>(TRANSFORM_FILTERS[0].value);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const [partnerActive, setPartnerActive] = useState(false);
+  const [archiveState, setArchiveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [archiveNote, setArchiveNote] = useState<string | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const colorSampleInputRef = useRef<HTMLInputElement | null>(null);
@@ -471,6 +474,58 @@ export default function BloomPage() {
     setMemorySampleLabel("Mood matched");
   }
 
+  async function saveBloomArchive() {
+    if (archiveState === "saving") return;
+
+    setArchiveState("saving");
+    setArchiveNote("Hanging this piece in your Bloom Archives...");
+
+    const modeLabel = mode === "painter" ? "Painter" : mode === "assembler" ? "Assembler" : "Transformer";
+    const filterLabel = TRANSFORM_FILTERS.find((filter) => filter.value === transformFilter)?.label ?? "Custom";
+    const title = `Bloom Archive • ${modeLabel} • ${new Date().toLocaleDateString()}`;
+    const content = [
+      "Bloom Museum Entry",
+      `Mode: ${modeLabel}`,
+      `Brush: ${eraserMode ? "Eraser" : brush}`,
+      `Primary color: ${activeColorHex}`,
+      gradientMode ? `Gradient stops: ${gradientStops.join(" -> ")}` : "Gradient stops: Off",
+      memorySampleLabel ? `Color ritual: ${memorySampleLabel}` : "Color ritual: Standard palette",
+      constellationName ? `Constellation: ${constellationName}` : "Constellation: Unnamed",
+      `Stars placed: ${constellationCount}`,
+      `Collage pieces: ${collageItems.length}`,
+      `Transformer filter: ${filterLabel}`,
+      "",
+      "Sent through Bloom Ceremony.",
+    ].join("\n");
+
+    try {
+      const response = await fetch("/api/notes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ title, content }),
+      });
+
+      if (!response.ok) {
+        throw new Error("archive-save-failed");
+      }
+
+      setArchiveState("saved");
+      setArchiveNote("Framed in your shared diary museum.");
+      vibrateSuccess();
+    } catch {
+      setArchiveState("error");
+      setArchiveNote("Could not archive this piece right now.");
+      vibrateSoftError();
+    } finally {
+      window.setTimeout(() => {
+        setArchiveState("idle");
+        setArchiveNote(null);
+      }, 2600);
+    }
+  }
+
   function triggerSendCeremony() {
     vibratePress();
     window.dispatchEvent(
@@ -481,6 +536,7 @@ export default function BloomPage() {
     if (prefersReducedMotion) {
       setSendStage("done");
       vibrateSuccess();
+      void saveBloomArchive();
       window.setTimeout(() => setSendStage("idle"), 1900);
       return;
     }
@@ -488,6 +544,7 @@ export default function BloomPage() {
     window.setTimeout(() => setSendStage("launch"), 440);
     window.setTimeout(() => {
       setSendStage("done");
+      void saveBloomArchive();
       vibrateCelebrate();
       window.dispatchEvent(
         new CustomEvent("usverse:emotion", {
@@ -1053,6 +1110,7 @@ export default function BloomPage() {
 
                 <button
                   onClick={triggerSendCeremony}
+                  disabled={sendStage !== "idle" || archiveState === "saving"}
                   className="w-full py-2.5 rounded-xl text-white text-sm font-semibold flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98] touch-pressable"
                   style={{
                     background: "linear-gradient(135deg, var(--color-blossom), var(--color-lilac-dream))",
@@ -1060,8 +1118,24 @@ export default function BloomPage() {
                   }}
                 >
                   <Send className="w-4 h-4" />
-                  Send to her 💕
+                  {sendStage !== "idle" ? "Sending to her..." : "Send to her 💕"}
                 </button>
+
+                {archiveNote && (
+                  <p
+                    className="mt-2 text-xs"
+                    style={{
+                      color:
+                        archiveState === "error"
+                          ? "var(--color-peach)"
+                          : archiveState === "saved"
+                            ? "var(--color-mint-kiss)"
+                            : "var(--text-soft)",
+                    }}
+                  >
+                    {archiveNote}
+                  </p>
+                )}
               </div>
             </div>
           </div>

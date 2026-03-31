@@ -20,6 +20,7 @@ import {
   vibrateHeartbeat,
   vibrateHug,
   vibratePress,
+  vibrateSoftError,
   vibrateSuccess,
   vibrateTap,
 } from "@/lib/haptics";
@@ -276,6 +277,9 @@ export default function CinemaPage() {
   const [myAfterglowSentence, setMyAfterglowSentence] = useState<string | null>(null);
   const [partnerAfterglowSentence, setPartnerAfterglowSentence] = useState<string | null>(null);
   const [waveCursor, setWaveCursor] = useState(0);
+  const [memorySaveState, setMemorySaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [memorySaveNote, setMemorySaveNote] = useState<string | null>(null);
+  const savedMemorySignatureRef = useRef<string | null>(null);
 
   const youtubeId = useMemo(() => extractYouTubeId(youtubeInput), [youtubeInput]);
   const posterArtUrl = youtubeId ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg` : null;
@@ -418,6 +422,9 @@ export default function CinemaPage() {
 
   const openAfterglow = useCallback(() => {
     setAfterglowOpen(true);
+    setMemorySaveState("idle");
+    setMemorySaveNote(null);
+    savedMemorySignatureRef.current = null;
     vibrateHug();
     window.dispatchEvent(
       new CustomEvent("usverse:notification-drop", {
@@ -776,6 +783,9 @@ export default function CinemaPage() {
       setMyAfterglowSentence(null);
       setPartnerAfterglowSentence(null);
       setAfterglowDraft("");
+      setMemorySaveState("idle");
+      setMemorySaveNote(null);
+      savedMemorySignatureRef.current = null;
       scheduleRitual(payload.startAt);
     },
     [markPartnerSeen, scheduleRitual, userId],
@@ -824,6 +834,9 @@ export default function CinemaPage() {
     setMyAfterglowSentence(null);
     setPartnerAfterglowSentence(null);
     setAfterglowDraft("");
+    setMemorySaveState("idle");
+    setMemorySaveNote(null);
+    savedMemorySignatureRef.current = null;
     scheduleRitual(startAt);
     if (userId) {
       sendBroadcast("cinema_ritual", {
@@ -1216,6 +1229,82 @@ export default function CinemaPage() {
     vibrateSuccess();
   }
 
+  const saveCinemaMemory = useCallback(async () => {
+    if (!userId || !myAfterglowSentence || !partnerAfterglowSentence) return;
+    if (memorySaveState === "saving") return;
+
+    const signature = [
+      myAfterglowSentence,
+      partnerAfterglowSentence,
+      youtubeId ?? "",
+      videoSource,
+      String(sparkLog.length),
+      String(simultaneousMoments),
+    ].join("::");
+
+    if (savedMemorySignatureRef.current === signature) return;
+
+    const sourceLine = youtubeId
+      ? `YouTube: https://youtu.be/${youtubeId}`
+      : videoSource
+        ? `Direct video: ${videoSource}`
+        : "Source: Unknown";
+
+    const title = `Cinema Memory • ${new Date().toLocaleDateString()}`;
+    const content = [
+      "Cinema Memory",
+      `When: ${new Date().toLocaleString()}`,
+      sourceLine,
+      `Sync drift snapshot: ${syncDriftSeconds.toFixed(2)}s`,
+      `Spark count: ${sparkLog.length}`,
+      `Simultaneous reactions: ${simultaneousMoments}`,
+      "",
+      `Me: ${myAfterglowSentence}`,
+      `Partner: ${partnerAfterglowSentence}`,
+    ].join("\n");
+
+    setMemorySaveState("saving");
+    setMemorySaveNote("Binding this film memory into your shared diary...");
+
+    try {
+      const response = await fetch("/api/notes", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ title, content }),
+      });
+
+      if (!response.ok) {
+        throw new Error("cinema-memory-save-failed");
+      }
+
+      savedMemorySignatureRef.current = signature;
+      setMemorySaveState("saved");
+      setMemorySaveNote("Cinema Memory saved to Shared Diary.");
+      vibrateSuccess();
+    } catch {
+      setMemorySaveState("error");
+      setMemorySaveNote("Could not save this Cinema Memory right now.");
+      vibrateSoftError();
+    }
+  }, [
+    memorySaveState,
+    myAfterglowSentence,
+    partnerAfterglowSentence,
+    simultaneousMoments,
+    sparkLog.length,
+    syncDriftSeconds,
+    userId,
+    videoSource,
+    youtubeId,
+  ]);
+
+  useEffect(() => {
+    if (!afterglowOpen || !myAfterglowSentence || !partnerAfterglowSentence) return;
+    void saveCinemaMemory();
+  }, [afterglowOpen, myAfterglowSentence, partnerAfterglowSentence, saveCinemaMemory]);
+
   return (
     <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
       <header className="glass-card p-6">
@@ -1512,6 +1601,21 @@ export default function CinemaPage() {
                 <p className="mt-3 text-xs text-purple-200/75">
                   Sparks captured: {sparkLog.length} · simultaneous reactions: {simultaneousMoments}
                 </p>
+                {memorySaveNote ? (
+                  <p
+                    className="mt-1 text-xs"
+                    style={{
+                      color:
+                        memorySaveState === "error"
+                          ? "var(--color-peach)"
+                          : memorySaveState === "saved"
+                            ? "var(--color-mint-kiss)"
+                            : "var(--color-butter)",
+                    }}
+                  >
+                    {memorySaveNote}
+                  </p>
+                ) : null}
               </div>
             </div>
           ) : null}
