@@ -1,0 +1,308 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { Camera, Gamepad2, Heart, Home, RefreshCw, Smartphone, Trophy } from "lucide-react";
+
+type Cell = { x: number; y: number };
+type MatchState = "waiting" | "playing" | "finished";
+
+const GRID = 14;
+const START_A: Cell = { x: 3, y: 7 };
+const START_B: Cell = { x: 10, y: 7 };
+const STORAGE_KEY = "usverse.play.snake.loveNest.rewards";
+
+function wrap(value: number): number {
+  if (value < 0) return GRID - 1;
+  if (value >= GRID) return 0;
+  return value;
+}
+
+function sameCell(a: Cell, b: Cell): boolean {
+  return a.x === b.x && a.y === b.y;
+}
+
+function nextCell(from: Cell, dx: number, dy: number): Cell {
+  return { x: wrap(from.x + dx), y: wrap(from.y + dy) };
+}
+
+function randomFreeCell(occupied: Cell[]): Cell {
+  for (let i = 0; i < 300; i += 1) {
+    const candidate = { x: Math.floor(Math.random() * GRID), y: Math.floor(Math.random() * GRID) };
+    if (!occupied.some((cell) => sameCell(cell, candidate))) return candidate;
+  }
+  return { x: 0, y: 0 };
+}
+
+function rewardLabel(score: number): string {
+  if (score >= 16) return "Movie night + dessert";
+  if (score >= 10) return "Cook together challenge";
+  if (score >= 6) return "15-minute cuddle break";
+  return "Start with a hug and play again";
+}
+
+export default function SnakeLoveNestPage() {
+  const [partnerA, setPartnerA] = useState<Cell>(START_A);
+  const [partnerB, setPartnerB] = useState<Cell>(START_B);
+  const [heart, setHeart] = useState<Cell>({ x: 7, y: 7 });
+  const [score, setScore] = useState(0);
+  const [tickMs, setTickMs] = useState(640);
+  const [round, setRound] = useState(1);
+  const [matchState, setMatchState] = useState<MatchState>("waiting");
+  const [sensorEnabled, setSensorEnabled] = useState(false);
+  const [sensorDirection, setSensorDirection] = useState<{ dx: number; dy: number }>({ dx: 1, dy: 0 });
+  const [cameraOn, setCameraOn] = useState(false);
+  const [rewardHistory, setRewardHistory] = useState<Array<{ score: number; reward: string; when: string }>>(
+    [],
+  );
+
+  const motionSupported = useMemo(
+    () =>
+      typeof window !== "undefined" &&
+      ("DeviceMotionEvent" in window || "DeviceOrientationEvent" in window),
+    [],
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw) as Array<{ score: number; reward: string; when: string }>;
+      if (Array.isArray(parsed)) setRewardHistory(parsed.slice(0, 6));
+    } catch {
+      // ignore corrupt local cache
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(rewardHistory.slice(0, 6)));
+  }, [rewardHistory]);
+
+  useEffect(() => {
+    if (!sensorEnabled) return;
+    const onOrientation = (event: DeviceOrientationEvent) => {
+      const gamma = event.gamma ?? 0;
+      const beta = event.beta ?? 0;
+      if (Math.abs(gamma) > Math.abs(beta)) {
+        setSensorDirection({ dx: gamma > 8 ? 1 : gamma < -8 ? -1 : 0, dy: 0 });
+      } else {
+        setSensorDirection({ dx: 0, dy: beta > 8 ? 1 : beta < -8 ? -1 : 0 });
+      }
+    };
+    window.addEventListener("deviceorientation", onOrientation);
+    return () => window.removeEventListener("deviceorientation", onOrientation);
+  }, [sensorEnabled]);
+
+  useEffect(() => {
+    if (matchState !== "playing") return;
+    const id = window.setInterval(() => {
+      setPartnerA((prev) => nextCell(prev, sensorEnabled ? sensorDirection.dx : 1, sensorEnabled ? sensorDirection.dy : 0));
+      setPartnerB((prev) => nextCell(prev, -1, 0));
+    }, tickMs);
+    return () => window.clearInterval(id);
+  }, [matchState, sensorDirection.dx, sensorDirection.dy, sensorEnabled, tickMs]);
+
+  useEffect(() => {
+    if (matchState !== "playing") return;
+    const occupied = [partnerA, partnerB];
+    const gotHeart = occupied.some((cell) => sameCell(cell, heart));
+    if (!gotHeart) return;
+    setScore((value) => value + 1);
+    setTickMs((value) => Math.max(320, value - 20));
+    setHeart(randomFreeCell(occupied));
+  }, [heart, matchState, partnerA, partnerB]);
+
+  useEffect(() => {
+    if (matchState !== "playing") return;
+    if (!sameCell(partnerA, partnerB)) return;
+    const reward = rewardLabel(score);
+    const item = { score, reward, when: new Date().toLocaleString() };
+    setRewardHistory((current) => [item, ...current].slice(0, 6));
+    setMatchState("finished");
+  }, [matchState, partnerA, partnerB, score]);
+
+  const board = useMemo(() => {
+    const cells: Array<{ cell: Cell; kind: "empty" | "a" | "b" | "heart" }> = [];
+    for (let y = 0; y < GRID; y += 1) {
+      for (let x = 0; x < GRID; x += 1) {
+        const cell = { x, y };
+        let kind: "empty" | "a" | "b" | "heart" = "empty";
+        if (sameCell(cell, heart)) kind = "heart";
+        if (sameCell(cell, partnerA)) kind = "a";
+        if (sameCell(cell, partnerB)) kind = "b";
+        cells.push({ cell, kind });
+      }
+    }
+    return cells;
+  }, [heart, partnerA, partnerB]);
+
+  const rewardNow = rewardLabel(score);
+
+  const startRound = () => {
+    setMatchState("playing");
+    setPartnerA(START_A);
+    setPartnerB(START_B);
+    setHeart({ x: 7, y: 7 });
+    setScore(0);
+    setTickMs(640);
+  };
+
+  const nextRound = () => {
+    setRound((value) => value + 1);
+    startRound();
+  };
+
+  return (
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
+      <header className="glass-card p-6 border border-purple-400/20">
+        <div className="flex items-center gap-2 text-purple-300/70 text-xs tracking-wide uppercase mb-3">
+          <Gamepad2 className="w-4 h-4" />
+          Multiplayer /play/snake
+        </div>
+        <h1 className="text-3xl font-bold text-white mb-2">Snake: Love Nest Co-op</h1>
+        <p className="text-sm text-purple-200/80">
+          Two lovers share one tiny house board. Collect hearts, avoid crashing into each other too
+          soon, and unlock real-life date rewards.
+        </p>
+      </header>
+
+      <section className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-6">
+        <div className="glass-card p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-sm text-purple-200/80">Round {round}</div>
+            <div className="text-sm text-pink-200">Score: {score}</div>
+          </div>
+          <div className="grid grid-cols-14 gap-1 bg-black/20 p-3 rounded-2xl">
+            {board.map(({ cell, kind }) => (
+              <div
+                key={`${cell.x}-${cell.y}`}
+                className={`aspect-square rounded-sm ${
+                  kind === "a"
+                    ? "bg-pink-400/90"
+                    : kind === "b"
+                      ? "bg-indigo-300/90"
+                      : kind === "heart"
+                        ? "bg-rose-300/90 animate-pulse"
+                        : "bg-white/10"
+                }`}
+              />
+            ))}
+          </div>
+          <div className="mt-4 flex flex-wrap gap-3">
+            {matchState !== "playing" ? (
+              <button
+                type="button"
+                onClick={startRound}
+                className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium bg-purple-600/75 hover:bg-purple-600/95 transition-colors"
+              >
+                <Heart className="w-4 h-4" />
+                {matchState === "waiting" ? "Start together" : "Replay"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setMatchState("finished")}
+                className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium bg-zinc-700/70 hover:bg-zinc-700/90 transition-colors"
+              >
+                Pause round
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={nextRound}
+              className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium bg-pink-500/70 hover:bg-pink-500/90 transition-colors"
+            >
+              <RefreshCw className="w-4 h-4" />
+              New round
+            </button>
+          </div>
+          <p className="mt-3 text-xs text-purple-200/70">
+            Controls: Partner A uses phone tilt when sensor mode is on (or auto-glide if off). Partner B
+            glides opposite to create co-op tension.
+          </p>
+        </div>
+
+        <div className="space-y-4">
+          <div className="glass-card p-5">
+            <h2 className="text-lg font-semibold text-white mb-2">Modes mix</h2>
+            <ul className="space-y-2 text-sm text-purple-200/80">
+              <li>• Romantic: collect hearts to unlock date missions.</li>
+              <li>• Normal arcade: race score and survive longer rounds.</li>
+              <li>• Sensor play: tilt-enabled movement on mobile devices.</li>
+              <li>• House-life idea: this board is your shared home nest.</li>
+            </ul>
+          </div>
+
+          <div className="glass-card p-5">
+            <h3 className="text-white font-semibold mb-3">Real-life reward tracker</h3>
+            <div className="inline-flex items-center gap-2 px-3 py-2 rounded-full bg-emerald-400/20 text-emerald-200 text-sm">
+              <Trophy className="w-4 h-4" />
+              Current unlock: {rewardNow}
+            </div>
+            <ul className="mt-3 space-y-2 text-xs text-purple-200/80">
+              {rewardHistory.length === 0 ? (
+                <li className="text-purple-300/60">No completed rounds yet.</li>
+              ) : (
+                rewardHistory.map((item, index) => (
+                  <li key={`${item.when}-${index}`} className="rounded-xl bg-white/5 px-3 py-2">
+                    {item.when} — Score {item.score}: {item.reward}
+                  </li>
+                ))
+              )}
+            </ul>
+          </div>
+
+          <div className="glass-card p-5">
+            <h3 className="text-white font-semibold mb-3">Device features</h3>
+            <div className="space-y-2 text-sm text-purple-200/80">
+              <button
+                type="button"
+                disabled={!motionSupported}
+                onClick={() => setSensorEnabled((value) => !value)}
+                className={`w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 font-medium transition-colors ${
+                  motionSupported
+                    ? sensorEnabled
+                      ? "bg-sky-500/80 hover:bg-sky-500"
+                      : "bg-sky-500/50 hover:bg-sky-500/70"
+                    : "bg-zinc-700/50 text-zinc-300 cursor-not-allowed"
+                }`}
+              >
+                <Smartphone className="w-4 h-4" />
+                {motionSupported
+                  ? sensorEnabled
+                    ? "Sensor mode on"
+                    : "Enable sensor mode"
+                  : "Sensors unavailable on this device"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setCameraOn((value) => !value)}
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 font-medium bg-amber-500/60 hover:bg-amber-500/80 transition-colors"
+              >
+                <Camera className="w-4 h-4" />
+                {cameraOn ? "Camera vibe mode on (placeholder)" : "Enable camera vibe mode"}
+              </button>
+              <p className="text-xs text-purple-300/70">
+                Camera/AR are shown as a safe placeholder here so gameplay stays stable without requiring
+                permissions during first load.
+              </p>
+            </div>
+          </div>
+
+          <div className="glass-card p-5">
+            <h3 className="text-white font-semibold mb-2">Next expansion: shared house life</h3>
+            <p className="text-sm text-purple-200/80">
+              We can extend this into a persistent co-op house where both partners collect energy, cook,
+              decorate rooms, and grow relationship stats together.
+            </p>
+            <div className="mt-3 inline-flex items-center gap-2 text-xs text-purple-300/70">
+              <Home className="w-3.5 h-3.5" />
+              This route is the MVP foundation for that larger multiplayer world.
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}

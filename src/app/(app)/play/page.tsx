@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Crown, Gamepad2, Sparkles } from "lucide-react";
+import { Crown, Gamepad2, Heart, Sparkles } from "lucide-react";
 
 type GameId = "wavelength" | "eclipse" | "telepathy" | "world-builder" | "gravity";
 
@@ -160,6 +160,25 @@ export default function PlayPage() {
             </button>
           );
         })}
+      </section>
+
+      <section className="glass-card p-6 border border-pink-400/20">
+        <div className="flex items-center gap-2 text-pink-200/80 text-xs tracking-wide uppercase mb-3">
+          <Heart className="w-4 h-4" />
+          New couple mode
+        </div>
+        <h2 className="text-xl font-semibold text-white">Snake + Love Nest Co-op</h2>
+        <p className="text-sm text-purple-200/80 mt-2">
+          A multiplayer page for two people on desktop or mobile with romantic co-op, sensor play,
+          and real-life rewards tracking.
+        </p>
+        <Link
+          href="/play/snake"
+          className="mt-4 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium bg-pink-500/70 hover:bg-pink-500/90 transition-colors"
+        >
+          <Gamepad2 className="w-4 h-4" />
+          Open /play/snake
+        </Link>
       </section>
 
       <section className="glass-card p-6">
