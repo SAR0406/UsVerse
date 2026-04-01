@@ -19,7 +19,6 @@ import {
   Waves,
   Wifi,
   X,
-  Zap,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
@@ -320,8 +319,10 @@ export default function CinemaPage() {
   const [p2pError, setP2pError] = useState<string | null>(null);
   const [syncDriftSeconds, setSyncDriftSeconds] = useState(0);
   const [partnerActive, setPartnerActive] = useState(false);
-  const [partnerPausedHint, setPartnerPausedHint] = useState(false);
-  const [partnerLaughPulse, setPartnerLaughPulse] = useState(0);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_partnerPausedHint, setPartnerPausedHint] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_partnerLaughPulse, setPartnerLaughPulse] = useState(0);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
   const [ritualCountdown, setRitualCountdown] = useState<number | null>(null);
@@ -341,6 +342,7 @@ export default function CinemaPage() {
   const [chatInput, setChatInput] = useState("");
   const [partnerUrlNotif, setPartnerUrlNotif] = useState<string | null>(null);
   const [urlSharedFeedback, setUrlSharedFeedback] = useState(false);
+  const [curtainPhase, setCurtainPhase] = useState<"closed" | "opening" | "open">("closed");
 
   const youtubeId = useMemo(() => extractYouTubeId(youtubeInput), [youtubeInput]);
   const posterArtUrl = youtubeId ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg` : null;
@@ -1298,6 +1300,12 @@ export default function CinemaPage() {
     return () => document.removeEventListener("fullscreenchange", onFsChange);
   }, []);
 
+  // Curtain opening entrance animation
+  useEffect(() => {
+    const timer = window.setTimeout(() => setCurtainPhase("opening"), 500);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   async function startHosting() {
     if (!userId) return;
     try {
@@ -1518,285 +1526,269 @@ export default function CinemaPage() {
   }, [afterglowOpen, myAfterglowSentence, partnerAfterglowSentence, saveCinemaMemory]);
 
   return (
-    <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-4">
-      {/* \u2500\u2500 Header \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */}
-      <header className="cinema-header-card overflow-hidden">
-          {/* Film-strip perforation decoration */}
-          <div className="cinema-film-strip-row">
-            {Array.from({ length: 18 }).map((_, i) => (
-              <span key={i} className="cinema-film-perf" />
-            ))}
-            <span className="ml-auto flex-shrink-0 flex items-center gap-1.5 text-[10px] text-purple-300/50 tracking-widest uppercase pr-1">
-              <Film className="w-3 h-3" /> UsVerse Cinema
-            </span>
-          </div>
+    <div className="cinema-theater-bg" aria-label="Cinema Screening Room">
+      {/* Film grain overlay */}
+      <div className="cinema-grain-layer" aria-hidden="true" />
 
-          <div className="p-4 md:p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2 text-purple-300/60 text-[11px] tracking-widest uppercase mb-1">
-                  <Clapperboard className="w-3.5 h-3.5" />
-                  Private Screening Room
+      {/* ── Curtain opening animation ── */}
+      {curtainPhase !== "open" && (
+        <div className="fixed inset-0 z-[200] flex overflow-hidden pointer-events-none" aria-hidden="true">
+          <motion.div
+            className="cinema-velvet-texture"
+            style={{ width: "50%", height: "100%" }}
+            initial={{ x: 0 }}
+            animate={curtainPhase === "opening" ? { x: "-100%" } : { x: 0 }}
+            transition={{ duration: 2.4, ease: [0.76, 0, 0.24, 1] }}
+            onAnimationComplete={() => {
+              if (curtainPhase === "opening") setCurtainPhase("open");
+            }}
+          />
+          <motion.div
+            className="cinema-velvet-texture"
+            style={{ width: "50%", height: "100%" }}
+            initial={{ x: 0 }}
+            animate={curtainPhase === "opening" ? { x: "100%" } : { x: 0 }}
+            transition={{ duration: 2.4, ease: [0.76, 0, 0.24, 1] }}
+          />
+          {curtainPhase === "closed" && (
+            <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
+              <div className="text-center px-4">
+                <div className="text-[#FFD700] text-sm tracking-[0.6em] uppercase mb-2" style={{ textShadow: "0 0 24px rgba(255,215,0,0.6)" }}>
+                  UsVerse Cinema
                 </div>
-                <h1 className="text-2xl md:text-3xl font-bold gradient-text leading-tight">Watch Together</h1>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <span className={`cinema-status-badge ${partnerActive ? "cinema-status-online" : ""}`}>
-                  <span className={`cinema-sync-dot ${partnerActive ? "cinema-sync-dot-good" : "cinema-sync-dot-drift"}`} />
-                  {partnerActive ? "Partner here \u2728" : "Waiting for partner\u2026"}
-                </span>
-
-                <span className={`cinema-status-badge ${syncAligned ? "cinema-status-online" : "cinema-status-drift"}`}>
-                  <span className={`cinema-sync-dot ${syncAligned ? "cinema-sync-dot-good" : "cinema-sync-dot-drift"}`} />
-                  {syncAligned ? "Synced" : `Drift ${syncDriftSeconds.toFixed(2)}s`}
-                  {!syncAligned && resolvedSource !== "none" && (
-                    <button type="button" onClick={doAutoResync} className="cinema-resync-btn ml-1">
-                      Resync
-                    </button>
-                  )}
-                </span>
-
-                {!loading && (
-                  <span className="cinema-status-badge">
-                    <Users className="w-3 h-3" />
-                    {statusMessage}
-                  </span>
-                )}
+                <div className="text-[#C9A96E]/50 text-xs tracking-[0.4em] uppercase">Presents</div>
               </div>
             </div>
-          </div>
-
-          {/* Bottom film-strip */}
-          <div className="cinema-film-strip-row" style={{ transform: "scaleX(-1)" }}>
-            {Array.from({ length: 18 }).map((_, i) => (
-              <span key={i} className="cinema-film-perf" />
-            ))}
-          </div>
-        </header>
-
-      {/* \u2500\u2500 Smart URL input bar \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */}
-      <section className="glass-card p-4">
-        {/* Partner URL notification toast — appears when partner shares a link */}
-        <AnimatePresence>
-          {partnerUrlNotif && (
-            <motion.div
-              key="url-notif"
-              initial={{ opacity: 0, y: -8, scale: 0.97 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -8, scale: 0.97 }}
-              transition={{ type: "spring", stiffness: 420, damping: 30 }}
-              className="cinema-partner-notify rounded-2xl mb-3"
-            >
-              <span className="text-xl flex-shrink-0">\U0001f517</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-foreground mb-0.5">Partner shared a video \u2014 loading now</p>
-                <p className="text-[11px] text-text-soft truncate">{partnerUrlNotif}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setPartnerUrlNotif(null)}
-                aria-label="Dismiss"
-                className="flex-shrink-0 text-text-whisper hover:text-foreground transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </motion.div>
           )}
-        </AnimatePresence>
+        </div>
+      )}
 
-        <div className="flex flex-col sm:flex-row gap-2">
-          <div className="flex-1">
-            <label className="text-[10px] text-purple-200/60 uppercase tracking-wider mb-1.5 block">
-              YouTube URL \u00b7 video ID \u00b7 or direct MP4 / WebM link
-            </label>
-            <div className="relative">
-              <Film className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-whisper pointer-events-none" />
-              <input
-                value={smartInput}
-                onChange={onSmartInputChange}
-                placeholder="Paste a YouTube or direct video link\u2026"
-                className="cinema-url-input"
-              />
+      {/* EXIT signs */}
+      <div className="fixed top-3 left-3 z-30 cinema-exit-sign pointer-events-none" aria-hidden="true">EXIT</div>
+      <div className="fixed top-3 right-3 z-30 cinema-exit-sign pointer-events-none" aria-hidden="true">EXIT</div>
+
+      <div className="max-w-7xl mx-auto relative">
+
+        {/* ── Ceiling hanging lights ── */}
+        <div className="cinema-ceiling hidden md:flex" aria-hidden="true">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="cinema-ceiling-light">
+              <div className="cinema-ceiling-cord" />
+              <div className="cinema-ceiling-bulb" style={{ animationDelay: `${i * 0.48}s` }} />
+              <div className="cinema-ceiling-beam" />
+            </div>
+          ))}
+        </div>
+
+        {/* ── Marquee header ── */}
+        <div className="px-4 pt-2 pb-0">
+          <div className="cinema-marquee-board">
+            <div className="cinema-marquee-lights-row">
+              {Array.from({ length: 22 }).map((_, i) => (
+                <div key={i} className="cinema-marquee-bulb" style={{ animationDelay: `${(i % 5) * 0.36}s` }} />
+              ))}
+            </div>
+            <div className="py-2">
+              <div className="cinema-marquee-subtitle">Private Screening Room</div>
+              <div className="cinema-marquee-title">&#10022; UsVerse Cinema &#10022;</div>
+              <div className="cinema-ticker-track mt-1">
+                <div className="cinema-ticker-content">
+                  NOW SHOWING: WATCH TOGETHER &nbsp;&middot;&nbsp; MADE FOR TWO &nbsp;&middot;&nbsp; TONIGHT&apos;S FEATURE &nbsp;&middot;&nbsp; YOUR PRIVATE CINEMA &nbsp;&middot;&nbsp; SHARE THE MOMENT &nbsp;&middot;&nbsp; NOW SHOWING: WATCH TOGETHER &nbsp;&middot;&nbsp; MADE FOR TWO &nbsp;&middot;&nbsp; TONIGHT&apos;S FEATURE &nbsp;&middot;&nbsp;
+                </div>
+              </div>
+            </div>
+            <div className="cinema-marquee-lights-row">
+              {Array.from({ length: 22 }).map((_, i) => (
+                <div key={i} className="cinema-marquee-bulb" style={{ animationDelay: `${(i % 5) * 0.36 + 0.18}s` }} />
+              ))}
             </div>
           </div>
-          <div className="flex items-end gap-2 flex-shrink-0 flex-wrap">
-            <button
-              type="button"
-              onClick={loadAndBroadcastUrl}
-              disabled={!smartInput.trim() || !coupleId}
-              className={`cinema-btn-primary ${urlSharedFeedback ? "cinema-btn-success" : ""}`}
-            >
-              <Share2 className="w-4 h-4" />
-              {urlSharedFeedback ? "Shared!" : "Load \u0026 Share"}
-            </button>
-            {resolvedSource === "youtube" && youtubeReady && (
-              <button
-                type="button"
-                onClick={() => {
-                  const player = ytPlayerRef.current;
-                  if (!player || !youtubeReady) return;
-                  sendYoutubeSync("seek", player.getCurrentTime());
-                }}
-                className="cinema-btn-secondary"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Sync Now
-              </button>
+
+          {/* Status row */}
+          <div className="flex flex-wrap gap-2 mt-2 justify-center">
+            <span className={`cinema-status-chip ${partnerActive ? "cinema-status-chip-online" : ""}`}>
+              <span className={`cinema-sync-dot ${partnerActive ? "cinema-sync-dot-good" : "cinema-sync-dot-drift"}`} />
+              {partnerActive ? "Partner here \u2728" : "Waiting for partner\u2026"}
+            </span>
+            <span className={`cinema-status-chip ${syncAligned ? "cinema-status-chip-online" : "cinema-status-chip-warn"}`}>
+              <span className={`cinema-sync-dot ${syncAligned ? "cinema-sync-dot-good" : "cinema-sync-dot-drift"}`} />
+              {syncAligned ? "Synced" : `Drift ${syncDriftSeconds.toFixed(2)}s`}
+              {!syncAligned && resolvedSource !== "none" && (
+                <button type="button" onClick={doAutoResync} className="ml-1 text-[10px] underline opacity-80 hover:opacity-100 cursor-pointer">
+                  Resync
+                </button>
+              )}
+            </span>
+            {!loading && (
+              <span className="cinema-status-chip">
+                <Users className="w-3 h-3" />
+                {statusMessage}
+              </span>
             )}
-            <button
-              type="button"
-              onClick={beginSharedRitual}
-              className="cinema-btn-ritual"
-            >
-              <Sparkles className="w-4 h-4" />
-              Ritual
-            </button>
+            <span className="cinema-status-chip" aria-hidden="true">\U0001f37f Sit back &amp; relax</span>
           </div>
         </div>
 
-        {youtubeId && videoSource && (
-          <div className="mt-3 flex gap-2">
-            <button
-              type="button"
-              onClick={() => setPreferredSource("youtube")}
-              className={`cinema-source-pill ${preferredSource === "youtube" ? "active" : ""}`}
-            >
-              YouTube
-            </button>
-            <button
-              type="button"
-              onClick={() => setPreferredSource("direct")}
-              className={`cinema-source-pill ${preferredSource === "direct" ? "active" : ""}`}
-            >
-              Direct link
-            </button>
-          </div>
-        )}
-      </section>
-
-      {/* \u2500\u2500 Theater: Video + Chat \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */}
-      <div className="grid lg:grid-cols-[1fr_320px] gap-4 items-start">
-        {/* Video column */}
-        <section
-          className="glass-card overflow-hidden"
-          style={{
-            background:
-              "linear-gradient(165deg, color-mix(in oklab, #080c18 86%, var(--card) 14%), color-mix(in oklab, #111a30 84%, var(--card) 16%))",
-          }}
-          aria-label="Video theater"
-        >
-          {/* Couch figures */}
-          <div className="flex items-end justify-center gap-10 py-2 px-4 bg-black/15">
-            <div
-              className={`cinema-figure ${partnerPausedHint ? "cinema-figure-curious" : ""}`}
-              style={{ background: "color-mix(in oklab, var(--color-blossom) 38%, black)" }}
-            />
-            <div
-              className={`cinema-figure cinema-figure-lean ${partnerLaughPulse % 2 === 1 ? "cinema-figure-laugh" : ""}`}
-              style={{ background: "color-mix(in oklab, var(--color-sky-blush) 40%, black)" }}
-            />
+        {/* ── Screen section with velvet side curtains ── */}
+        <div className="cinema-screen-section mt-4 px-4">
+          {/* Left velvet curtain */}
+          <div className="cinema-side-curtain cinema-velvet-texture hidden sm:block" aria-hidden="true">
+            <div className="cinema-side-curtain-shadow-l" />
           </div>
 
-          {/* Player */}
-          <div className="relative" ref={videoWrapRef}>
-            {youtubeId ? (
-              <div className={resolvedSource === "youtube" ? "w-full" : "hidden"}>
-                <div id="usverse-youtube-player" className="w-full aspect-video rounded-none overflow-hidden" />
-              </div>
-            ) : null}
+          {/* Screen frame */}
+          <div className="cinema-screen-outer flex-1 relative">
+            <div className="cinema-screen-corner cinema-screen-corner-tl" aria-hidden="true" />
+            <div className="cinema-screen-corner cinema-screen-corner-tr" aria-hidden="true" />
+            <div className="cinema-screen-corner cinema-screen-corner-bl" aria-hidden="true" />
+            <div className="cinema-screen-corner cinema-screen-corner-br" aria-hidden="true" />
+            <div className="cinema-screen-glow" aria-hidden="true" />
 
-            <video
-              ref={videoRef}
-              src={safeVideoUrl(videoSource)}
-              controls
-              playsInline
-              className={`${resolvedSource === "direct" ? "w-full aspect-video bg-black" : "hidden"}`}
-            />
-
-            {resolvedSource === "none" ? (
-              <div className="aspect-video grid place-items-center text-center px-6">
-                <div>
-                  <Zap className="w-10 h-10 mx-auto text-purple-200/60 mb-3" />
-                  <p className="text-sm text-purple-100/90">Paste a YouTube or direct video link above.</p>
+            {/* Video */}
+            <div className="relative" ref={videoWrapRef}>
+              {youtubeId ? (
+                <div className={resolvedSource === "youtube" ? "w-full" : "hidden"}>
+                  <div id="usverse-youtube-player" className="w-full aspect-video" />
                 </div>
-              </div>
-            ) : null}
+              ) : null}
 
-            <div className="cinema-vignette" />
+              <video
+                ref={videoRef}
+                src={safeVideoUrl(videoSource)}
+                controls
+                playsInline
+                className={`${resolvedSource === "direct" ? "w-full aspect-video bg-black" : "hidden"}`}
+              />
 
-            {sparkParticles.map((spark) => (
-              <span
-                key={spark.id}
-                className="cinema-spark"
-                style={{
-                  left: `${spark.xPercent}%`,
-                  color: spark.side === "left" ? "#ffb6cf" : "#b7dfff",
-                }}
-              >
-                {SPARK_META[spark.kind].emoji}
-              </span>
-            ))}
-
-            {ritualCountdown !== null ? (
-              <div className="absolute inset-0 z-30 grid place-items-center bg-black/58 countdown-poster">
-                <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-2">
-                  {Array.from({ length: 8 }).map((_, index) => (
-                    <span
-                      key={`kernel-${index}`}
-                      className="cinema-popcorn-kernel"
-                      style={{ animationDelay: `${index * 0.1}s` }}
-                    />
-                  ))}
-                </div>
-                <div className="text-center">
-                  <p className="text-xs uppercase tracking-[0.22em] text-purple-100/80 mb-2">Lights dimming</p>
-                  <div
-                    className="countdown-flip-digit"
-                    style={{
-                      fontSize: "clamp(4.2rem, 18vw, 6rem)",
-                      fontFamily: "var(--font-serif), Georgia, serif",
-                    }}
-                  >
-                    {ritualCountdown}
+              {resolvedSource === "none" ? (
+                <div className="aspect-video grid place-items-center text-center px-6 bg-black/60">
+                  <div>
+                    <div className="text-5xl mb-4" aria-hidden="true">\U0001f3ac</div>
+                    <p className="text-[#C9A96E]/70 text-sm tracking-wider">Select a movie below to begin tonight&apos;s screening</p>
+                    <p className="text-[#C9A96E]/40 text-xs mt-2 tracking-wider">YouTube link \u00b7 video ID \u00b7 or direct MP4</p>
                   </div>
                 </div>
-              </div>
-            ) : null}
+              ) : null}
 
-            {/* Fullscreen button */}
-            {resolvedSource !== "none" ? (
-              <button
-                type="button"
-                onClick={toggleFullscreen}
-                aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
-                className="absolute top-2 right-2 z-20 rounded-lg bg-black/45 p-1.5 text-white hover:bg-black/65 transition-colors"
-              >
-                {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-              </button>
-            ) : null}
+              <div className="cinema-vignette" />
 
-            {/* Spark pad */}
-            {resolvedSource !== "none" ? (
-              <div
-                className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/65 via-black/20 to-transparent"
-                onPointerDown={onSparkPadPointerDown}
-                onPointerMove={onSparkPadPointerMove}
-                onPointerUp={onSparkPadPointerUp}
-                onPointerCancel={onSparkPadPointerCancel}
-                onTouchStart={onSparkPadTouchStart}
-                onTouchEnd={onSparkPadTouchEnd}
-                onTouchCancel={onSparkPadTouchEnd}
-              >
-                <p className="absolute left-3 bottom-2 text-[10px] text-purple-100/80 tracking-wide">
-                  Tap \u00b7 double-tap \u00b7 long-press \u00b7 swipe up \u00b7 shake \u00b7 two-finger hold
-                </p>
+              {sparkParticles.map((spark) => (
+                <span
+                  key={spark.id}
+                  className="cinema-spark"
+                  style={{ left: `${spark.xPercent}%`, color: spark.side === "left" ? "#ffb6cf" : "#b7dfff" }}
+                >
+                  {SPARK_META[spark.kind].emoji}
+                </span>
+              ))}
+
+              {ritualCountdown !== null ? (
+                <div className="cinema-ritual-overlay">
+                  <div className="text-center">
+                    <div className="text-[9px] uppercase tracking-[0.4em] text-[#C9A96E]/70 mb-4">Lights dimming\u2026</div>
+                    <div
+                      className="leading-none text-white"
+                      style={{
+                        fontSize: "clamp(5rem, 18vw, 7rem)",
+                        fontFamily: "var(--font-serif), Georgia, serif",
+                        textShadow: "0 0 60px rgba(255,215,0,0.4)",
+                      }}
+                    >
+                      {ritualCountdown}
+                    </div>
+                    <div className="flex justify-center gap-2 mt-4" aria-hidden="true">
+                      {Array.from({ length: 8 }).map((_, i) => (
+                        <div key={i} className="cinema-popcorn-kernel" style={{ animationDelay: `${i * 0.12}s` }} />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              {resolvedSource !== "none" ? (
+                <button
+                  type="button"
+                  onClick={toggleFullscreen}
+                  aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+                  className="absolute top-2 right-2 z-20 bg-black/50 p-1.5 text-[#C9A96E]/80 hover:text-[#FFD700] transition-colors"
+                >
+                  {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                </button>
+              ) : null}
+
+              {resolvedSource !== "none" ? (
+                <div
+                  className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/65 via-black/15 to-transparent"
+                  onPointerDown={onSparkPadPointerDown}
+                  onPointerMove={onSparkPadPointerMove}
+                  onPointerUp={onSparkPadPointerUp}
+                  onPointerCancel={onSparkPadPointerCancel}
+                  onTouchStart={onSparkPadTouchStart}
+                  onTouchEnd={onSparkPadTouchEnd}
+                  onTouchCancel={onSparkPadTouchEnd}
+                >
+                  <p className="absolute left-3 bottom-2 text-[9px] text-[#C9A96E]/55 tracking-wide">
+                    Tap \u00b7 double-tap \u00b7 long-press \u00b7 swipe up \u00b7 two-finger hold
+                  </p>
+                </div>
+              ) : null}
+            </div>
+            <div className="cinema-screen-label" aria-hidden="true">SCREEN</div>
+          </div>
+
+          {/* Right velvet curtain */}
+          <div className="cinema-side-curtain cinema-velvet-texture hidden sm:block" aria-hidden="true">
+            <div className="cinema-side-curtain-shadow-r" />
+          </div>
+        </div>
+
+        {/* ── Audience seating area ── */}
+        <div className="cinema-audience-section relative" aria-label="Theater seating">
+          <div className="cinema-projector-beam" aria-hidden="true" />
+          {[0.2, 0.45, 0.65, 0.35, 0.8, 0.55, 0.15, 0.9].map((delay, i) => (
+            <div
+              key={i}
+              className="cinema-dust-particle"
+              aria-hidden="true"
+              style={{
+                right: `${12 + (i % 5) * 3}%`,
+                top: `${10 + (i % 4) * 15}%`,
+                animationDelay: `${delay * 9}s`,
+                animationDuration: `${8 + (i % 3) * 2}s`,
+              }}
+            />
+          ))}
+
+          {/* Back audience rows */}
+          <div className="cinema-seats-perspective" aria-hidden="true">
+            {Array.from({ length: 3 }).map((_, rowIdx) => (
+              <div key={rowIdx} className="cinema-seat-row">
+                {Array.from({ length: 14 }).map((_, seatIdx) => (
+                  <div
+                    key={seatIdx}
+                    className="cinema-seat-shape"
+                    style={{ animationDelay: `${(rowIdx * 14 + seatIdx) * 0.14}s` }}
+                  />
+                ))}
               </div>
-            ) : null}
+            ))}
+          </div>
+
+          {/* Our couple seats */}
+          <div className="cinema-couple-seats">
+            <div className="text-center">
+              <div className="cinema-my-seat" />
+              <div className="cinema-seat-label">You</div>
+            </div>
+            <div className="cinema-aisle" aria-hidden="true" />
+            <div className="text-center">
+              <div className={`cinema-partner-seat ${partnerActive ? "" : "opacity-50"}`} />
+              <div className="cinema-seat-label">{partnerActive ? "Partner \u2728" : "Partner"}</div>
+            </div>
           </div>
 
           {/* Reaction buttons */}
-          <div className="p-3 flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1.5 justify-center mt-4 px-2">
             {(
               [
                 ["heart", "\u{1F495}"],
@@ -1811,304 +1803,384 @@ export default function CinemaPage() {
                 key={kind}
                 type="button"
                 onClick={() => emitLocalSpark(kind, kind === "shock" ? 50 : 18)}
-                className="cinema-reaction-pill"
+                className="cinema-reaction-btn"
               >
                 {emoji} {SPARK_META[kind].label}
               </button>
             ))}
           </div>
 
-          {/* Reaction waveform */}
-          <div className="p-3 border-t border-white/10">
-            <div className="flex items-center gap-2 text-xs text-purple-100/80 mb-2">
-              <Waves className="w-3.5 h-3.5" />
-              <span>Reaction timeline</span>
-            </div>
-            <div className="h-16 flex items-end gap-1">
-              {waveform.bars.map((height, index) => (
-                <span
-                  key={`wave-${index}`}
-                  className="cinema-wave-bar"
-                  style={{
-                    height: `${Math.max(10, height)}%`,
-                    opacity: index === clampedWaveCursor ? 1 : 0.45,
-                  }}
-                />
-              ))}
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={Math.max(0, waveform.bars.length - 1)}
-              value={clampedWaveCursor}
-              onChange={(event) => {
-                const next = Number(event.target.value);
-                setWaveCursor(clamp(next, 0, waveform.bars.length - 1));
-              }}
-              className="mt-2 w-full accent-[var(--color-peach)]"
-            />
-            <p className="mt-1 text-xs text-purple-100/75">{selectedWaveLabel}</p>
-          </div>
-        </section>
+          <div className="cinema-carpet mt-4" aria-hidden="true" />
+        </div>
 
-        {/* \u2500\u2500 Chat sidebar \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */}
-        <section className="glass-card flex flex-col cinema-chat-panel">
-          <div className="p-3 border-b border-white/10 flex items-center gap-2 flex-shrink-0">
-            <MessageSquare className="w-4 h-4 text-purple-300/80" />
-            <span className="text-sm font-semibold text-white">Live Chat</span>
-            {chatMessages.length > 0 && (
-              <span className="ml-auto text-xs text-purple-200/50">{chatMessages.length}</span>
-            )}
-          </div>
+        {/* ── Controls + Whispers (chat) ── */}
+        <div className="grid lg:grid-cols-[1fr_310px]">
 
-          <div className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
-            {chatMessages.length === 0 ? (
-              <p className="text-center text-xs text-purple-200/50 mt-8 px-4">
-                No messages yet.
-                <br />
-                Say something! {"💬"}
-              </p>
-            ) : (
-              chatMessages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex ${msg.senderId === userId ? "justify-end" : "justify-start"}`}
-                >
-                  <div
-                    className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-snug ${
-                      msg.senderId === userId
-                        ? "cinema-chat-mine"
-                        : "cinema-chat-theirs"
-                    }`}
+          {/* Left: URL input + waveform */}
+          <div>
+            <div className="cinema-controls-section">
+              <div className="cinema-section-label mb-3">
+                <Clapperboard className="w-3 h-3" />
+                Tonight&apos;s Feature
+              </div>
+
+              <AnimatePresence>
+                {partnerUrlNotif && (
+                  <motion.div
+                    key="url-notif"
+                    initial={{ opacity: 0, y: -8, scale: 0.97 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -8, scale: 0.97 }}
+                    transition={{ type: "spring", stiffness: 420, damping: 30 }}
+                    className="cinema-url-notification"
                   >
-                    <p className="break-words">{msg.text}</p>
-                    <p className="text-[10px] opacity-60 mt-0.5 text-right">{formatChatTime(msg.sentAt)}</p>
-                  </div>
+                    <span className="text-lg flex-shrink-0" aria-hidden="true">\U0001f517</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-[#70F0A9] mb-0.5">Partner shared a video \u2014 loading now</p>
+                      <p className="text-[11px] text-[#C9A96E]/65 truncate">{partnerUrlNotif}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPartnerUrlNotif(null)}
+                      aria-label="Dismiss"
+                      className="flex-shrink-0 text-[#C9A96E]/45 hover:text-[#C9A96E] transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <div className="cinema-ticket-wrapper">
+                <div className="cinema-ticket-label">What are we watching tonight?</div>
+                <div className="relative">
+                  <Film className="absolute left-0 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#C9A96E]/38 pointer-events-none" />
+                  <input
+                    value={smartInput}
+                    onChange={onSmartInputChange}
+                    placeholder="YouTube URL \u00b7 video ID \u00b7 direct MP4 / WebM link"
+                    className="cinema-ticket-input pl-5"
+                  />
                 </div>
-              ))
-            )}
-            <div ref={chatScrollRef} />
+              </div>
+
+              <div className="flex flex-wrap gap-2 mt-3">
+                <button
+                  type="button"
+                  onClick={loadAndBroadcastUrl}
+                  disabled={!smartInput.trim() || !coupleId}
+                  className={`cinema-ctrl-btn cinema-ctrl-btn-primary ${urlSharedFeedback ? "cinema-ctrl-btn-success" : ""}`}
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  {urlSharedFeedback ? "Shared!" : "Load \u0026 Share"}
+                </button>
+                {resolvedSource === "youtube" && youtubeReady && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const player = ytPlayerRef.current;
+                      if (!player || !youtubeReady) return;
+                      sendYoutubeSync("seek", player.getCurrentTime());
+                    }}
+                    className="cinema-ctrl-btn cinema-ctrl-btn-secondary"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    Sync Now
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={beginSharedRitual}
+                  className="cinema-ctrl-btn cinema-ctrl-btn-ritual"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Start Ritual
+                </button>
+              </div>
+
+              {youtubeId && videoSource && (
+                <div className="flex gap-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setPreferredSource("youtube")}
+                    className={`cinema-source-btn ${preferredSource === "youtube" ? "cinema-source-btn-active" : ""}`}
+                  >
+                    YouTube
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreferredSource("direct")}
+                    className={`cinema-source-btn ${preferredSource === "direct" ? "cinema-source-btn-active" : ""}`}
+                  >
+                    Direct Link
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Waveform */}
+            <div className="px-4 py-4 border-t border-[#C9A96E]/10">
+              <div className="cinema-section-label mb-3">
+                <Waves className="w-3 h-3" />
+                Reaction Timeline
+              </div>
+              <div className="h-12 flex items-end gap-[2px]">
+                {waveform.bars.map((height, index) => (
+                  <div
+                    key={`wave-${index}`}
+                    className="cinema-waveform-bar"
+                    style={{ height: `${Math.max(8, height)}%`, opacity: index === clampedWaveCursor ? 1 : 0.32 }}
+                  />
+                ))}
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={Math.max(0, waveform.bars.length - 1)}
+                value={clampedWaveCursor}
+                onChange={(event) => {
+                  const next = Number(event.target.value);
+                  setWaveCursor(clamp(next, 0, waveform.bars.length - 1));
+                }}
+                className="mt-2 w-full"
+                style={{ accentColor: "#C9A96E" }}
+              />
+              <p className="mt-1 text-[10px] text-[#C9A96E]/45">{selectedWaveLabel}</p>
+            </div>
           </div>
 
-          <div className="p-3 border-t border-white/10 flex-shrink-0">
+          {/* Right: Theater Whispers (chat) */}
+          <div className="cinema-whisper-panel" style={{ height: "clamp(320px, calc(100vh - 220px), 520px)" }}>
+            <div className="cinema-whisper-header">
+              <MessageSquare className="w-3 h-3" />
+              Theater Whispers
+              {chatMessages.length > 0 && (
+                <span className="ml-auto text-[#C9A96E]/30 text-[10px]">{chatMessages.length}</span>
+              )}
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0 scrollbar-hide">
+              {chatMessages.length === 0 ? (
+                <p className="text-center text-[10px] text-[#C9A96E]/32 mt-8 px-4 italic">
+                  Whisper something to your partner in the dark\u2026 \U0001f3ad
+                </p>
+              ) : (
+                chatMessages.map((msg) => (
+                  <div key={msg.id} className={`flex ${msg.senderId === userId ? "justify-end" : "justify-start"}`}>
+                    <div className={msg.senderId === userId ? "cinema-whisper-msg-mine" : "cinema-whisper-msg-theirs"}>
+                      <p className="break-words">{msg.text}</p>
+                      <p className="text-[9px] opacity-50 mt-0.5 text-right">{formatChatTime(msg.sentAt)}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+              <div ref={chatScrollRef} />
+            </div>
+
             <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                sendChat();
-              }}
-              className="flex gap-2"
+              onSubmit={(e) => { e.preventDefault(); sendChat(); }}
+              className="flex border-t border-[#C9A96E]/10 flex-shrink-0"
             >
               <input
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value.slice(0, MAX_CHAT_LENGTH))}
-                placeholder={userId && coupleId ? "Say something\u2026" : "Connect first to chat"}
+                placeholder={userId && coupleId ? "Whisper something\u2026" : "Connect first to chat"}
                 disabled={!userId || !coupleId}
-                className="flex-1 min-w-0 rounded-xl bg-white/5 border border-purple-500/30 px-3 py-1.5 text-sm outline-none focus:border-purple-400 disabled:opacity-50"
+                className="cinema-whisper-input"
               />
               <button
                 type="submit"
                 disabled={!chatInput.trim() || !userId || !coupleId}
-                className="rounded-xl px-2.5 py-1.5 bg-purple-600/80 hover:bg-purple-600 disabled:opacity-40 flex-shrink-0 text-white transition-colors"
-                aria-label="Send message"
+                className="px-3 text-[#C9A96E]/55 hover:text-[#C9A96E] disabled:opacity-30 transition-colors flex-shrink-0"
+                aria-label="Send whisper"
               >
-                <Send className="w-4 h-4" />
+                <Send className="w-3.5 h-3.5" />
               </button>
             </form>
             {chatInput.length > 150 && (
-              <p className="text-right text-[10px] text-purple-200/50 mt-1">
+              <p className="text-right text-[9px] text-[#C9A96E]/40 px-3 pb-1">
                 {chatInput.length}/{MAX_CHAT_LENGTH}
               </p>
             )}
           </div>
-        </section>
-      </div>
+        </div>
 
-      {/* \u2500\u2500 Afterglow \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */}
-      {afterglowOpen ? (
-        <section className="glass-card p-4 md:p-5 space-y-4">
-          <div>
-            <p className="text-xs uppercase tracking-wider text-purple-300/70">Afterglow</p>
-            <h2 className="text-2xl text-white" style={{ fontFamily: "var(--font-accent), cursive" }}>
+        {/* ── Afterglow ── */}
+        {afterglowOpen ? (
+          <div className="cinema-afterglow-section mt-4 mx-4">
+            <div className="cinema-section-label mb-4">
+              <Sparkles className="w-3 h-3" />
+              Afterglow
+            </div>
+            <h2
+              className="text-2xl text-[#FFD700] mb-4"
+              style={{ fontFamily: "var(--font-accent), cursive", textShadow: "0 0 24px rgba(255,215,0,0.35)" }}
+            >
               What did you feel?
             </h2>
-          </div>
-
-          <div className="grid md:grid-cols-2 gap-3">
-            <div className="rounded-xl border border-purple-500/20 bg-black/15 p-3">
-              <p className="text-xs uppercase tracking-wider text-purple-300/70 mb-2">Your sentence</p>
-              {myAfterglowSentence ? (
-                <p className="text-sm text-purple-100">{myAfterglowSentence}</p>
-              ) : (
-                <>
-                  <textarea
-                    value={afterglowDraft}
-                    onChange={(event) => setAfterglowDraft(event.target.value)}
-                    rows={3}
-                    placeholder="One sentence only"
-                    className="w-full rounded-xl bg-white/5 border border-purple-500/30 px-3 py-2 text-sm outline-none focus:border-purple-400"
-                  />
-                  <button
-                    type="button"
-                    onClick={submitAfterglow}
-                    className="mt-2 rounded-lg px-3 py-1.5 text-xs bg-purple-600/80 hover:bg-purple-600 touch-pressable"
-                  >
-                    Save my sentence
-                  </button>
-                </>
-              )}
-            </div>
-
-            <div className="rounded-xl border border-purple-500/20 bg-black/15 p-3">
-              <p className="text-xs uppercase tracking-wider text-purple-300/70 mb-2">Partner sentence</p>
-              {partnerAfterglowSentence ? (
-                <p className="text-sm text-purple-100">{partnerAfterglowSentence}</p>
-              ) : (
-                <p className="text-sm text-purple-200/70">Waiting for their reflection\u2026</p>
-              )}
-            </div>
-          </div>
-
-          {myAfterglowSentence && partnerAfterglowSentence ? (
-            <div className="rounded-2xl border border-purple-400/30 bg-gradient-to-br from-purple-900/25 via-black/20 to-rose-900/20 p-4 grid md:grid-cols-[130px_1fr] gap-4">
-              {posterArtUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={posterArtUrl}
-                  alt="Poster reference"
-                  className="w-full h-28 md:h-full object-cover rounded-xl border border-white/10"
-                />
-              ) : (
-                <div className="h-28 md:h-full rounded-xl border border-white/10 bg-black/25 grid place-items-center text-purple-200/70 text-xs px-3 text-center">
-                  Cinema memory card
-                </div>
-              )}
-              <div>
-                <p className="text-xs uppercase tracking-wider text-purple-300/70 mb-1">Cinema Memory</p>
-                <h3 className="text-lg font-semibold text-white">Private Film Festival Entry</h3>
-                <p className="text-xs text-purple-200/70 mb-3">{new Date().toLocaleString()}</p>
-                <div className="grid sm:grid-cols-2 gap-2 text-sm">
-                  <blockquote className="rounded-lg border border-white/10 bg-black/20 p-2 text-purple-100">
-                    &quot;{myAfterglowSentence}&quot;
-                  </blockquote>
-                  <blockquote className="rounded-lg border border-white/10 bg-black/20 p-2 text-purple-100">
-                    &quot;{partnerAfterglowSentence}&quot;
-                  </blockquote>
-                </div>
-                <p className="mt-3 text-xs text-purple-200/75">
-                  Sparks captured: {sparkLog.length} \u00b7 simultaneous reactions: {simultaneousMoments}
-                </p>
-                {memorySaveNote ? (
-                  <p
-                    className="mt-1 text-xs"
-                    style={{
-                      color:
-                        memorySaveState === "error"
-                          ? "var(--color-peach)"
-                          : memorySaveState === "saved"
-                            ? "var(--color-mint-kiss)"
-                            : "var(--color-butter)",
-                    }}
-                  >
-                    {memorySaveNote}
-                  </p>
-                ) : null}
+            <div className="grid md:grid-cols-2 gap-3 mb-4">
+              <div className="border border-[#C9A96E]/16 bg-black/22 p-3">
+                <p className="text-[9px] uppercase tracking-wider text-[#C9A96E]/48 mb-2">Your sentence</p>
+                {myAfterglowSentence ? (
+                  <p className="text-sm text-[#f0e8d0]">{myAfterglowSentence}</p>
+                ) : (
+                  <>
+                    <textarea
+                      value={afterglowDraft}
+                      onChange={(event) => setAfterglowDraft(event.target.value)}
+                      rows={3}
+                      placeholder="One sentence only"
+                      className="w-full bg-transparent border border-[#C9A96E]/16 text-[#f0e8d0] px-2 py-1.5 text-sm outline-none focus:border-[#C9A96E]/38 resize-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={submitAfterglow}
+                      className="mt-2 cinema-ctrl-btn cinema-ctrl-btn-secondary text-xs"
+                    >
+                      Save my sentence
+                    </button>
+                  </>
+                )}
+              </div>
+              <div className="border border-[#C9A96E]/16 bg-black/22 p-3">
+                <p className="text-[9px] uppercase tracking-wider text-[#C9A96E]/48 mb-2">Partner sentence</p>
+                {partnerAfterglowSentence ? (
+                  <p className="text-sm text-[#f0e8d0]">{partnerAfterglowSentence}</p>
+                ) : (
+                  <p className="text-sm text-[#C9A96E]/45 italic">Waiting for their reflection\u2026</p>
+                )}
               </div>
             </div>
-          ) : null}
-        </section>
-      ) : null}
-
-      {/* \u2500\u2500 Advanced: WebRTC P2P \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */}
-      <details className="glass-card overflow-hidden group">
-        <summary className="p-4 cursor-pointer flex items-center gap-2 text-white font-semibold select-none list-none">
-          <Wifi className="w-4 h-4 text-emerald-300" />
-          Advanced \u2014 Direct Video &amp; WebRTC P2P
-          {p2pStatus !== "idle" && (
-            <span className="ml-2 text-xs text-emerald-300 font-normal">
-              {p2pStatus}
-              {p2pRole !== "none" ? ` \u00b7 ${p2pRole}` : ""}
-            </span>
-          )}
-          <span className="ml-auto group-open:rotate-180 transition-transform text-purple-300/60 text-base leading-none">\u25be</span>
-        </summary>
-
-        <div className="px-4 pb-4 space-y-3 border-t border-white/10 pt-3">
-          <p className="text-xs text-purple-200/70">
-            For syncing direct video files (MP4/WebM) over WebRTC. Supabase is used only for offer/answer/ICE signaling.
-            Playback sync runs on a direct data channel.
-          </p>
-
-          <div className="grid sm:grid-cols-[1fr_auto_auto] gap-2">
-            <input
-              value={videoInput}
-              onChange={(event) => setVideoInput(event.target.value)}
-              placeholder="Direct MP4/WebM URL"
-              className="rounded-xl bg-white/5 border border-purple-500/30 px-3 py-2 text-sm outline-none focus:border-purple-400"
-            />
-            <button
-              type="button"
-              onClick={() => {
-                setVideoSource(safeVideoUrl(videoInput));
-                setSmartInput(videoInput.trim());
-                setPreferredSource("direct");
-              }}
-              className="rounded-xl px-4 py-2 text-sm bg-white/10 hover:bg-white/15 text-white"
-            >
-              <MonitorPlay className="w-4 h-4 inline mr-1" />
-              Load
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                void startHosting();
-              }}
-              disabled={!coupleId || p2pStatus === "connecting"}
-              className="rounded-xl px-4 py-2 text-sm bg-emerald-600/80 hover:bg-emerald-600 disabled:opacity-50 text-white"
-            >
-              <Link2 className="w-4 h-4 inline mr-1" />
-              Host P2P
-            </button>
+            {myAfterglowSentence && partnerAfterglowSentence ? (
+              <div className="border border-[#C9A96E]/18 bg-gradient-to-br from-[#1a0a00]/50 to-[#050010]/50 p-4 grid md:grid-cols-[120px_1fr] gap-4">
+                {posterArtUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={posterArtUrl}
+                    alt="Poster reference"
+                    className="w-full h-24 md:h-full object-cover border border-[#C9A96E]/18"
+                  />
+                ) : (
+                  <div className="h-24 md:h-full border border-[#C9A96E]/15 bg-black/25 grid place-items-center text-[#C9A96E]/38 text-xs px-2 text-center">
+                    Cinema Memory
+                  </div>
+                )}
+                <div>
+                  <p className="text-[9px] uppercase tracking-wider text-[#C9A96E]/48 mb-1">Cinema Memory</p>
+                  <h3 className="text-base text-[#FFD700] mb-1">Private Film Festival Entry</h3>
+                  <p className="text-[10px] text-[#C9A96E]/48 mb-3">{new Date().toLocaleString()}</p>
+                  <div className="grid sm:grid-cols-2 gap-2">
+                    <blockquote className="border border-[#C9A96E]/14 bg-black/22 p-2 text-[#f0e8d0] italic text-xs">
+                      &quot;{myAfterglowSentence}&quot;
+                    </blockquote>
+                    <blockquote className="border border-[#C9A96E]/14 bg-black/22 p-2 text-[#f0e8d0] italic text-xs">
+                      &quot;{partnerAfterglowSentence}&quot;
+                    </blockquote>
+                  </div>
+                  <p className="mt-2 text-[10px] text-[#C9A96E]/40">
+                    Sparks: {sparkLog.length} \u00b7 simultaneous reactions: {simultaneousMoments}
+                  </p>
+                  {memorySaveNote ? (
+                    <p
+                      className="mt-1 text-[10px]"
+                      style={{
+                        color:
+                          memorySaveState === "error"
+                            ? "var(--color-peach)"
+                            : memorySaveState === "saved"
+                              ? "var(--color-mint-kiss)"
+                              : "var(--color-butter)",
+                      }}
+                    >
+                      {memorySaveNote}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
           </div>
+        ) : null}
 
-          {p2pError ? (
-            <div className="rounded-xl border border-rose-300/25 bg-rose-200/10 px-3 py-2 text-xs text-rose-100">
-              {p2pError}
+        {/* ── Advanced: WebRTC P2P ── */}
+        <details className="cinema-advanced-section mt-4 mx-4 mb-4 overflow-hidden group">
+          <summary className="p-3 cursor-pointer flex items-center gap-2 text-[#C9A96E]/55 text-[11px] uppercase tracking-wider select-none list-none">
+            <Wifi className="w-3 h-3 text-emerald-400/65" />
+            Advanced \u2014 Direct Video &amp; WebRTC P2P
+            {p2pStatus !== "idle" && (
+              <span className="ml-2 text-emerald-400/65 normal-case text-[10px]">
+                {p2pStatus}
+                {p2pRole !== "none" ? ` \u00b7 ${p2pRole}` : ""}
+              </span>
+            )}
+            <span className="ml-auto group-open:rotate-180 transition-transform text-[#C9A96E]/38 text-sm leading-none">\u25be</span>
+          </summary>
+          <div className="px-3 pb-3 space-y-2 border-t border-[#C9A96E]/10 pt-2">
+            <p className="text-[10px] text-[#C9A96E]/38">
+              Sync direct video files (MP4/WebM) over WebRTC. Supabase is used only for offer/answer/ICE signaling.
+            </p>
+            <div className="grid sm:grid-cols-[1fr_auto_auto] gap-2">
+              <input
+                value={videoInput}
+                onChange={(event) => setVideoInput(event.target.value)}
+                placeholder="Direct MP4/WebM URL"
+                className="bg-black/30 border border-[#C9A96E]/14 px-2 py-1.5 text-xs text-[#f0e8d0] outline-none focus:border-[#C9A96E]/32"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setVideoSource(safeVideoUrl(videoInput));
+                  setSmartInput(videoInput.trim());
+                  setPreferredSource("direct");
+                }}
+                className="cinema-ctrl-btn cinema-ctrl-btn-secondary text-[10px]"
+              >
+                <MonitorPlay className="w-3 h-3" />
+                Load
+              </button>
+              <button
+                type="button"
+                onClick={() => { void startHosting(); }}
+                disabled={!coupleId || p2pStatus === "connecting"}
+                className="px-3 py-1.5 text-[10px] bg-emerald-900/40 hover:bg-emerald-900/65 border border-emerald-500/28 text-emerald-300/75 disabled:opacity-38 uppercase tracking-wider"
+              >
+                <Link2 className="w-3 h-3 inline mr-1" />
+                Host P2P
+              </button>
             </div>
-          ) : null}
-
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                const video = videoRef.current;
-                if (!video) return;
-                void video.play();
-              }}
-              className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs bg-white/10 hover:bg-white/15 text-white"
-            >
-              <Play className="w-3.5 h-3.5" />
-              Play
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                videoRef.current?.pause();
-              }}
-              className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs bg-white/10 hover:bg-white/15 text-white"
-            >
-              <Pause className="w-3.5 h-3.5" />
-              Pause
-            </button>
-            <button
-              type="button"
-              onClick={endP2P}
-              className="rounded-lg px-3 py-1.5 text-xs bg-white/10 hover:bg-white/15 text-white"
-            >
-              Disconnect P2P
-            </button>
+            {p2pError ? (
+              <div className="border border-rose-500/22 bg-rose-900/15 px-2 py-1.5 text-[10px] text-rose-300/78">
+                {p2pError}
+              </div>
+            ) : null}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => { const video = videoRef.current; if (!video) return; void video.play(); }}
+                className="inline-flex items-center gap-1 px-2 py-1 text-[10px] bg-white/5 hover:bg-white/10 text-[#f0e8d0] transition-colors"
+              >
+                <Play className="w-3 h-3" />
+                Play
+              </button>
+              <button
+                type="button"
+                onClick={() => { videoRef.current?.pause(); }}
+                className="inline-flex items-center gap-1 px-2 py-1 text-[10px] bg-white/5 hover:bg-white/10 text-[#f0e8d0] transition-colors"
+              >
+                <Pause className="w-3 h-3" />
+                Pause
+              </button>
+              <button
+                type="button"
+                onClick={endP2P}
+                className="px-2 py-1 text-[10px] bg-white/5 hover:bg-white/10 text-[#f0e8d0] transition-colors"
+              >
+                Disconnect P2P
+              </button>
+            </div>
           </div>
-        </div>
-      </details>
+        </details>
+
+      </div>
     </div>
   );
 }
