@@ -38,10 +38,48 @@ create table if not exists public.profiles (
 create table if not exists public.messages (
   id           uuid default uuid_generate_v4() primary key,
   created_at   timestamptz default now() not null,
+  updated_at   timestamptz default now() not null,
   couple_id    uuid references public.couples(id) on delete cascade not null,
   sender_id    uuid references auth.users(id) on delete cascade not null,
   content      text not null,
-  message_type text default 'text' check (message_type in ('text', 'touch', 'presence'))
+  message_type text default 'text' check (message_type in ('text', 'touch', 'presence', 'photo', 'video', 'voice', 'gif')),
+  media_url    text,
+  media_thumbnail_url text,
+  media_duration integer,
+  gif_url      text,
+  reply_to_id  uuid references public.messages(id) on delete set null,
+  edited       boolean default false,
+  read_at      timestamptz,
+  deleted_for_sender boolean default false,
+  deleted_for_receiver boolean default false
+);
+
+-- ============================================================
+-- MESSAGE REACTIONS
+-- Reactions to messages (like Instagram heart, laugh, etc.)
+-- ============================================================
+create table if not exists public.message_reactions (
+  id           uuid default uuid_generate_v4() primary key,
+  created_at   timestamptz default now() not null,
+  message_id   uuid references public.messages(id) on delete cascade not null,
+  user_id      uuid references auth.users(id) on delete cascade not null,
+  reaction     text not null check (reaction in ('heart', 'laugh', 'sad', 'wow', 'angry', 'thumbs_up', 'fire', 'clap')),
+  unique (message_id, user_id)
+);
+
+-- ============================================================
+-- CHAT THEMES
+-- Custom chat themes and colors for each couple
+-- ============================================================
+create table if not exists public.chat_themes (
+  couple_id    uuid references public.couples(id) on delete cascade primary key,
+  created_at   timestamptz default now() not null,
+  updated_at   timestamptz default now() not null,
+  theme_name   text default 'gradient_purple',
+  primary_color text default '#9b6dff',
+  secondary_color text default '#ff6b9d',
+  bubble_style text default 'rounded' check (bubble_style in ('rounded', 'sharp', 'minimal')),
+  custom_emoji text
 );
 
 -- ============================================================
@@ -115,6 +153,8 @@ create table if not exists public.presence_events (
 alter table public.profiles enable row level security;
 alter table public.couples enable row level security;
 alter table public.messages enable row level security;
+alter table public.message_reactions enable row level security;
+alter table public.chat_themes enable row level security;
 alter table public.daily_answers enable row level security;
 alter table public.shared_notes enable row level security;
 alter table public.presence_events enable row level security;
@@ -175,6 +215,69 @@ create policy "Couple members can view messages"
 create policy "Couple members can send messages"
   on public.messages for insert with check (
     sender_id = auth.uid() and
+    couple_id in (
+      select id from public.couples
+      where user1_id = auth.uid() or user2_id = auth.uid()
+    )
+  );
+
+create policy "Senders can delete own messages"
+  on public.messages for delete using (sender_id = auth.uid());
+
+create policy "Couple members can update messages"
+  on public.messages for update using (
+    couple_id in (
+      select id from public.couples
+      where user1_id = auth.uid() or user2_id = auth.uid()
+    )
+  );
+
+-- MESSAGE REACTIONS policies
+create policy "Couple members can view reactions"
+  on public.message_reactions for select using (
+    message_id in (
+      select id from public.messages
+      where couple_id in (
+        select id from public.couples
+        where user1_id = auth.uid() or user2_id = auth.uid()
+      )
+    )
+  );
+
+create policy "Users can add reactions"
+  on public.message_reactions for insert with check (
+    user_id = auth.uid() and
+    message_id in (
+      select id from public.messages
+      where couple_id in (
+        select id from public.couples
+        where user1_id = auth.uid() or user2_id = auth.uid()
+      )
+    )
+  );
+
+create policy "Users can delete their own reactions"
+  on public.message_reactions for delete using (user_id = auth.uid());
+
+-- CHAT THEMES policies
+create policy "Couple members can view their theme"
+  on public.chat_themes for select using (
+    couple_id in (
+      select id from public.couples
+      where user1_id = auth.uid() or user2_id = auth.uid()
+    )
+  );
+
+create policy "Couple members can create their theme"
+  on public.chat_themes for insert with check (
+    couple_id in (
+      select id from public.couples
+      where user1_id = auth.uid() or user2_id = auth.uid()
+    )
+  );
+
+create policy "Couple members can update their theme"
+  on public.chat_themes for update using (
     couple_id in (
       select id from public.couples
       where user1_id = auth.uid() or user2_id = auth.uid()
@@ -271,6 +374,44 @@ create or replace trigger on_auth_user_created
 -- Enable realtime for the tables that need it
 -- ============================================================
 alter publication supabase_realtime add table public.messages;
+alter publication supabase_realtime add table public.message_reactions;
 alter publication supabase_realtime add table public.presence_events;
 alter publication supabase_realtime add table public.daily_answers;
 alter publication supabase_realtime add table public.shared_notes;
+alter publication supabase_realtime add table public.chat_themes;
+
+-- ============================================================
+-- STORAGE BUCKETS
+-- Configure storage buckets for media uploads
+-- ============================================================
+
+-- Create storage bucket for chat media (photos, videos, voice messages)
+-- Run this in the Supabase Dashboard or via SQL:
+-- insert into storage.buckets (id, name, public) values ('chat-media', 'chat-media', false);
+
+-- Storage policies for chat-media bucket
+-- Note: These need to be run after the bucket is created
+create policy "Couple members can upload media"
+  on storage.objects for insert with check (
+    bucket_id = 'chat-media' and
+    auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+create policy "Couple members can view their media"
+  on storage.objects for select using (
+    bucket_id = 'chat-media' and
+    (
+      auth.uid()::text = (storage.foldername(name))[1] or
+      exists (
+        select 1 from public.couples
+        where (user1_id = auth.uid() or user2_id = auth.uid())
+          and (user1_id::text = (storage.foldername(name))[1] or user2_id::text = (storage.foldername(name))[1])
+      )
+    )
+  );
+
+create policy "Users can delete their own media"
+  on storage.objects for delete using (
+    bucket_id = 'chat-media' and
+    auth.uid()::text = (storage.foldername(name))[1]
+  );
