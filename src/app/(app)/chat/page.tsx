@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Send, Bot, MessageCircle, Heart, LogIn } from "lucide-react";
+import { Send, Bot, MessageCircle, Heart, LogIn, Trash2 } from "lucide-react";
 import type { Message, Profile } from "@/types/database";
 import { formatDistanceToNow } from "date-fns";
 
@@ -45,6 +45,7 @@ export default function ChatPage() {
   const [joinError, setJoinError] = useState<string | null>(null);
   const [pageError, setPageError] = useState<string | null>(null);
   const [composerError, setComposerError] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // ── Load couple state + messages (never auto-creates) ──────────────────
@@ -124,6 +125,19 @@ export default function ChatPage() {
         },
         (payload) => {
           setMessages((prev) => [...prev, payload.new as Message]);
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "messages",
+          filter: `couple_id=eq.${coupleId}`,
+        },
+        (payload) => {
+          const deleted = payload.old as { id: string };
+          setMessages((prev) => prev.filter((m) => m.id !== deleted.id));
         }
       )
       .subscribe();
@@ -218,6 +232,28 @@ export default function ChatPage() {
       );
     } finally {
       setSending(false);
+    }
+  }
+
+  async function handleDeleteMessage(id: string) {
+    setDeletingId(id);
+    setComposerError(null);
+    // Optimistic removal for instant feedback
+    setMessages((prev) => prev.filter((m) => m.id !== id));
+    try {
+      const res = await fetch(`/api/messages/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        // Rollback optimistic removal on failure
+        await loadCoupleAndMessages();
+        const json = (await res.json()) as { error?: { message?: string } };
+        setComposerError(json.error?.message ?? "Failed to delete message");
+      }
+    } catch {
+      // Rollback on network error
+      await loadCoupleAndMessages();
+      setComposerError("Failed to delete message");
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -454,8 +490,23 @@ export default function ChatPage() {
           return (
             <div
               key={msg.id}
-              className={`flex ${isMe ? "justify-end" : "justify-start"}`}
+              className={`flex items-end gap-1 ${isMe ? "justify-end" : "justify-start"}`}
             >
+              {isMe && (
+                <button
+                  onClick={() => void handleDeleteMessage(msg.id)}
+                  disabled={deletingId === msg.id}
+                  title="Delete message"
+                  aria-label="Delete message"
+                  className="p-1 rounded-full shrink-0 transition-all text-white/20 hover:text-red-400 hover:bg-red-500/20 disabled:opacity-30"
+                >
+                  {deletingId === msg.id ? (
+                    <span className="inline-block w-3.5 h-3.5 border border-current border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Trash2 className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              )}
               <div
                 className={`max-w-xs md:max-w-md lg:max-w-lg px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
                   isMe
