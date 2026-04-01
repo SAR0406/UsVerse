@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
 
     let query = db
       .from("messages")
-      .select("id, created_at, couple_id, sender_id, content, message_type")
+      .select("id, created_at, updated_at, couple_id, sender_id, content, message_type, media_url, media_thumbnail_url, media_duration, gif_url, reply_to_id, edited, read_at, deleted_for_sender, deleted_for_receiver")
       .eq("couple_id", coupleId)
       .order("created_at", { ascending: true })
       .order("id",         { ascending: true })
@@ -79,8 +79,13 @@ export async function POST(req: NextRequest) {
         sender_id:    userId,
         content:      body.content,
         message_type: body.message_type,
+        media_url:    body.media_url,
+        media_thumbnail_url: body.media_thumbnail_url,
+        media_duration: body.media_duration,
+        gif_url:      body.gif_url,
+        reply_to_id:  body.reply_to_id,
       })
-      .select("id, created_at, couple_id, sender_id, content, message_type")
+      .select("id, created_at, updated_at, couple_id, sender_id, content, message_type, media_url, media_thumbnail_url, media_duration, gif_url, reply_to_id, edited, read_at, deleted_for_sender, deleted_for_receiver")
       .single();
 
     if (error) {
