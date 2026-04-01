@@ -19,7 +19,6 @@ import {
   Waves,
   Wifi,
   X,
-  Zap,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
@@ -320,8 +319,10 @@ export default function CinemaPage() {
   const [p2pError, setP2pError] = useState<string | null>(null);
   const [syncDriftSeconds, setSyncDriftSeconds] = useState(0);
   const [partnerActive, setPartnerActive] = useState(false);
-  const [partnerPausedHint, setPartnerPausedHint] = useState(false);
-  const [partnerLaughPulse, setPartnerLaughPulse] = useState(0);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_partnerPausedHint, setPartnerPausedHint] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_partnerLaughPulse, setPartnerLaughPulse] = useState(0);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
   const [ritualCountdown, setRitualCountdown] = useState<number | null>(null);
