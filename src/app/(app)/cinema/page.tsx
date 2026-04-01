@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Clapperboard,
+  Film,
   Link2,
   Maximize2,
   MessageSquare,
@@ -10,13 +11,17 @@ import {
   MonitorPlay,
   Pause,
   Play,
+  RefreshCw,
   Send,
+  Share2,
   Sparkles,
   Users,
   Waves,
   Wifi,
+  X,
   Zap,
 } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import {
   vibrateCelebrate,
@@ -39,7 +44,8 @@ type CinemaChannelEvent =
   | "cinema_ritual"
   | "cinema_spark"
   | "cinema_afterglow"
-  | "cinema_chat";
+  | "cinema_chat"
+  | "cinema_url";
 type SparkKind = "heart" | "laugh" | "tear" | "star" | "shock" | "pulse";
 type SparkSide = "left" | "right";
 
@@ -90,6 +96,12 @@ type ChatPayload = {
   msgId: string;
 };
 
+type CinemaUrlPayload = {
+  senderId: string;
+  url: string;
+  sentAt: number;
+};
+
 type BroadcastPayload =
   | CinemaSyncPayload
   | SignalPayload
@@ -97,7 +109,8 @@ type BroadcastPayload =
   | RitualPayload
   | SparkPayload
   | AfterglowPayload
-  | ChatPayload;
+  | ChatPayload
+  | CinemaUrlPayload;
 
 type SparkParticle = {
   id: string;
@@ -201,6 +214,7 @@ const SHAKE_THRESHOLD = 33;
 const SHAKE_COOLDOWN_MS = 1400;
 const MAX_CHAT_MESSAGES = 200;
 const MAX_CHAT_LENGTH = 200;
+const URL_NOTIF_DURATION_MS = 6000;
 
 function extractYouTubeId(input: string): string | null {
   const value = input.trim();
@@ -285,6 +299,7 @@ export default function CinemaPage() {
   });
   const chatScrollRef = useRef<HTMLDivElement>(null);
   const videoWrapRef = useRef<HTMLDivElement>(null);
+  const urlNotifTimerRef = useRef<number | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const [loading, setLoading] = useState(true);
@@ -324,6 +339,8 @@ export default function CinemaPage() {
 
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
+  const [partnerUrlNotif, setPartnerUrlNotif] = useState<string | null>(null);
+  const [urlSharedFeedback, setUrlSharedFeedback] = useState(false);
 
   const youtubeId = useMemo(() => extractYouTubeId(youtubeInput), [youtubeInput]);
   const posterArtUrl = youtubeId ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg` : null;
@@ -885,6 +902,36 @@ export default function CinemaPage() {
     [markPartnerSeen, userId],
   );
 
+  const handleUrlBroadcast = useCallback(
+    (payload: CinemaUrlPayload) => {
+      if (!userId || payload.senderId === userId) return;
+      markPartnerSeen();
+      const url = payload.url.trim();
+      if (!url) return;
+      // Auto-apply partner's URL to this screen
+      setSmartInput(url);
+      const ytId = extractYouTubeId(url);
+      if (ytId) {
+        setYoutubeInput(url);
+        setPreferredSource("youtube");
+      } else if (url.startsWith("http")) {
+        setVideoInput(url);
+        setVideoSource(safeVideoUrl(url));
+        setYoutubeInput("");
+        setPreferredSource("direct");
+      }
+      // Show notification banner
+      if (urlNotifTimerRef.current !== null) window.clearTimeout(urlNotifTimerRef.current);
+      setPartnerUrlNotif(url);
+      urlNotifTimerRef.current = window.setTimeout(() => {
+        setPartnerUrlNotif(null);
+        urlNotifTimerRef.current = null;
+      }, URL_NOTIF_DURATION_MS);
+      vibrateTap();
+    },
+    [markPartnerSeen, userId],
+  );
+
   const sendChat = useCallback(() => {
     const text = chatInput.trim().slice(0, MAX_CHAT_LENGTH);
     if (!text || !userId) return;
@@ -905,6 +952,27 @@ export default function CinemaPage() {
     });
     vibrateTap();
   }, [chatInput, sendBroadcast, userId]);
+
+  const loadAndBroadcastUrl = useCallback(() => {
+    const url = smartInput.trim();
+    if (!url || !userId) return;
+    // Apply locally (same logic as onSmartInputChange)
+    const ytId = extractYouTubeId(url);
+    if (ytId) {
+      setYoutubeInput(url);
+      setPreferredSource("youtube");
+    } else if (url.startsWith("http")) {
+      setVideoInput(url);
+      setVideoSource(safeVideoUrl(url));
+      setYoutubeInput("");
+      setPreferredSource("direct");
+    }
+    // Broadcast URL to partner
+    sendBroadcast("cinema_url", { senderId: userId, url, sentAt: Date.now() });
+    setUrlSharedFeedback(true);
+    window.setTimeout(() => setUrlSharedFeedback(false), 2000);
+    vibrateTap();
+  }, [sendBroadcast, smartInput, userId]);
 
   const beginSharedRitual = useCallback(() => {
     const snapshot = getPlaybackSnapshot();
@@ -1048,6 +1116,9 @@ export default function CinemaPage() {
       .on("broadcast", { event: "cinema_chat" }, ({ payload }) => {
         handleChat(payload as ChatPayload);
       })
+      .on("broadcast", { event: "cinema_url" }, ({ payload }) => {
+        handleUrlBroadcast(payload as CinemaUrlPayload);
+      })
       .subscribe();
 
     channelRef.current = channel;
@@ -1066,6 +1137,7 @@ export default function CinemaPage() {
     handleAfterglow,
     handleChat,
     handlePresence,
+    handleUrlBroadcast,
     handleRitual,
     handleSignal,
     handleSpark,
@@ -1209,6 +1281,7 @@ export default function CinemaPage() {
     () => () => {
       clearGestureTimers();
       clearRitualTimers();
+      if (urlNotifTimerRef.current !== null) window.clearTimeout(urlNotifTimerRef.current);
     },
     [clearGestureTimers, clearRitualTimers],
   );
@@ -1447,56 +1520,116 @@ export default function CinemaPage() {
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-4">
       {/* \u2500\u2500 Header \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */}
-      <header className="glass-card p-4 md:p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-2 text-purple-300/70 text-xs tracking-wide uppercase mb-1">
-              <Clapperboard className="w-4 h-4" />
-              Cinema
-            </div>
-            <h1 className="text-2xl font-bold text-white">Watch Together</h1>
+      <header className="cinema-header-card overflow-hidden">
+          {/* Film-strip perforation decoration */}
+          <div className="cinema-film-strip-row">
+            {Array.from({ length: 18 }).map((_, i) => (
+              <span key={i} className="cinema-film-perf" />
+            ))}
+            <span className="ml-auto flex-shrink-0 flex items-center gap-1.5 text-[10px] text-purple-300/50 tracking-widest uppercase pr-1">
+              <Film className="w-3 h-3" /> UsVerse Cinema
+            </span>
           </div>
-          <div className="flex flex-wrap items-center gap-4 text-xs text-purple-100/80">
-            <div className="flex items-center gap-2">
-              <span className={`cinema-sync-dot ${partnerActive ? "cinema-sync-dot-good" : "cinema-sync-dot-drift"}`} />
-              <span>{partnerActive ? "Partner is here \u2728" : "Waiting for partner\u2026"}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className={`cinema-sync-dot ${syncAligned ? "cinema-sync-dot-good" : "cinema-sync-dot-drift"}`} />
-              <span>{syncAligned ? "Synced" : `Drift ${syncDriftSeconds.toFixed(2)}s`}</span>
-              {!syncAligned && resolvedSource !== "none" && (
-                <button
-                  type="button"
-                  onClick={doAutoResync}
-                  className="rounded-full px-2 py-0.5 text-[10px] font-medium bg-rose-500/70 hover:bg-rose-500 text-white"
-                >
-                  Resync
-                </button>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <Users className="w-3.5 h-3.5" />
-              <span>{loading ? "Loading\u2026" : statusMessage}</span>
+
+          <div className="p-4 md:p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2 text-purple-300/60 text-[11px] tracking-widest uppercase mb-1">
+                  <Clapperboard className="w-3.5 h-3.5" />
+                  Private Screening Room
+                </div>
+                <h1 className="text-2xl md:text-3xl font-bold gradient-text leading-tight">Watch Together</h1>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`cinema-status-badge ${partnerActive ? "cinema-status-online" : ""}`}>
+                  <span className={`cinema-sync-dot ${partnerActive ? "cinema-sync-dot-good" : "cinema-sync-dot-drift"}`} />
+                  {partnerActive ? "Partner here \u2728" : "Waiting for partner\u2026"}
+                </span>
+
+                <span className={`cinema-status-badge ${syncAligned ? "cinema-status-online" : "cinema-status-drift"}`}>
+                  <span className={`cinema-sync-dot ${syncAligned ? "cinema-sync-dot-good" : "cinema-sync-dot-drift"}`} />
+                  {syncAligned ? "Synced" : `Drift ${syncDriftSeconds.toFixed(2)}s`}
+                  {!syncAligned && resolvedSource !== "none" && (
+                    <button type="button" onClick={doAutoResync} className="cinema-resync-btn ml-1">
+                      Resync
+                    </button>
+                  )}
+                </span>
+
+                {!loading && (
+                  <span className="cinema-status-badge">
+                    <Users className="w-3 h-3" />
+                    {statusMessage}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      </header>
+
+          {/* Bottom film-strip */}
+          <div className="cinema-film-strip-row" style={{ transform: "scaleX(-1)" }}>
+            {Array.from({ length: 18 }).map((_, i) => (
+              <span key={i} className="cinema-film-perf" />
+            ))}
+          </div>
+        </header>
 
       {/* \u2500\u2500 Smart URL input bar \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */}
       <section className="glass-card p-4">
+        {/* Partner URL notification toast — appears when partner shares a link */}
+        <AnimatePresence>
+          {partnerUrlNotif && (
+            <motion.div
+              key="url-notif"
+              initial={{ opacity: 0, y: -8, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.97 }}
+              transition={{ type: "spring", stiffness: 420, damping: 30 }}
+              className="cinema-partner-notify rounded-2xl mb-3"
+            >
+              <span className="text-xl flex-shrink-0">\U0001f517</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-foreground mb-0.5">Partner shared a video \u2014 loading now</p>
+                <p className="text-[11px] text-text-soft truncate">{partnerUrlNotif}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPartnerUrlNotif(null)}
+                aria-label="Dismiss"
+                className="flex-shrink-0 text-text-whisper hover:text-foreground transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div className="flex flex-col sm:flex-row gap-2">
           <div className="flex-1">
-            <label className="text-[10px] text-purple-200/60 uppercase tracking-wider mb-1 block">
-              YouTube URL / video ID \u00b7 or direct MP4 / WebM link
+            <label className="text-[10px] text-purple-200/60 uppercase tracking-wider mb-1.5 block">
+              YouTube URL \u00b7 video ID \u00b7 or direct MP4 / WebM link
             </label>
-            <input
-              value={smartInput}
-              onChange={onSmartInputChange}
-              placeholder="Paste a YouTube link, video ID, or direct video URL\u2026"
-              className="w-full rounded-xl bg-white/5 border border-purple-500/30 px-3 py-2 text-sm outline-none focus:border-purple-400"
-            />
+            <div className="relative">
+              <Film className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-whisper pointer-events-none" />
+              <input
+                value={smartInput}
+                onChange={onSmartInputChange}
+                placeholder="Paste a YouTube or direct video link\u2026"
+                className="cinema-url-input"
+              />
+            </div>
           </div>
-          <div className="flex items-end gap-2 flex-shrink-0">
+          <div className="flex items-end gap-2 flex-shrink-0 flex-wrap">
+            <button
+              type="button"
+              onClick={loadAndBroadcastUrl}
+              disabled={!smartInput.trim() || !coupleId}
+              className={`cinema-btn-primary ${urlSharedFeedback ? "cinema-btn-success" : ""}`}
+            >
+              <Share2 className="w-4 h-4" />
+              {urlSharedFeedback ? "Shared!" : "Load \u0026 Share"}
+            </button>
             {resolvedSource === "youtube" && youtubeReady && (
               <button
                 type="button"
@@ -1505,43 +1638,36 @@ export default function CinemaPage() {
                   if (!player || !youtubeReady) return;
                   sendYoutubeSync("seek", player.getCurrentTime());
                 }}
-                className="rounded-xl px-3 py-2 text-sm bg-white/10 hover:bg-white/15 text-white"
+                className="cinema-btn-secondary"
               >
+                <RefreshCw className="w-4 h-4" />
                 Sync Now
               </button>
             )}
             <button
               type="button"
               onClick={beginSharedRitual}
-              className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium bg-purple-600/80 hover:bg-purple-600 text-white touch-pressable"
+              className="cinema-btn-ritual"
             >
               <Sparkles className="w-4 h-4" />
-              Start Ritual
+              Ritual
             </button>
           </div>
         </div>
 
         {youtubeId && videoSource && (
-          <div className="mt-2 flex gap-2 text-xs">
+          <div className="mt-3 flex gap-2">
             <button
               type="button"
               onClick={() => setPreferredSource("youtube")}
-              className={`rounded-full px-3 py-1 border transition-colors ${
-                preferredSource === "youtube"
-                  ? "bg-white/15 border-white/35 text-white"
-                  : "bg-white/5 border-white/15 text-purple-200/70 hover:bg-white/10"
-              }`}
+              className={`cinema-source-pill ${preferredSource === "youtube" ? "active" : ""}`}
             >
               YouTube
             </button>
             <button
               type="button"
               onClick={() => setPreferredSource("direct")}
-              className={`rounded-full px-3 py-1 border transition-colors ${
-                preferredSource === "direct"
-                  ? "bg-white/15 border-white/35 text-white"
-                  : "bg-white/5 border-white/15 text-purple-200/70 hover:bg-white/10"
-              }`}
+              className={`cinema-source-pill ${preferredSource === "direct" ? "active" : ""}`}
             >
               Direct link
             </button>
@@ -1558,6 +1684,7 @@ export default function CinemaPage() {
             background:
               "linear-gradient(165deg, color-mix(in oklab, #080c18 86%, var(--card) 14%), color-mix(in oklab, #111a30 84%, var(--card) 16%))",
           }}
+          aria-label="Video theater"
         >
           {/* Couch figures */}
           <div className="flex items-end justify-center gap-10 py-2 px-4 bg-black/15">
@@ -1684,7 +1811,7 @@ export default function CinemaPage() {
                 key={kind}
                 type="button"
                 onClick={() => emitLocalSpark(kind, kind === "shock" ? 50 : 18)}
-                className="rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-xs hover:bg-white/15 touch-pressable"
+                className="cinema-reaction-pill"
               >
                 {emoji} {SPARK_META[kind].label}
               </button>
@@ -1750,8 +1877,8 @@ export default function CinemaPage() {
                   <div
                     className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-snug ${
                       msg.senderId === userId
-                        ? "bg-purple-600/70 text-white rounded-br-sm"
-                        : "bg-white/10 text-purple-100 rounded-bl-sm"
+                        ? "cinema-chat-mine"
+                        : "cinema-chat-theirs"
                     }`}
                   >
                     <p className="break-words">{msg.text}</p>
