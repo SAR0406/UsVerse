@@ -341,6 +341,7 @@ export default function CinemaPage() {
   const [chatInput, setChatInput] = useState("");
   const [partnerUrlNotif, setPartnerUrlNotif] = useState<string | null>(null);
   const [urlSharedFeedback, setUrlSharedFeedback] = useState(false);
+  const [curtainPhase, setCurtainPhase] = useState<"closed" | "opening" | "open">("closed");
 
   const youtubeId = useMemo(() => extractYouTubeId(youtubeInput), [youtubeInput]);
   const posterArtUrl = youtubeId ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg` : null;
@@ -1296,6 +1297,12 @@ export default function CinemaPage() {
     const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener("fullscreenchange", onFsChange);
     return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, []);
+
+  // Curtain opening entrance animation
+  useEffect(() => {
+    const timer = window.setTimeout(() => setCurtainPhase("opening"), 500);
+    return () => window.clearTimeout(timer);
   }, []);
 
   async function startHosting() {
