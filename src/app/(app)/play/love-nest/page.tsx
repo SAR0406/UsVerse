@@ -590,17 +590,6 @@ export default function LoveNestPage() {
     { id: "us", label: "Us", Icon: Heart },
   ];
 
-  if (!hydrated) {
-    return (
-      <div className="p-6 max-w-2xl mx-auto">
-        <div className="glass-card p-8 text-center">
-          <div className="text-4xl mb-3 animate-heartbeat">{"\uD83C\uDFE0"}</div>
-          <p className="text-purple-200/70 text-sm">Loading your home</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="p-4 max-w-2xl mx-auto space-y-4 pb-8">
       <header className="glass-card p-5 border border-rose-400/20">
