@@ -4,10 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Clapperboard,
   Link2,
+  Maximize2,
+  MessageSquare,
+  Minimize2,
   MonitorPlay,
   Pause,
   Play,
-  Radio,
+  Send,
   Sparkles,
   Users,
   Waves,
@@ -35,7 +38,8 @@ type CinemaChannelEvent =
   | "cinema_presence"
   | "cinema_ritual"
   | "cinema_spark"
-  | "cinema_afterglow";
+  | "cinema_afterglow"
+  | "cinema_chat";
 type SparkKind = "heart" | "laugh" | "tear" | "star" | "shock" | "pulse";
 type SparkSide = "left" | "right";
 
@@ -79,13 +83,21 @@ type AfterglowPayload = {
   sentence: string;
 };
 
+type ChatPayload = {
+  senderId: string;
+  text: string;
+  sentAt: number;
+  msgId: string;
+};
+
 type BroadcastPayload =
   | CinemaSyncPayload
   | SignalPayload
   | PresencePayload
   | RitualPayload
   | SparkPayload
-  | AfterglowPayload;
+  | AfterglowPayload
+  | ChatPayload;
 
 type SparkParticle = {
   id: string;
@@ -99,6 +111,13 @@ type SparkLog = {
   kind: SparkKind;
   side: SparkSide;
   at: number;
+};
+
+type ChatMessage = {
+  id: string;
+  senderId: string;
+  text: string;
+  sentAt: number;
 };
 
 type PlaybackSnapshot = {
@@ -120,12 +139,12 @@ type GestureState = {
 };
 
 const SPARK_META: Record<SparkKind, { emoji: string; intensity: number; label: string }> = {
-  heart: { emoji: "💕", intensity: 2.2, label: "Heart pulse" },
-  laugh: { emoji: "😂", intensity: 2.8, label: "Laugh burst" },
-  tear: { emoji: "😭", intensity: 3.1, label: "Tear spark" },
-  star: { emoji: "🌟", intensity: 2.4, label: "Amazed star" },
-  shock: { emoji: "😱", intensity: 3.3, label: "Shock flash" },
-  pulse: { emoji: "🤍", intensity: 4.2, label: "Silent pulse" },
+  heart: { emoji: "\u{1F495}", intensity: 2.2, label: "Heart pulse" },
+  laugh: { emoji: "\u{1F602}", intensity: 2.8, label: "Laugh burst" },
+  tear: { emoji: "\u{1F62D}", intensity: 3.1, label: "Tear spark" },
+  star: { emoji: "\u{1F31F}", intensity: 2.4, label: "Amazed star" },
+  shock: { emoji: "\u{1F631}", intensity: 3.3, label: "Shock flash" },
+  pulse: { emoji: "\u{1F90D}", intensity: 4.2, label: "Silent pulse" },
 };
 
 declare global {
@@ -180,6 +199,8 @@ const TWO_FINGER_HOLD_MS = 420;
 const SWIPE_MIN_DISTANCE_PX = 42;
 const SHAKE_THRESHOLD = 33;
 const SHAKE_COOLDOWN_MS = 1400;
+const MAX_CHAT_MESSAGES = 200;
+const MAX_CHAT_LENGTH = 200;
 
 function extractYouTubeId(input: string): string | null {
   const value = input.trim();
@@ -208,11 +229,27 @@ function formatClock(totalSeconds: number): string {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
+function formatChatTime(sentAt: number): string {
+  const d = new Date(sentAt);
+  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
 function toSingleSentence(value: string): string {
   const compact = value.trim().replace(/\s+/g, " ");
   if (!compact) return "";
   const firstSentence = compact.match(/[^.!?]+[.!?]?/);
   return (firstSentence?.[0] ?? compact).trim();
+}
+
+function safeVideoUrl(url: string): string {
+  const trimmed = url.trim();
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") return trimmed;
+  } catch {
+    // not a valid URL
+  }
+  return "";
 }
 
 function pointToPercentX(target: HTMLElement, clientX: number): number {
@@ -246,12 +283,16 @@ export default function CinemaPage() {
     tapTimer: null,
     twoFingerTimer: null,
   });
+  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const videoWrapRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const [loading, setLoading] = useState(true);
-  const [statusMessage, setStatusMessage] = useState("Connecting room…");
+  const [statusMessage, setStatusMessage] = useState("Connecting room\u2026");
   const [userId, setUserId] = useState<string | null>(null);
   const [coupleId, setCoupleId] = useState<string | null>(null);
 
+  const [smartInput, setSmartInput] = useState("");
   const [youtubeInput, setYoutubeInput] = useState("");
   const [youtubeReady, setYoutubeReady] = useState(false);
   const [youtubeApiReady, setYoutubeApiReady] = useState(false);
@@ -280,6 +321,9 @@ export default function CinemaPage() {
   const [memorySaveState, setMemorySaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [memorySaveNote, setMemorySaveNote] = useState<string | null>(null);
   const savedMemorySignatureRef = useRef<string | null>(null);
+
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState("");
 
   const youtubeId = useMemo(() => extractYouTubeId(youtubeInput), [youtubeInput]);
   const posterArtUrl = youtubeId ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg` : null;
@@ -821,6 +865,47 @@ export default function CinemaPage() {
     [markPartnerSeen, userId],
   );
 
+  const handleChat = useCallback(
+    (payload: ChatPayload) => {
+      if (!userId || payload.senderId === userId) return;
+      markPartnerSeen();
+      setChatMessages((previous) =>
+        [
+          ...previous,
+          {
+            id: payload.msgId,
+            senderId: payload.senderId,
+            text: payload.text,
+            sentAt: payload.sentAt,
+          },
+        ].slice(-MAX_CHAT_MESSAGES),
+      );
+      vibrateTap();
+    },
+    [markPartnerSeen, userId],
+  );
+
+  const sendChat = useCallback(() => {
+    const text = chatInput.trim().slice(0, MAX_CHAT_LENGTH);
+    if (!text || !userId) return;
+    const msgId = crypto.randomUUID();
+    const sentAt = Date.now();
+    setChatMessages((previous) =>
+      [
+        ...previous,
+        { id: msgId, senderId: userId, text, sentAt },
+      ].slice(-MAX_CHAT_MESSAGES),
+    );
+    setChatInput("");
+    sendBroadcast("cinema_chat", {
+      senderId: userId,
+      text,
+      sentAt,
+      msgId,
+    });
+    vibrateTap();
+  }, [chatInput, sendBroadcast, userId]);
+
   const beginSharedRitual = useCallback(() => {
     const snapshot = getPlaybackSnapshot();
     if (snapshot.source === "none") {
@@ -851,6 +936,59 @@ export default function CinemaPage() {
       }),
     );
   }, [getPlaybackSnapshot, prefersReducedMotion, scheduleRitual, sendBroadcast, userId]);
+
+  const sendP2PSync = useCallback(
+    (action: SyncAction) => {
+      const video = videoRef.current;
+      if (!video || !userId || suppressVideoRef.current || dataChannelRef.current?.readyState !== "open") return;
+      const payload: CinemaSyncPayload = {
+        senderId: userId,
+        action,
+        timestamp: video.currentTime,
+        sentAt: Date.now(),
+      };
+      dataChannelRef.current.send(JSON.stringify(payload));
+    },
+    [userId],
+  );
+
+  const doAutoResync = useCallback(() => {
+    if (resolvedSource === "youtube") {
+      const player = ytPlayerRef.current;
+      if (!player || !youtubeReady) return;
+      sendYoutubeSync("seek", player.getCurrentTime());
+    } else if (resolvedSource === "direct") {
+      sendP2PSync("seek");
+    }
+    vibratePress();
+  }, [resolvedSource, sendYoutubeSync, sendP2PSync, youtubeReady]);
+
+  const toggleFullscreen = useCallback(() => {
+    const el = videoWrapRef.current;
+    if (!el) return;
+    if (document.fullscreenElement) {
+      void document.exitFullscreen();
+    } else {
+      void el.requestFullscreen().catch(() => undefined);
+    }
+  }, []);
+
+  const onSmartInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSmartInput(value);
+    const ytId = extractYouTubeId(value);
+    if (ytId) {
+      setYoutubeInput(value);
+      setPreferredSource("youtube");
+    } else if (value.trim().startsWith("http")) {
+      setVideoInput(value.trim());
+      setVideoSource(safeVideoUrl(value));
+      setYoutubeInput("");
+      setPreferredSource("direct");
+    } else {
+      setYoutubeInput(value);
+    }
+  }, []);
 
   useEffect(() => {
     async function initRoom() {
@@ -907,6 +1045,9 @@ export default function CinemaPage() {
       .on("broadcast", { event: "cinema_afterglow" }, ({ payload }) => {
         handleAfterglow(payload as AfterglowPayload);
       })
+      .on("broadcast", { event: "cinema_chat" }, ({ payload }) => {
+        handleChat(payload as ChatPayload);
+      })
       .subscribe();
 
     channelRef.current = channel;
@@ -923,6 +1064,7 @@ export default function CinemaPage() {
     closePeer,
     coupleId,
     handleAfterglow,
+    handleChat,
     handlePresence,
     handleRitual,
     handleSignal,
@@ -980,21 +1122,6 @@ export default function CinemaPage() {
       setYoutubeReady(false);
     };
   }, [openAfterglow, sendYoutubeSync, youtubeApiReady, youtubeId]);
-
-  const sendP2PSync = useCallback(
-    (action: SyncAction) => {
-      const video = videoRef.current;
-      if (!video || !userId || suppressVideoRef.current || dataChannelRef.current?.readyState !== "open") return;
-      const payload: CinemaSyncPayload = {
-        senderId: userId,
-        action,
-        timestamp: video.currentTime,
-        sentAt: Date.now(),
-      };
-      dataChannelRef.current.send(JSON.stringify(payload));
-    },
-    [userId],
-  );
 
   useEffect(() => {
     if (!userId || !coupleId) return;
@@ -1085,6 +1212,18 @@ export default function CinemaPage() {
     },
     [clearGestureTimers, clearRitualTimers],
   );
+
+  // Auto-scroll chat to latest message
+  useEffect(() => {
+    chatScrollRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages]);
+
+  // Track fullscreen state changes
+  useEffect(() => {
+    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onFsChange);
+    return () => document.removeEventListener("fullscreenchange", onFsChange);
+  }, []);
 
   async function startHosting() {
     if (!userId) return;
@@ -1250,7 +1389,7 @@ export default function CinemaPage() {
         ? `Direct video: ${videoSource}`
         : "Source: Unknown";
 
-    const title = `Cinema Memory • ${new Date().toLocaleDateString()}`;
+    const title = `Cinema Memory \u2022 ${new Date().toLocaleDateString()}`;
     const content = [
       "Cinema Memory",
       `When: ${new Date().toLocaleString()}`,
@@ -1306,82 +1445,122 @@ export default function CinemaPage() {
   }, [afterglowOpen, myAfterglowSentence, partnerAfterglowSentence, saveCinemaMemory]);
 
   return (
-    <div className="p-4 md:p-6 max-w-6xl mx-auto space-y-6">
-      <header className="glass-card p-6">
-        <div className="flex items-center gap-2 text-purple-300/70 text-xs tracking-wide uppercase mb-3">
-          <Clapperboard className="w-4 h-4" />
-          Cinema
+    <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-4">
+      {/* \u2500\u2500 Header \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */}
+      <header className="glass-card p-4 md:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2 text-purple-300/70 text-xs tracking-wide uppercase mb-1">
+              <Clapperboard className="w-4 h-4" />
+              Cinema
+            </div>
+            <h1 className="text-2xl font-bold text-white">Watch Together</h1>
+          </div>
+          <div className="flex flex-wrap items-center gap-4 text-xs text-purple-100/80">
+            <div className="flex items-center gap-2">
+              <span className={`cinema-sync-dot ${partnerActive ? "cinema-sync-dot-good" : "cinema-sync-dot-drift"}`} />
+              <span>{partnerActive ? "Partner is here \u2728" : "Waiting for partner\u2026"}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`cinema-sync-dot ${syncAligned ? "cinema-sync-dot-good" : "cinema-sync-dot-drift"}`} />
+              <span>{syncAligned ? "Synced" : `Drift ${syncDriftSeconds.toFixed(2)}s`}</span>
+              {!syncAligned && resolvedSource !== "none" && (
+                <button
+                  type="button"
+                  onClick={doAutoResync}
+                  className="rounded-full px-2 py-0.5 text-[10px] font-medium bg-rose-500/70 hover:bg-rose-500 text-white"
+                >
+                  Resync
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Users className="w-3.5 h-3.5" />
+              <span>{loading ? "Loading\u2026" : statusMessage}</span>
+            </div>
+          </div>
         </div>
-        <h1 className="text-3xl font-bold text-white mb-2">Watch Together</h1>
-        <p className="text-sm text-purple-200/80">{loading ? "Loading…" : statusMessage}</p>
       </header>
 
-      <section
-        className="glass-card p-4 md:p-5 space-y-4"
-        style={{
-          background:
-            "linear-gradient(165deg, color-mix(in oklab, #080c18 86%, var(--card) 14%), color-mix(in oklab, #111a30 84%, var(--card) 16%))",
-        }}
-      >
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <p className="text-xs uppercase tracking-wider text-purple-200/70">Theatre room</p>
-            <h2 className="text-xl font-semibold text-white">Shared couch mode</h2>
+      {/* \u2500\u2500 Smart URL input bar \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */}
+      <section className="glass-card p-4">
+        <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex-1">
+            <label className="text-[10px] text-purple-200/60 uppercase tracking-wider mb-1 block">
+              YouTube URL / video ID \u00b7 or direct MP4 / WebM link
+            </label>
+            <input
+              value={smartInput}
+              onChange={onSmartInputChange}
+              placeholder="Paste a YouTube link, video ID, or direct video URL\u2026"
+              className="w-full rounded-xl bg-white/5 border border-purple-500/30 px-3 py-2 text-sm outline-none focus:border-purple-400"
+            />
           </div>
-          <button
-            type="button"
-            onClick={beginSharedRitual}
-            className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium bg-purple-600/80 hover:bg-purple-600 touch-pressable"
-          >
-            <Sparkles className="w-4 h-4" />
-            Start pre-movie ritual
-          </button>
+          <div className="flex items-end gap-2 flex-shrink-0">
+            {resolvedSource === "youtube" && youtubeReady && (
+              <button
+                type="button"
+                onClick={() => {
+                  const player = ytPlayerRef.current;
+                  if (!player || !youtubeReady) return;
+                  sendYoutubeSync("seek", player.getCurrentTime());
+                }}
+                className="rounded-xl px-3 py-2 text-sm bg-white/10 hover:bg-white/15 text-white"
+              >
+                Sync Now
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={beginSharedRitual}
+              className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium bg-purple-600/80 hover:bg-purple-600 text-white touch-pressable"
+            >
+              <Sparkles className="w-4 h-4" />
+              Start Ritual
+            </button>
+          </div>
         </div>
 
-        <div className="flex flex-wrap gap-2 text-xs text-purple-100/80">
-          <button
-            type="button"
-            onClick={() => setPreferredSource("youtube")}
-            disabled={!youtubeId}
-            className={`rounded-full px-3 py-1.5 border transition-colors ${
-              preferredSource === "youtube"
-                ? "bg-white/15 border-white/35"
-                : "bg-white/5 border-white/15 hover:bg-white/10"
-            } disabled:opacity-40 disabled:cursor-not-allowed`}
-          >
-            YouTube stage
-          </button>
-          <button
-            type="button"
-            onClick={() => setPreferredSource("direct")}
-            disabled={!videoSource}
-            className={`rounded-full px-3 py-1.5 border transition-colors ${
-              preferredSource === "direct"
-                ? "bg-white/15 border-white/35"
-                : "bg-white/5 border-white/15 hover:bg-white/10"
-            } disabled:opacity-40 disabled:cursor-not-allowed`}
-          >
-            Direct link stage
-          </button>
-        </div>
-
-        <div className="rounded-2xl border border-purple-500/20 bg-black/25 p-3">
-          <div className="mb-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2 flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2 text-purple-100/80">
-              <span className={`cinema-sync-dot ${syncAligned ? "cinema-sync-dot-good" : "cinema-sync-dot-drift"}`} />
-              <span
-                className={`cinema-sync-dot ${syncAligned ? "cinema-sync-dot-good" : "cinema-sync-dot-drift"}`}
-                style={!syncAligned ? { animationDelay: "0.28s" } : undefined}
-              />
-              <span>{syncAligned ? "Heartbeats aligned" : `Drift ${syncDriftSeconds.toFixed(2)}s`}</span>
-            </div>
-            <div className="flex items-center gap-2 text-purple-100/80">
-              <Users className="w-3.5 h-3.5" />
-              <span>{partnerActive ? "Partner present" : "Partner quiet"}</span>
-            </div>
+        {youtubeId && videoSource && (
+          <div className="mt-2 flex gap-2 text-xs">
+            <button
+              type="button"
+              onClick={() => setPreferredSource("youtube")}
+              className={`rounded-full px-3 py-1 border transition-colors ${
+                preferredSource === "youtube"
+                  ? "bg-white/15 border-white/35 text-white"
+                  : "bg-white/5 border-white/15 text-purple-200/70 hover:bg-white/10"
+              }`}
+            >
+              YouTube
+            </button>
+            <button
+              type="button"
+              onClick={() => setPreferredSource("direct")}
+              className={`rounded-full px-3 py-1 border transition-colors ${
+                preferredSource === "direct"
+                  ? "bg-white/15 border-white/35 text-white"
+                  : "bg-white/5 border-white/15 text-purple-200/70 hover:bg-white/10"
+              }`}
+            >
+              Direct link
+            </button>
           </div>
+        )}
+      </section>
 
-          <div className="mb-3 flex items-end justify-center gap-10 rounded-xl border border-white/10 bg-black/20 py-3">
+      {/* \u2500\u2500 Theater: Video + Chat \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */}
+      <div className="grid lg:grid-cols-[1fr_320px] gap-4 items-start">
+        {/* Video column */}
+        <section
+          className="glass-card overflow-hidden"
+          style={{
+            background:
+              "linear-gradient(165deg, color-mix(in oklab, #080c18 86%, var(--card) 14%), color-mix(in oklab, #111a30 84%, var(--card) 16%))",
+          }}
+        >
+          {/* Couch figures */}
+          <div className="flex items-end justify-center gap-10 py-2 px-4 bg-black/15">
             <div
               className={`cinema-figure ${partnerPausedHint ? "cinema-figure-curious" : ""}`}
               style={{ background: "color-mix(in oklab, var(--color-blossom) 38%, black)" }}
@@ -1392,7 +1571,8 @@ export default function CinemaPage() {
             />
           </div>
 
-          <div className="relative rounded-xl overflow-hidden border border-white/10 bg-[#080c18]">
+          {/* Player */}
+          <div className="relative" ref={videoWrapRef}>
             {youtubeId ? (
               <div className={resolvedSource === "youtube" ? "w-full" : "hidden"}>
                 <div id="usverse-youtube-player" className="w-full aspect-video rounded-none overflow-hidden" />
@@ -1401,7 +1581,7 @@ export default function CinemaPage() {
 
             <video
               ref={videoRef}
-              src={videoSource}
+              src={safeVideoUrl(videoSource)}
               controls
               playsInline
               className={`${resolvedSource === "direct" ? "w-full aspect-video bg-black" : "hidden"}`}
@@ -1411,7 +1591,7 @@ export default function CinemaPage() {
               <div className="aspect-video grid place-items-center text-center px-6">
                 <div>
                   <Zap className="w-10 h-10 mx-auto text-purple-200/60 mb-3" />
-                  <p className="text-sm text-purple-100/90">Load a video source to enter cinema mode.</p>
+                  <p className="text-sm text-purple-100/90">Paste a YouTube or direct video link above.</p>
                 </div>
               </div>
             ) : null}
@@ -1457,6 +1637,19 @@ export default function CinemaPage() {
               </div>
             ) : null}
 
+            {/* Fullscreen button */}
+            {resolvedSource !== "none" ? (
+              <button
+                type="button"
+                onClick={toggleFullscreen}
+                aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+                className="absolute top-2 right-2 z-20 rounded-lg bg-black/45 p-1.5 text-white hover:bg-black/65 transition-colors"
+              >
+                {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              </button>
+            ) : null}
+
+            {/* Spark pad */}
             {resolvedSource !== "none" ? (
               <div
                 className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/65 via-black/20 to-transparent"
@@ -1469,21 +1662,24 @@ export default function CinemaPage() {
                 onTouchCancel={onSparkPadTouchEnd}
               >
                 <p className="absolute left-3 bottom-2 text-[10px] text-purple-100/80 tracking-wide">
-                  Tap, double tap, long press, swipe up, shake, or two-finger hold
+                  Tap \u00b7 double-tap \u00b7 long-press \u00b7 swipe up \u00b7 shake \u00b7 two-finger hold
                 </p>
               </div>
             ) : null}
           </div>
 
-          <div className="mt-3 flex flex-wrap gap-2">
-            {([
-              ["heart", "💕"],
-              ["laugh", "😂"],
-              ["tear", "😭"],
-              ["star", "🌟"],
-              ["shock", "😱"],
-              ["pulse", "🤍"],
-            ] as Array<[SparkKind, string]>).map(([kind, emoji]) => (
+          {/* Reaction buttons */}
+          <div className="p-3 flex flex-wrap gap-1.5">
+            {(
+              [
+                ["heart", "\u{1F495}"],
+                ["laugh", "\u{1F602}"],
+                ["tear", "\u{1F62D}"],
+                ["star", "\u{1F31F}"],
+                ["shock", "\u{1F631}"],
+                ["pulse", "\u{1F90D}"],
+              ] as Array<[SparkKind, string]>
+            ).map(([kind, emoji]) => (
               <button
                 key={kind}
                 type="button"
@@ -1495,10 +1691,11 @@ export default function CinemaPage() {
             ))}
           </div>
 
-          <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-3">
+          {/* Reaction waveform */}
+          <div className="p-3 border-t border-white/10">
             <div className="flex items-center gap-2 text-xs text-purple-100/80 mb-2">
               <Waves className="w-3.5 h-3.5" />
-              <span>Reaction waveform</span>
+              <span>Reaction timeline</span>
             </div>
             <div className="h-16 flex items-end gap-1">
               {waveform.bars.map((height, index) => (
@@ -1525,9 +1722,81 @@ export default function CinemaPage() {
             />
             <p className="mt-1 text-xs text-purple-100/75">{selectedWaveLabel}</p>
           </div>
-        </div>
-      </section>
+        </section>
 
+        {/* \u2500\u2500 Chat sidebar \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */}
+        <section className="glass-card flex flex-col cinema-chat-panel">
+          <div className="p-3 border-b border-white/10 flex items-center gap-2 flex-shrink-0">
+            <MessageSquare className="w-4 h-4 text-purple-300/80" />
+            <span className="text-sm font-semibold text-white">Live Chat</span>
+            {chatMessages.length > 0 && (
+              <span className="ml-auto text-xs text-purple-200/50">{chatMessages.length}</span>
+            )}
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
+            {chatMessages.length === 0 ? (
+              <p className="text-center text-xs text-purple-200/50 mt-8 px-4">
+                No messages yet.
+                <br />
+                Say something! {"💬"}
+              </p>
+            ) : (
+              chatMessages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`flex ${msg.senderId === userId ? "justify-end" : "justify-start"}`}
+                >
+                  <div
+                    className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-snug ${
+                      msg.senderId === userId
+                        ? "bg-purple-600/70 text-white rounded-br-sm"
+                        : "bg-white/10 text-purple-100 rounded-bl-sm"
+                    }`}
+                  >
+                    <p className="break-words">{msg.text}</p>
+                    <p className="text-[10px] opacity-60 mt-0.5 text-right">{formatChatTime(msg.sentAt)}</p>
+                  </div>
+                </div>
+              ))
+            )}
+            <div ref={chatScrollRef} />
+          </div>
+
+          <div className="p-3 border-t border-white/10 flex-shrink-0">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                sendChat();
+              }}
+              className="flex gap-2"
+            >
+              <input
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value.slice(0, MAX_CHAT_LENGTH))}
+                placeholder={userId && coupleId ? "Say something\u2026" : "Connect first to chat"}
+                disabled={!userId || !coupleId}
+                className="flex-1 min-w-0 rounded-xl bg-white/5 border border-purple-500/30 px-3 py-1.5 text-sm outline-none focus:border-purple-400 disabled:opacity-50"
+              />
+              <button
+                type="submit"
+                disabled={!chatInput.trim() || !userId || !coupleId}
+                className="rounded-xl px-2.5 py-1.5 bg-purple-600/80 hover:bg-purple-600 disabled:opacity-40 flex-shrink-0 text-white transition-colors"
+                aria-label="Send message"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </form>
+            {chatInput.length > 150 && (
+              <p className="text-right text-[10px] text-purple-200/50 mt-1">
+                {chatInput.length}/{MAX_CHAT_LENGTH}
+              </p>
+            )}
+          </div>
+        </section>
+      </div>
+
+      {/* \u2500\u2500 Afterglow \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */}
       {afterglowOpen ? (
         <section className="glass-card p-4 md:p-5 space-y-4">
           <div>
@@ -1567,7 +1836,7 @@ export default function CinemaPage() {
               {partnerAfterglowSentence ? (
                 <p className="text-sm text-purple-100">{partnerAfterglowSentence}</p>
               ) : (
-                <p className="text-sm text-purple-200/70">Waiting for her reflection…</p>
+                <p className="text-sm text-purple-200/70">Waiting for their reflection\u2026</p>
               )}
             </div>
           </div>
@@ -1592,14 +1861,14 @@ export default function CinemaPage() {
                 <p className="text-xs text-purple-200/70 mb-3">{new Date().toLocaleString()}</p>
                 <div className="grid sm:grid-cols-2 gap-2 text-sm">
                   <blockquote className="rounded-lg border border-white/10 bg-black/20 p-2 text-purple-100">
-                    “{myAfterglowSentence}”
+                    &quot;{myAfterglowSentence}&quot;
                   </blockquote>
                   <blockquote className="rounded-lg border border-white/10 bg-black/20 p-2 text-purple-100">
-                    “{partnerAfterglowSentence}”
+                    &quot;{partnerAfterglowSentence}&quot;
                   </blockquote>
                 </div>
                 <p className="mt-3 text-xs text-purple-200/75">
-                  Sparks captured: {sparkLog.length} · simultaneous reactions: {simultaneousMoments}
+                  Sparks captured: {sparkLog.length} \u00b7 simultaneous reactions: {simultaneousMoments}
                 </p>
                 {memorySaveNote ? (
                   <p
@@ -1622,126 +1891,97 @@ export default function CinemaPage() {
         </section>
       ) : null}
 
-      <section className="glass-card p-5 space-y-4">
-        <div className="flex items-center gap-2 text-white font-semibold">
-          <Radio className="w-4 h-4 text-red-300" />
-          Tier 1 - YouTube + Supabase Broadcast
-        </div>
-        <p className="text-xs text-purple-200/70">
-          Play, pause, and seek sync over Supabase Realtime Broadcast with timestamp lag compensation.
-        </p>
-        <div className="flex flex-col md:flex-row gap-2">
-          <input
-            value={youtubeInput}
-            onChange={(event) => {
-              setYoutubeInput(event.target.value);
-              setPreferredSource("youtube");
-            }}
-            placeholder="Paste YouTube URL or 11-char video ID"
-            className="flex-1 rounded-xl bg-white/5 border border-purple-500/30 px-3 py-2 text-sm outline-none focus:border-purple-400"
-          />
-          <button
-            type="button"
-            onClick={() => {
-              const player = ytPlayerRef.current;
-              if (!player || !youtubeReady) return;
-              sendYoutubeSync("seek", player.getCurrentTime());
-            }}
-            disabled={!youtubeReady}
-            className="rounded-xl px-4 py-2 text-sm bg-white/10 hover:bg-white/15 disabled:opacity-50"
-          >
-            Sync Current Time
-          </button>
-        </div>
-        <div className="rounded-xl border border-amber-300/25 bg-amber-200/10 px-3 py-2 text-xs text-amber-100">
-          Enter a valid YouTube URL or video ID, then switch source to YouTube stage.
-        </div>
-      </section>
-
-      <section className="glass-card p-5 space-y-4">
-        <div className="flex items-center gap-2 text-white font-semibold">
+      {/* \u2500\u2500 Advanced: WebRTC P2P \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */}
+      <details className="glass-card overflow-hidden group">
+        <summary className="p-4 cursor-pointer flex items-center gap-2 text-white font-semibold select-none list-none">
           <Wifi className="w-4 h-4 text-emerald-300" />
-          Tier 2 - WebRTC P2P (Any Direct Video URL)
-        </div>
-        <p className="text-xs text-purple-200/70">
-          Supabase is used only for offer/answer/ICE signaling. Playback sync runs on a direct data channel.
-        </p>
-        <div className="grid md:grid-cols-[1fr_auto_auto] gap-2">
-          <input
-            value={videoInput}
-            onChange={(event) => setVideoInput(event.target.value)}
-            placeholder="Direct MP4/WebM URL"
-            className="rounded-xl bg-white/5 border border-purple-500/30 px-3 py-2 text-sm outline-none focus:border-purple-400"
-          />
-          <button
-            type="button"
-            onClick={() => {
-              setVideoSource(videoInput.trim());
-              setPreferredSource("direct");
-            }}
-            className="rounded-xl px-4 py-2 text-sm bg-white/10 hover:bg-white/15"
-          >
-            <MonitorPlay className="w-4 h-4 inline mr-1" />
-            Load
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              void startHosting();
-            }}
-            disabled={!coupleId || p2pStatus === "connecting"}
-            className="rounded-xl px-4 py-2 text-sm bg-emerald-600/80 hover:bg-emerald-600 disabled:opacity-50"
-          >
-            <Link2 className="w-4 h-4 inline mr-1" />
-            Host P2P
-          </button>
-        </div>
-        <div className="text-xs text-purple-200/70">
-          Status: <span className="text-white">{p2pStatus}</span>
-          {p2pRole !== "none" ? (
-            <>
-              {" "}
-              · Role: <span className="text-white">{p2pRole}</span>
-            </>
-          ) : null}
-        </div>
-        {p2pError ? (
-          <div className="rounded-xl border border-rose-300/25 bg-rose-200/10 px-3 py-2 text-xs text-rose-100">
-            {p2pError}
+          Advanced \u2014 Direct Video &amp; WebRTC P2P
+          {p2pStatus !== "idle" && (
+            <span className="ml-2 text-xs text-emerald-300 font-normal">
+              {p2pStatus}
+              {p2pRole !== "none" ? ` \u00b7 ${p2pRole}` : ""}
+            </span>
+          )}
+          <span className="ml-auto group-open:rotate-180 transition-transform text-purple-300/60 text-base leading-none">\u25be</span>
+        </summary>
+
+        <div className="px-4 pb-4 space-y-3 border-t border-white/10 pt-3">
+          <p className="text-xs text-purple-200/70">
+            For syncing direct video files (MP4/WebM) over WebRTC. Supabase is used only for offer/answer/ICE signaling.
+            Playback sync runs on a direct data channel.
+          </p>
+
+          <div className="grid sm:grid-cols-[1fr_auto_auto] gap-2">
+            <input
+              value={videoInput}
+              onChange={(event) => setVideoInput(event.target.value)}
+              placeholder="Direct MP4/WebM URL"
+              className="rounded-xl bg-white/5 border border-purple-500/30 px-3 py-2 text-sm outline-none focus:border-purple-400"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setVideoSource(safeVideoUrl(videoInput));
+                setSmartInput(videoInput.trim());
+                setPreferredSource("direct");
+              }}
+              className="rounded-xl px-4 py-2 text-sm bg-white/10 hover:bg-white/15 text-white"
+            >
+              <MonitorPlay className="w-4 h-4 inline mr-1" />
+              Load
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                void startHosting();
+              }}
+              disabled={!coupleId || p2pStatus === "connecting"}
+              className="rounded-xl px-4 py-2 text-sm bg-emerald-600/80 hover:bg-emerald-600 disabled:opacity-50 text-white"
+            >
+              <Link2 className="w-4 h-4 inline mr-1" />
+              Host P2P
+            </button>
           </div>
-        ) : null}
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              const video = videoRef.current;
-              if (!video) return;
-              void video.play();
-            }}
-            className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs bg-white/10 hover:bg-white/15"
-          >
-            <Play className="w-3.5 h-3.5" />
-            Play
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              videoRef.current?.pause();
-            }}
-            className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs bg-white/10 hover:bg-white/15"
-          >
-            <Pause className="w-3.5 h-3.5" />
-            Pause
-          </button>
-          <button
-            type="button"
-            onClick={endP2P}
-            className="rounded-lg px-3 py-1.5 text-xs bg-white/10 hover:bg-white/15"
-          >
-            Disconnect P2P
-          </button>
+
+          {p2pError ? (
+            <div className="rounded-xl border border-rose-300/25 bg-rose-200/10 px-3 py-2 text-xs text-rose-100">
+              {p2pError}
+            </div>
+          ) : null}
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                const video = videoRef.current;
+                if (!video) return;
+                void video.play();
+              }}
+              className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs bg-white/10 hover:bg-white/15 text-white"
+            >
+              <Play className="w-3.5 h-3.5" />
+              Play
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                videoRef.current?.pause();
+              }}
+              className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs bg-white/10 hover:bg-white/15 text-white"
+            >
+              <Pause className="w-3.5 h-3.5" />
+              Pause
+            </button>
+            <button
+              type="button"
+              onClick={endP2P}
+              className="rounded-lg px-3 py-1.5 text-xs bg-white/10 hover:bg-white/15 text-white"
+            >
+              Disconnect P2P
+            </button>
+          </div>
         </div>
-      </section>
+      </details>
     </div>
   );
 }
