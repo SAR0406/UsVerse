@@ -827,6 +827,137 @@ body {
     inset -3px 0 8px rgba(0, 0, 0, 0.05);
 }
 
+/* ── Polaroid photo frames ─────────────────────────── */
+.diary-polaroid {
+  position: relative;
+  background: #fff;
+  padding: 8px 8px 30px 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18), 0 1px 4px rgba(0, 0, 0, 0.1);
+  width: 128px;
+  flex-shrink: 0;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.diary-polaroid:hover {
+  transform: scale(1.06) rotate(-1deg) !important;
+  z-index: 10;
+}
+
+.diary-polaroid-view {
+  position: relative;
+  background: #fff;
+  padding: 8px 8px 34px 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2), 0 2px 6px rgba(0, 0, 0, 0.1);
+  width: 150px;
+  flex-shrink: 0;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.diary-polaroid-view:hover {
+  transform: scale(1.1) rotate(0deg) !important;
+  z-index: 10;
+}
+
+.diary-polaroid-photo {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  display: block;
+}
+
+.diary-polaroid-caption-input {
+  position: absolute;
+  bottom: 5px;
+  left: 8px;
+  right: 8px;
+  background: transparent;
+  border: none;
+  outline: none;
+  text-align: center;
+  font-size: 0.65rem;
+  color: #6b3f20;
+  font-family: var(--font-accent), cursive;
+  width: calc(100% - 16px);
+}
+
+.diary-polaroid-caption-input::placeholder {
+  color: rgba(107, 63, 32, 0.35);
+}
+
+.diary-polaroid-caption-view {
+  position: absolute;
+  bottom: 6px;
+  left: 8px;
+  right: 8px;
+  text-align: center;
+  font-size: 0.68rem;
+  color: #6b3f20;
+  font-family: var(--font-accent), cursive;
+  line-height: 1.3;
+}
+
+/* ── Tape strips ──────────────────────────────────── */
+.diary-tape {
+  position: absolute;
+  background: rgba(255, 230, 145, 0.6);
+  border: 1px solid rgba(200, 170, 80, 0.25);
+  z-index: 5;
+  pointer-events: none;
+}
+
+.diary-tape-top {
+  top: -9px;
+  left: 50%;
+  transform: translateX(-50%) rotate(-1.5deg);
+  width: 46px;
+  height: 15px;
+}
+
+.diary-tape-left {
+  top: 50%;
+  left: -9px;
+  transform: translateY(-50%) rotate(90deg);
+  width: 46px;
+  height: 15px;
+}
+
+.diary-tape-corner {
+  top: -7px;
+  right: 10px;
+  transform: rotate(42deg);
+  width: 38px;
+  height: 13px;
+}
+
+/* ── Mood selector chips ──────────────────────────── */
+.diary-mood-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.diary-mood-chip:hover {
+  transform: scale(1.1);
+}
+
+/* ── Mood badge on entry view ─────────────────────── */
+.diary-mood-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 2px 7px;
+  border-radius: 20px;
+  background: rgba(200, 144, 96, 0.1);
+  border: 1px solid rgba(200, 144, 96, 0.22);
+}
+
 /* ═══════════════════════════════════════════════════
    BLOOM PAGE ENHANCED STYLES
 ═══════════════════════════════════════════════════ */
