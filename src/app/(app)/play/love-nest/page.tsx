@@ -497,28 +497,18 @@ function RoomView({ roomId, completedTasks, onToggle, onOpenCooking, onBack }: {
 }
 
 export default function LoveNestPage() {
-  const [state, setState] = useState<GameState>(getDefaultState);
-  const [hydrated, setHydrated] = useState(false);
+  const [state, setState] = useState<GameState>(loadState);
   const [tab, setTab] = useState<Tab>("house");
   const [activeRoom, setActiveRoom] = useState<RoomId>("living");
   const [cookingOpen, setCookingOpen] = useState(false);
   const [newMemory, setNewMemory] = useState(false);
   const [editingNames, setEditingNames] = useState(false);
-  const [nameP1, setNameP1] = useState("You");
-  const [nameP2, setNameP2] = useState("Your Love");
+  const [nameP1, setNameP1] = useState(() => loadState().p1Name);
+  const [nameP2, setNameP2] = useState(() => loadState().p2Name);
+
+  useEffect(() => { saveState(state); }, [state]);
 
   useEffect(() => {
-    const loaded = loadState();
-    setState(loaded);
-    setNameP1(loaded.p1Name);
-    setNameP2(loaded.p2Name);
-    setHydrated(true);
-  }, []);
-
-  useEffect(() => { if (hydrated) saveState(state); }, [state, hydrated]);
-
-  useEffect(() => {
-    if (!hydrated) return;
     const id = setInterval(() => {
       setState((prev) => {
         if (!prev.pet) return prev;
@@ -526,7 +516,7 @@ export default function LoveNestPage() {
       });
     }, 60_000);
     return () => clearInterval(id);
-  }, [hydrated]);
+  }, []);
 
   const toggleTask = useCallback((taskId: string) => {
     setState((prev) => {
