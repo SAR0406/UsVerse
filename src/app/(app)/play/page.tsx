@@ -182,7 +182,7 @@ export default function PlayPage() {
         </div>
         <h2 className="text-xl font-semibold text-white">Choose your couple mode</h2>
         <p className="text-sm text-purple-200/80 mt-2">
-          Pick between fast romantic Snake rounds and the shared house-life Love Nest experience.
+          Pick between fast romantic Snake rounds or dive into the full shared house-life experience.
         </p>
         <div className="mt-4 flex flex-wrap gap-3">
           <Link
@@ -190,14 +190,14 @@ export default function PlayPage() {
             className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium bg-pink-500/70 hover:bg-pink-500/90 transition-colors"
           >
             <Gamepad2 className="w-4 h-4" />
-            Open /play/snake
+            Snake Love Nest
           </Link>
           <Link
             href="/play/love-nest"
             className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium bg-indigo-500/60 hover:bg-indigo-500/80 transition-colors"
           >
             <Home className="w-4 h-4" />
-            Open /play/love-nest
+            Our Home 🏡 — full game
           </Link>
         </div>
       </section>
