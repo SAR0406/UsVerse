@@ -405,9 +405,9 @@ export default function NotesPage() {
                     onClick={startCreate}
                     className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all hover:scale-[1.02] active:scale-95"
                     style={{
-                      background: "linear-gradient(135deg, rgba(255,107,157,0.22), rgba(255,107,157,0.08))",
-                      border: "1px solid rgba(255,107,157,0.35)",
-                      color: "#ffb3cf",
+                      background: "linear-gradient(135deg, color-mix(in oklab, var(--color-blossom) 22%, transparent), color-mix(in oklab, var(--color-blossom) 8%, transparent))",
+                      border: "1px solid color-mix(in oklab, var(--color-blossom) 35%, transparent)",
+                      color: "var(--color-blossom)",
                     }}
                   >
                     <Plus className="w-3.5 h-3.5" />
@@ -480,10 +480,10 @@ export default function NotesPage() {
                 }}
               >
                 <div className="flex items-center gap-2">
-                  <Feather className="w-4 h-4" style={{ color: "#c89060" }} />
+                  <Feather className="w-4 h-4" style={{ color: "var(--diary-accent)" }} />
                   <span
                     className="text-sm font-semibold"
-                    style={{ color: "#6b3f20", fontFamily: "var(--font-serif), Georgia, serif" }}
+                    style={{ color: "var(--diary-text-secondary)", fontFamily: "var(--font-serif), Georgia, serif" }}
                   >
                     Shared Diary
                   </span>
@@ -495,7 +495,7 @@ export default function NotesPage() {
                   {!isFormOpen && activeNote && (
                     <span
                       className="text-xs"
-                      style={{ color: "#b89070", fontFamily: "var(--font-serif), Georgia, serif" }}
+                      style={{ color: "var(--diary-text-tertiary)", fontFamily: "var(--font-serif), Georgia, serif" }}
                     >
                       p. {activeIndex + 1}
                     </span>
@@ -511,20 +511,20 @@ export default function NotesPage() {
                   <div className="flex flex-col items-center justify-center min-h-[400px] gap-5 px-8">
                     <div
                       className="w-20 h-20 rounded-full flex items-center justify-center"
-                      style={{ background: "rgba(200,144,96,0.12)", border: "2px dashed rgba(200,144,96,0.3)" }}
+                      style={{ background: "color-mix(in oklab, var(--diary-accent) 12%, transparent)", border: "2px dashed var(--diary-border)" }}
                     >
-                      <Feather className="w-9 h-9" style={{ color: "#c89060", opacity: 0.6 }} />
+                      <Feather className="w-9 h-9" style={{ color: "var(--diary-accent)", opacity: 0.6 }} />
                     </div>
                     <div className="text-center">
                       <p
                         className="text-xl font-semibold mb-1"
-                        style={{ color: "#6b3f20", fontFamily: "var(--font-serif), Georgia, serif" }}
+                        style={{ color: "var(--diary-text-secondary)", fontFamily: "var(--font-serif), Georgia, serif" }}
                       >
                         Your diary is empty
                       </p>
                       <p
                         className="text-sm leading-relaxed max-w-xs text-center"
-                        style={{ color: "#c89060", fontFamily: "var(--font-accent), cursive", fontSize: "1rem" }}
+                        style={{ color: "var(--diary-text-primary)", fontFamily: "var(--font-accent), cursive", fontSize: "1rem" }}
                       >
                         Write your first entry and begin your shared story…
                       </p>
@@ -533,9 +533,9 @@ export default function NotesPage() {
                       onClick={startCreate}
                       className="px-6 py-2.5 rounded-full text-sm font-semibold transition-all hover:scale-105 active:scale-95"
                       style={{
-                        background: "linear-gradient(135deg, #c89060, #a06840)",
-                        color: "#fff8f0",
-                        boxShadow: "0 4px 14px rgba(168,104,64,0.35)",
+                        background: "linear-gradient(135deg, var(--diary-accent), var(--diary-text-secondary))",
+                        color: "var(--diary-paper-bg)",
+                        boxShadow: "0 4px 14px color-mix(in oklab, var(--diary-accent) 35%, transparent)",
                       }}
                     >
                       Write now ✍️
@@ -553,7 +553,7 @@ export default function NotesPage() {
 
                     <p
                       className="text-xs font-bold tracking-widest uppercase mb-5 pl-10"
-                      style={{ color: "#c89060", fontFamily: "var(--font-serif), Georgia, serif" }}
+                      style={{ color: "var(--diary-accent)", fontFamily: "var(--font-serif), Georgia, serif" }}
                     >
                       {creating ? "New Entry" : "Edit Entry"}
                     </p>
@@ -568,13 +568,13 @@ export default function NotesPage() {
                         placeholder="Give this page a title…"
                         className="w-full bg-transparent border-0 border-b-2 outline-none pb-1 text-lg font-semibold placeholder:font-normal transition-colors"
                         style={{
-                          borderColor: title ? "rgba(200,144,96,0.6)" : "rgba(200,144,96,0.25)",
-                          color: "#c89060",
+                          borderColor: title ? "var(--diary-accent)" : "var(--diary-border)",
+                          color: "var(--diary-text-primary)",
                           fontFamily: "var(--font-serif), Georgia, serif",
-                          caretColor: "#c89060",
+                          caretColor: "var(--diary-text-primary)",
                         }}
-                        onFocus={(e) => (e.currentTarget.style.borderColor = "rgba(200,144,96,0.9)")}
-                        onBlur={(e) => (e.currentTarget.style.borderColor = title ? "rgba(200,144,96,0.6)" : "rgba(200,144,96,0.25)")}
+                        onFocus={(e) => (e.currentTarget.style.borderColor = "var(--diary-accent)")}
+                        onBlur={(e) => (e.currentTarget.style.borderColor = title ? "var(--diary-accent)" : "var(--diary-border)")}
                       />
                     </div>
 
@@ -582,7 +582,7 @@ export default function NotesPage() {
                     <div className="pl-10 mb-4">
                       <span
                         className="diary-date-stamp text-xs"
-                        style={{ color: "rgba(200,144,96,0.6)", borderColor: "rgba(200,144,96,0.3)" }}
+                        style={{ color: "var(--diary-text-tertiary)", borderColor: "var(--diary-border)" }}
                       >
                         {format(new Date(), "MMMM d, yyyy")}
                       </span>
@@ -590,7 +590,7 @@ export default function NotesPage() {
 
                     {/* Mood selector */}
                     <div className="pl-10 mb-5">
-                      <p className="text-[10px] font-bold tracking-widest uppercase mb-2" style={{ color: "rgba(200,144,96,0.5)" }}>
+                      <p className="text-[10px] font-bold tracking-widest uppercase mb-2" style={{ color: "var(--diary-text-tertiary)" }}>
                         Today&apos;s Mood
                       </p>
                       <div className="flex flex-wrap gap-2">
@@ -605,9 +605,9 @@ export default function NotesPage() {
                             }}
                             className="diary-mood-chip"
                             style={{
-                              background: mood === m.e ? "rgba(200,144,96,0.25)" : "rgba(200,144,96,0.08)",
-                              border: `1px solid ${mood === m.e ? "rgba(200,144,96,0.7)" : "rgba(200,144,96,0.2)"}`,
-                              color: "#c89060",
+                              background: mood === m.e ? "color-mix(in oklab, var(--diary-accent) 25%, transparent)" : "color-mix(in oklab, var(--diary-accent) 8%, transparent)",
+                              border: `1px solid ${mood === m.e ? "var(--diary-accent)" : "var(--diary-border)"}`,
+                              color: "var(--diary-text-primary)",
                               opacity: mood && mood !== m.e ? 0.55 : 1,
                             }}
                             title={m.l}
@@ -628,10 +628,10 @@ export default function NotesPage() {
                         className="w-full bg-transparent border-0 outline-none resize-none leading-8 text-sm"
                         style={{
                           lineHeight: "32px",
-                          color: "#c89060",
+                          color: "var(--diary-text-primary)",
                           fontFamily: "var(--font-accent), cursive",
                           fontSize: "1rem",
-                          caretColor: "#c89060",
+                          caretColor: "var(--diary-text-primary)",
                         }}
                       />
                     </div>
@@ -639,16 +639,16 @@ export default function NotesPage() {
                     {/* Image attachments section */}
                     <div className="pl-10 mb-6">
                       <div className="flex items-center gap-3 mb-3">
-                        <p className="text-[10px] font-bold tracking-widest uppercase" style={{ color: "rgba(200,144,96,0.5)" }}>
+                        <p className="text-[10px] font-bold tracking-widest uppercase" style={{ color: "var(--diary-text-tertiary)" }}>
                           Photos &amp; Memories
                         </p>
                         <button
                           onClick={() => fileInputRef.current?.click()}
                           className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full transition-all hover:scale-105 active:scale-95"
                           style={{
-                            background: "rgba(200,144,96,0.12)",
-                            border: "1px dashed rgba(200,144,96,0.35)",
-                            color: "#c89060",
+                            background: "color-mix(in oklab, var(--diary-accent) 12%, transparent)",
+                            border: "1px dashed var(--diary-border)",
+                            color: "var(--diary-text-primary)",
                           }}
                         >
                           <ImagePlus className="w-3 h-3" />
@@ -747,7 +747,7 @@ export default function NotesPage() {
                       <div className="flex items-center gap-2">
                         <span
                           className="text-xs font-bold tracking-widest uppercase"
-                          style={{ color: "#c89060", fontFamily: "var(--font-serif), Georgia, serif" }}
+                          style={{ color: "var(--diary-accent)", fontFamily: "var(--font-serif), Georgia, serif" }}
                         >
                           {activeNote.author_id === userId ? "Your Entry" : "Their Entry"}
                         </span>
@@ -780,7 +780,7 @@ export default function NotesPage() {
                     {/* Title */}
                     <h2
                       className="pl-10 text-2xl font-bold mb-2 leading-tight"
-                      style={{ color: "#3d1e0a", fontFamily: "var(--font-serif), Georgia, serif" }}
+                      style={{ color: "var(--diary-text-primary)", fontFamily: "var(--font-serif), Georgia, serif" }}
                     >
                       {activeNote.title}
                     </h2>
@@ -789,13 +789,13 @@ export default function NotesPage() {
                     <div className="pl-10 mb-6">
                       <span
                         className="diary-date-stamp text-xs"
-                        style={{ color: "rgba(200,144,96,0.65)", borderColor: "rgba(200,144,96,0.3)" }}
+                        style={{ color: "var(--diary-text-tertiary)", borderColor: "var(--diary-border)" }}
                       >
                         {format(new Date(activeNote.updated_at), "MMMM d, yyyy")}
                       </span>
                       <span
                         className="ml-3 text-xs"
-                        style={{ color: "rgba(168,104,64,0.5)", fontFamily: "var(--font-serif), Georgia, serif" }}
+                        style={{ color: "var(--diary-text-tertiary)", fontFamily: "var(--font-serif), Georgia, serif" }}
                       >
                         {formatDistanceToNow(new Date(activeNote.updated_at), { addSuffix: true })}
                       </span>
@@ -807,7 +807,7 @@ export default function NotesPage() {
                         <p
                           className="leading-8 whitespace-pre-wrap"
                           style={{
-                            color: "#3d1e0a",
+                            color: "var(--diary-text-primary)",
                             fontFamily: "var(--font-accent), cursive",
                             fontSize: "1.05rem",
                             lineHeight: "32px",
@@ -819,7 +819,7 @@ export default function NotesPage() {
                     ) : (
                       <p
                         className="pl-10 italic"
-                        style={{ color: "rgba(168,104,64,0.4)", fontFamily: "var(--font-accent), cursive" }}
+                        style={{ color: "var(--diary-text-placeholder)", fontFamily: "var(--font-accent), cursive" }}
                       >
                         (No words today — sometimes feelings are beyond writing)
                       </p>
@@ -828,7 +828,7 @@ export default function NotesPage() {
                     {/* Photo polaroids */}
                     {(noteImagesMap[activeNote.id]?.length ?? 0) > 0 && (
                       <div className="pl-10 mt-8">
-                        <p className="text-[10px] font-bold tracking-widest uppercase mb-4" style={{ color: "rgba(200,144,96,0.5)" }}>
+                        <p className="text-[10px] font-bold tracking-widest uppercase mb-4" style={{ color: "var(--diary-text-tertiary)" }}>
                           📷 Memories
                         </p>
                         <div className="flex flex-wrap gap-6 pb-2">
@@ -897,13 +897,13 @@ export default function NotesPage() {
                     onClick={() => openPage(Math.max(0, activeIndex - 1))}
                     disabled={activeIndex === 0}
                     className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full transition-all disabled:opacity-30 hover:scale-105 active:scale-95"
-                    style={{ color: "#a06840", background: "rgba(200,144,96,0.12)" }}
+                    style={{ color: "var(--diary-text-secondary)", background: "color-mix(in oklab, var(--diary-accent) 12%, transparent)" }}
                   >
                     ← Previous
                   </button>
                   <span
                     className="text-xs"
-                    style={{ color: "rgba(168,104,64,0.5)", fontFamily: "var(--font-serif), Georgia, serif" }}
+                    style={{ color: "var(--diary-text-tertiary)", fontFamily: "var(--font-serif), Georgia, serif" }}
                   >
                     {activeIndex + 1} / {notes.length}
                   </span>
@@ -911,7 +911,7 @@ export default function NotesPage() {
                     onClick={() => openPage(Math.min(notes.length - 1, activeIndex + 1))}
                     disabled={activeIndex === notes.length - 1}
                     className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full transition-all disabled:opacity-30 hover:scale-105 active:scale-95"
-                    style={{ color: "#a06840", background: "rgba(200,144,96,0.12)" }}
+                    style={{ color: "var(--diary-text-secondary)", background: "color-mix(in oklab, var(--diary-accent) 12%, transparent)" }}
                   >
                     Next →
                   </button>
