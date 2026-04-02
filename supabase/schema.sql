@@ -424,9 +424,11 @@ create policy "Users can delete their own media"
 -- STORAGE POLICIES FOR DIARY-IMAGES BUCKET
 -- ============================================================
 
--- Allow authenticated uploads to diary-images bucket
-create policy "Allow authenticated diary uploads"
-  on storage.objects for insert
+-- Policy 1: Allow authenticated users to upload images (INSERT)
+-- Only to their own folder (user_id matches first folder in path)
+create policy "Authenticated users can upload diary images"
+  on storage.objects
+  for insert
   to authenticated
   with check (
     bucket_id = 'diary-images'
@@ -434,25 +436,35 @@ create policy "Allow authenticated diary uploads"
     and auth.uid()::text = (storage.foldername(name))[1]
   );
 
--- Allow read access (IMPORTANT: insert internally triggers select)
-create policy "Allow read diary images"
-  on storage.objects for select
+-- Policy 2: Allow authenticated users to read images (SELECT)
+-- Users can read their own images OR their partner's images
+create policy "Authenticated users can read diary images"
+  on storage.objects
+  for select
   to authenticated
   using (
-    bucket_id = 'diary-images' and
-    (
-      auth.uid()::text = (storage.foldername(name))[1] or
+    bucket_id = 'diary-images'
+    and (
+      -- Own images
+      auth.uid()::text = (storage.foldername(name))[1]
+      or
+      -- Partner's images (if in same couple)
       exists (
-        select 1 from public.couples
+        select 1
+        from public.couples
         where (user1_id = auth.uid() or user2_id = auth.uid())
-          and (user1_id::text = (storage.foldername(name))[1] or user2_id::text = (storage.foldername(name))[1])
+          and (
+            user1_id::text = (storage.foldername(name))[1]
+            or user2_id::text = (storage.foldername(name))[1]
+          )
       )
     )
   );
 
--- Allow user file management (update/delete)
-create policy "Allow diary file management"
-  on storage.objects for delete
+-- Policy 3: Allow users to delete their own images (DELETE)
+create policy "Users can delete their own diary images"
+  on storage.objects
+  for delete
   to authenticated
   using (
     bucket_id = 'diary-images'
@@ -460,8 +472,10 @@ create policy "Allow diary file management"
     and auth.uid()::text = (storage.foldername(name))[1]
   );
 
-create policy "Allow diary file updates"
-  on storage.objects for update
+-- Policy 4: Allow users to update their own images (UPDATE)
+create policy "Users can update their own diary images"
+  on storage.objects
+  for update
   to authenticated
   using (
     bucket_id = 'diary-images'
