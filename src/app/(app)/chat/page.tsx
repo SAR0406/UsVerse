@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
+import Image from "next/image";
 import {
   Send,
   Bot,
@@ -10,8 +11,6 @@ import {
   LogIn,
   Trash2,
   Edit2,
-  MoreVertical,
-  Image as ImageIcon,
   Video,
   Mic,
   Smile,
@@ -86,7 +85,6 @@ export default function ChatPage() {
   const [leaving, setLeaving] = useState(false);
   const [showAI, setShowAI] = useState(false);
   const [showGifs, setShowGifs] = useState(false);
-  const [showMediaPicker, setShowMediaPicker] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<string[]>(
     DEFAULT_AI_SUGGESTIONS
   );
@@ -100,7 +98,6 @@ export default function ChatPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
   const [replyTo, setReplyTo] = useState<ExtendedMessage | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [partnerTyping, setPartnerTyping] = useState(false);
@@ -112,11 +109,9 @@ export default function ChatPage() {
   const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(
     null
   );
-  const [audioChunks, setAudioChunks] = useState<Blob[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
@@ -522,7 +517,6 @@ export default function ChatPage() {
       setReplyTo(null);
       setShowAI(false);
       setShowGifs(false);
-      setSelectedFile(null);
     } catch (error) {
       setComposerError(
         error instanceof Error ? error.message : "Failed to send message"
@@ -645,9 +639,6 @@ export default function ChatPage() {
         message_type: type,
         media_duration: duration,
       });
-
-      setSelectedFile(null);
-      setShowMediaPicker(false);
     } catch (error) {
       setComposerError(
         error instanceof Error ? error.message : "Failed to upload file"
@@ -698,8 +689,7 @@ export default function ChatPage() {
       recorder.start();
       setMediaRecorder(recorder);
       setIsRecording(true);
-      setAudioChunks([]);
-    } catch (error) {
+    } catch (_error) {
       setComposerError("Failed to access microphone");
     }
   }
@@ -973,9 +963,11 @@ export default function ChatPage() {
                 >
                   {/* Render different message types */}
                   {msg.message_type === "photo" && msg.media_url && (
-                    <img
+                    <Image
                       src={msg.media_url}
                       alt="Shared photo"
+                      width={400}
+                      height={300}
                       className="rounded-lg max-w-full h-auto mb-2"
                     />
                   )}
@@ -990,9 +982,11 @@ export default function ChatPage() {
                     <audio src={msg.media_url} controls className="mb-2" />
                   )}
                   {msg.message_type === "gif" && msg.gif_url && (
-                    <img
+                    <Image
                       src={msg.gif_url}
                       alt="GIF"
+                      width={400}
+                      height={300}
                       className="rounded-lg max-w-full h-auto mb-2"
                     />
                   )}
