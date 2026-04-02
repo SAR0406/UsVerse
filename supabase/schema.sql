@@ -388,6 +388,10 @@ alter publication supabase_realtime add table public.chat_themes;
 -- Create storage bucket for chat media (photos, videos, voice messages)
 -- Run this in the Supabase Dashboard or via SQL:
 -- insert into storage.buckets (id, name, public) values ('chat-media', 'chat-media', false);
+-- insert into storage.buckets (id, name, public) values ('diary-images', 'diary-images', false);
+
+-- Enable RLS on storage.objects (should already be enabled, but ensuring it)
+alter table storage.objects enable row level security;
 
 -- Storage policies for chat-media bucket
 -- Note: These need to be run after the bucket is created
@@ -414,4 +418,58 @@ create policy "Users can delete their own media"
   on storage.objects for delete using (
     bucket_id = 'chat-media' and
     auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+-- ============================================================
+-- STORAGE POLICIES FOR DIARY-IMAGES BUCKET
+-- ============================================================
+
+-- Allow authenticated uploads to diary-images bucket
+create policy "Allow authenticated diary uploads"
+  on storage.objects for insert
+  to authenticated
+  with check (
+    bucket_id = 'diary-images'
+    and auth.uid() is not null
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+-- Allow read access (IMPORTANT: insert internally triggers select)
+create policy "Allow read diary images"
+  on storage.objects for select
+  to authenticated
+  using (
+    bucket_id = 'diary-images' and
+    (
+      auth.uid()::text = (storage.foldername(name))[1] or
+      exists (
+        select 1 from public.couples
+        where (user1_id = auth.uid() or user2_id = auth.uid())
+          and (user1_id::text = (storage.foldername(name))[1] or user2_id::text = (storage.foldername(name))[1])
+      )
+    )
+  );
+
+-- Allow user file management (update/delete)
+create policy "Allow diary file management"
+  on storage.objects for delete
+  to authenticated
+  using (
+    bucket_id = 'diary-images'
+    and auth.uid() is not null
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+create policy "Allow diary file updates"
+  on storage.objects for update
+  to authenticated
+  using (
+    bucket_id = 'diary-images'
+    and auth.uid() is not null
+    and auth.uid()::text = (storage.foldername(name))[1]
+  )
+  with check (
+    bucket_id = 'diary-images'
+    and auth.uid() is not null
+    and auth.uid()::text = (storage.foldername(name))[1]
   );
