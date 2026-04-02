@@ -388,6 +388,10 @@ alter publication supabase_realtime add table public.chat_themes;
 -- Create storage bucket for chat media (photos, videos, voice messages)
 -- Run this in the Supabase Dashboard or via SQL:
 -- insert into storage.buckets (id, name, public) values ('chat-media', 'chat-media', false);
+-- insert into storage.buckets (id, name, public) values ('diary-images', 'diary-images', false);
+
+-- Enable RLS on storage.objects (should already be enabled, but ensuring it)
+alter table storage.objects enable row level security;
 
 -- Storage policies for chat-media bucket
 -- Note: These need to be run after the bucket is created
@@ -414,4 +418,72 @@ create policy "Users can delete their own media"
   on storage.objects for delete using (
     bucket_id = 'chat-media' and
     auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+-- ============================================================
+-- STORAGE POLICIES FOR DIARY-IMAGES BUCKET
+-- ============================================================
+
+-- Policy 1: Allow authenticated users to upload images (INSERT)
+-- Only to their own folder (user_id matches first folder in path)
+create policy "Authenticated users can upload diary images"
+  on storage.objects
+  for insert
+  to authenticated
+  with check (
+    bucket_id = 'diary-images'
+    and auth.uid() is not null
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+-- Policy 2: Allow authenticated users to read images (SELECT)
+-- Users can read their own images OR their partner's images
+create policy "Authenticated users can read diary images"
+  on storage.objects
+  for select
+  to authenticated
+  using (
+    bucket_id = 'diary-images'
+    and (
+      -- Own images
+      auth.uid()::text = (storage.foldername(name))[1]
+      or
+      -- Partner's images (if in same couple)
+      exists (
+        select 1
+        from public.couples
+        where (user1_id = auth.uid() or user2_id = auth.uid())
+          and (
+            user1_id::text = (storage.foldername(name))[1]
+            or user2_id::text = (storage.foldername(name))[1]
+          )
+      )
+    )
+  );
+
+-- Policy 3: Allow users to delete their own images (DELETE)
+create policy "Users can delete their own diary images"
+  on storage.objects
+  for delete
+  to authenticated
+  using (
+    bucket_id = 'diary-images'
+    and auth.uid() is not null
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+-- Policy 4: Allow users to update their own images (UPDATE)
+create policy "Users can update their own diary images"
+  on storage.objects
+  for update
+  to authenticated
+  using (
+    bucket_id = 'diary-images'
+    and auth.uid() is not null
+    and auth.uid()::text = (storage.foldername(name))[1]
+  )
+  with check (
+    bucket_id = 'diary-images'
+    and auth.uid() is not null
+    and auth.uid()::text = (storage.foldername(name))[1]
   );

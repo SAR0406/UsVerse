@@ -2,25 +2,17 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { Plus, Edit3, Trash2, Save, X, Feather, Heart, BookMarked, ImagePlus } from "lucide-react";
+import { Plus, Edit3, Trash2, Save, X, Feather, Heart, BookMarked } from "lucide-react";
 import type { SharedNote } from "@/types/database";
 import { format, formatDistanceToNow } from "date-fns";
+import { useImageUpload } from "@/hooks/useImageUpload";
+import { ImageUploadZone, ImageGallery } from "@/components/DiaryImageUpload";
+import type { StorageMode } from "@/lib/storage/diary-storage";
 
-/* ─── LocalStorage image helpers ─────────────────── */
-interface DiaryImage { id: string; dataUrl: string; caption: string; }
-const DRAFT_IMG_KEY = "diary-img-draft";
+/* ─── Mood helpers ─────────────────── */
 const DRAFT_MOOD_KEY = "diary-mood-draft";
-const imgKey = (id: string) => `diary-img-${id}`;
 const moodKey = (id: string) => `diary-mood-${id}`;
 
-function loadImgs(k: string): DiaryImage[] {
-  if (typeof window === "undefined") return [];
-  try { const r = localStorage.getItem(k); return r ? (JSON.parse(r) as DiaryImage[]) : []; }
-  catch { return []; }
-}
-function saveImgs(k: string, imgs: DiaryImage[]) {
-  try { localStorage.setItem(k, JSON.stringify(imgs)); } catch {}
-}
 function loadMood(k: string): string {
   if (typeof window === "undefined") return "";
   return localStorage.getItem(k) ?? "";
@@ -70,13 +62,34 @@ export default function NotesPage() {
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showCoverPage, setShowCoverPage] = useState(true);
-  /* image + mood state */
-  const [pendingImages, setPendingImages] = useState<DiaryImage[]>([]);
   const [mood, setMood] = useState("");
-  const [noteImagesMap, setNoteImagesMap] = useState<Record<string, DiaryImage[]>>({});
   const [noteMoodsMap, setNoteMoodsMap] = useState<Record<string, string>>({});
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [storageMode, setStorageMode] = useState<StorageMode>("local");
   const titleRef = useRef<HTMLInputElement>(null);
+
+  // Use the new image upload hook
+  const activeNoteId = creating ? "draft" : editingId || "";
+  const imageUpload = useImageUpload({
+    userId: userId || "",
+    noteId: activeNoteId,
+    storageMode,
+  });
+
+  // Load images when viewing a note
+  const [viewImages, setViewImages] = useState<typeof imageUpload.images>([]);
+
+  useEffect(() => {
+    const activeNote = notes[activeIndex];
+    if (!creating && !editingId && activeNote) {
+      // Load images for the active note being viewed
+      const loadViewImages = async () => {
+        const { loadImages } = await import("@/lib/storage/diary-storage");
+        const imgs = await loadImages(activeNote.id);
+        setViewImages(imgs);
+      };
+      loadViewImages();
+    }
+  }, [notes, activeIndex, creating, editingId]);
 
   const loadNotes = useCallback(async () => {
     const res = await fetch("/api/notes?limit=50");
@@ -87,13 +100,10 @@ export default function NotesPage() {
     if (res.ok && json.data?.notes) {
       setNotes(json.data.notes);
       setErrorMessage(null);
-      const imgs: Record<string, DiaryImage[]> = {};
       const moods: Record<string, string> = {};
       for (const n of json.data.notes) {
-        imgs[n.id] = loadImgs(imgKey(n.id));
         moods[n.id] = loadMood(moodKey(n.id));
       }
-      setNoteImagesMap(imgs);
       setNoteMoodsMap(moods);
     } else if (!res.ok) {
       setErrorMessage(json.error?.message ?? "Failed to load notes");
@@ -141,10 +151,12 @@ export default function NotesPage() {
     setEditingId(null);
     setTitle("");
     setContent("");
-    setPendingImages(loadImgs(DRAFT_IMG_KEY));
     setMood(loadMood(DRAFT_MOOD_KEY));
     setShowCoverPage(false);
-    window.setTimeout(() => titleRef.current?.focus(), 80);
+    window.setTimeout(() => {
+      titleRef.current?.focus();
+      imageUpload.loadImages();
+    }, 80);
   }
 
   function startEdit(note: SharedNote) {
@@ -152,9 +164,11 @@ export default function NotesPage() {
     setEditingId(note.id);
     setTitle(note.title);
     setContent(note.content);
-    setPendingImages(loadImgs(imgKey(note.id)));
     setMood(loadMood(moodKey(note.id)));
-    window.setTimeout(() => titleRef.current?.focus(), 80);
+    window.setTimeout(() => {
+      titleRef.current?.focus();
+      imageUpload.loadImages();
+    }, 80);
   }
 
   function cancelEdit() {
@@ -162,56 +176,7 @@ export default function NotesPage() {
     setEditingId(null);
     setTitle("");
     setContent("");
-    setPendingImages([]);
     setMood("");
-  }
-
-  function handleImageFiles(files: FileList | null) {
-    if (!files) return;
-    const isCreating = creating;
-    const curEditId = editingId;
-    Array.from(files).forEach((file) => {
-      if (!file.type.startsWith("image/")) return;
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const dataUrl = e.target?.result as string;
-        if (!dataUrl) return;
-        const img: DiaryImage = {
-          id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-          dataUrl,
-          caption: "",
-        };
-        setPendingImages((prev) => {
-          const next = [...prev, img];
-          if (isCreating) saveImgs(DRAFT_IMG_KEY, next);
-          else if (curEditId) saveImgs(imgKey(curEditId), next);
-          return next;
-        });
-      };
-      reader.readAsDataURL(file);
-    });
-  }
-
-  function removeImage(id: string) {
-    const isCreating = creating;
-    const curEditId = editingId;
-    setPendingImages((prev) => {
-      const next = prev.filter((i) => i.id !== id);
-      if (isCreating) saveImgs(DRAFT_IMG_KEY, next);
-      else if (curEditId) saveImgs(imgKey(curEditId), next);
-      return next;
-    });
-  }
-
-  function updateCaption(id: string, caption: string) {
-    const isCreating = creating;
-    const curEditId = editingId;
-    setPendingImages((prev) => {
-      const next = prev.map((i) => i.id === id ? { ...i, caption } : i);
-      if (isCreating) saveImgs(DRAFT_IMG_KEY, next);
-      else if (curEditId) saveImgs(imgKey(curEditId), next);
-      return next;
-    });
   }
 
   async function saveNote() {
@@ -232,10 +197,8 @@ export default function NotesPage() {
         }
         const newId = json.data?.id;
         if (newId) {
-          saveImgs(imgKey(newId), pendingImages);
           localStorage.setItem(moodKey(newId), mood);
         }
-        localStorage.removeItem(DRAFT_IMG_KEY);
         localStorage.removeItem(DRAFT_MOOD_KEY);
       } else if (editingId) {
         const res = await fetch(`/api/notes/${editingId}`, {
@@ -248,7 +211,6 @@ export default function NotesPage() {
           setErrorMessage(json.error?.message ?? "Failed to update note");
           return;
         }
-        saveImgs(imgKey(editingId), pendingImages);
         localStorage.setItem(moodKey(editingId), mood);
       }
       await loadNotes();
@@ -270,7 +232,6 @@ export default function NotesPage() {
       setErrorMessage(json.error?.message ?? "Failed to delete note");
       return;
     }
-    localStorage.removeItem(imgKey(id));
     localStorage.removeItem(moodKey(id));
     await loadNotes();
     if (activeIndex >= notes.length - 1) setActiveIndex(Math.max(0, Math.min(activeIndex, notes.length - 2)));
@@ -638,65 +599,35 @@ export default function NotesPage() {
 
                     {/* Image attachments section */}
                     <div className="pl-10 mb-6">
-                      <div className="flex items-center gap-3 mb-3">
-                        <p className="text-[10px] font-bold tracking-widest uppercase" style={{ color: "var(--diary-text-tertiary)" }}>
-                          Photos &amp; Memories
-                        </p>
-                        <button
-                          onClick={() => fileInputRef.current?.click()}
-                          className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full transition-all hover:scale-105 active:scale-95"
-                          style={{
-                            background: "color-mix(in oklab, var(--diary-accent) 12%, transparent)",
-                            border: "1px dashed var(--diary-border)",
-                            color: "var(--diary-text-primary)",
-                          }}
-                        >
-                          <ImagePlus className="w-3 h-3" />
-                          Add Photo
-                        </button>
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          className="hidden"
-                          onChange={(e) => handleImageFiles(e.target.files)}
-                        />
-                      </div>
+                      <p className="text-[10px] font-bold tracking-widest uppercase mb-3" style={{ color: "var(--diary-text-tertiary)" }}>
+                        Photos &amp; Memories
+                      </p>
 
-                      {pendingImages.length > 0 ? (
-                        <div className="flex flex-wrap gap-4">
-                          {pendingImages.map((img) => (
-                            <div key={img.id} className="diary-polaroid group">
-                              <div className="diary-tape diary-tape-top" />
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={img.dataUrl} alt={img.caption || "Memory"} className="diary-polaroid-photo" />
-                              <input
-                                type="text"
-                                value={img.caption}
-                                onChange={(e) => updateCaption(img.id, e.target.value)}
-                                placeholder="Caption…"
-                                className="diary-polaroid-caption-input"
-                              />
-                              <button
-                                onClick={() => removeImage(img.id)}
-                                className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-400/80 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                                title="Remove photo"
-                              >
-                                ×
-                              </button>
-                            </div>
-                          ))}
+                      <ImageUploadZone
+                        onFilesSelected={(files) => {
+                          files.forEach((file) => imageUpload.uploadImage(file));
+                        }}
+                        storageMode={storageMode}
+                        onStorageModeChange={setStorageMode}
+                        uploading={imageUpload.uploading}
+                        disabled={saving}
+                      />
+
+                      {imageUpload.error && (
+                        <div className="mt-2 text-xs text-red-500/80 px-2">
+                          {imageUpload.error}
                         </div>
-                      ) : (
-                        <button
-                          onClick={() => fileInputRef.current?.click()}
-                          className="w-full flex flex-col items-center justify-center gap-2 py-6 rounded-xl border-2 border-dashed transition-all hover:scale-[1.01]"
-                          style={{ borderColor: "rgba(200,144,96,0.2)", color: "rgba(200,144,96,0.4)" }}
-                        >
-                          <ImagePlus className="w-6 h-6" />
-                          <span className="text-xs">Attach photos to this memory</span>
-                        </button>
+                      )}
+
+                      {imageUpload.images.length > 0 && (
+                        <div className="mt-4">
+                          <ImageGallery
+                            images={imageUpload.images}
+                            onCaptionChange={imageUpload.updateCaption}
+                            onDelete={imageUpload.deleteImage}
+                            disabled={saving}
+                          />
+                        </div>
                       )}
                     </div>
 
@@ -826,13 +757,13 @@ export default function NotesPage() {
                     )}
 
                     {/* Photo polaroids */}
-                    {(noteImagesMap[activeNote.id]?.length ?? 0) > 0 && (
+                    {viewImages.length > 0 && (
                       <div className="pl-10 mt-8">
                         <p className="text-[10px] font-bold tracking-widest uppercase mb-4" style={{ color: "var(--diary-text-tertiary)" }}>
                           📷 Memories
                         </p>
                         <div className="flex flex-wrap gap-6 pb-2">
-                          {noteImagesMap[activeNote.id].map((img, idx) => (
+                          {viewImages.map((img, idx) => (
                             <div
                               key={img.id}
                               className="diary-polaroid-view"
@@ -840,7 +771,7 @@ export default function NotesPage() {
                             >
                               <div className={`diary-tape ${idx % 3 === 0 ? "diary-tape-top" : idx % 3 === 1 ? "diary-tape-left" : "diary-tape-corner"}`} />
                               {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={img.dataUrl} alt={img.caption || "Memory"} className="diary-polaroid-photo" />
+                              <img src={img.dataUrl || img.publicUrl} alt={img.caption || "Memory"} className="diary-polaroid-photo" />
                               {img.caption && (
                                 <p className="diary-polaroid-caption-view">{img.caption}</p>
                               )}
