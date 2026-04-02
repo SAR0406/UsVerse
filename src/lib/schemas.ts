@@ -167,3 +167,98 @@ export const GenerateSuggestionsSchema = z.object({
 
 export type SuggestionTone = z.infer<typeof SuggestionToneSchema>;
 export type GenerateSuggestionsInput = z.infer<typeof GenerateSuggestionsSchema>;
+
+// ─── Settings ──────────────────────────────────────────────────────────────
+
+// Profile settings
+export const UpdateProfileSchema = z.object({
+  display_name: z.string().trim().min(1).max(50).optional(),
+  username: z
+    .string()
+    .trim()
+    .min(3, "Username must be at least 3 characters")
+    .max(20, "Username must be at most 20 characters")
+    .regex(/^[a-zA-Z0-9_-]+$/, "Username can only contain letters, numbers, underscores, and hyphens")
+    .optional(),
+  bio: z.string().trim().max(160).optional(),
+});
+
+export type UpdateProfileInput = z.infer<typeof UpdateProfileSchema>;
+
+// User settings
+export const UpdateUserSettingsSchema = z.object({
+  theme: z.enum(["light", "dark", "system"]).optional(),
+  accent_color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Invalid hex color").optional(),
+  ui_density: z.enum(["compact", "normal", "comfortable"]).optional(),
+  font_scale: z.number().min(0.8).max(1.4).optional(),
+  language: z.string().optional(),
+  timezone: z.string().optional(),
+  date_format: z.enum(["MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD"]).optional(),
+  time_format: z.enum(["12h", "24h"]).optional(),
+});
+
+export type UpdateUserSettingsInput = z.infer<typeof UpdateUserSettingsSchema>;
+
+// Notification preferences
+export const UpdateNotificationPreferencesSchema = z.object({
+  email_enabled: z.boolean().optional(),
+  email_messages: z.boolean().optional(),
+  email_daily: z.boolean().optional(),
+  email_presence: z.boolean().optional(),
+  email_notes: z.boolean().optional(),
+  email_marketing: z.boolean().optional(),
+  push_enabled: z.boolean().optional(),
+  push_messages: z.boolean().optional(),
+  push_presence: z.boolean().optional(),
+  inapp_enabled: z.boolean().optional(),
+  inapp_sound: z.boolean().optional(),
+});
+
+export type UpdateNotificationPreferencesInput = z.infer<typeof UpdateNotificationPreferencesSchema>;
+
+// Privacy settings
+export const UpdatePrivacySettingsSchema = z.object({
+  profile_visibility: z.enum(["public", "private", "couple_only"]).optional(),
+  show_activity_status: z.boolean().optional(),
+  show_last_seen: z.boolean().optional(),
+  allow_data_export: z.boolean().optional(),
+  analytics_consent: z.boolean().optional(),
+});
+
+export type UpdatePrivacySettingsInput = z.infer<typeof UpdatePrivacySettingsSchema>;
+
+// AI preferences
+export const UpdateAIPreferencesSchema = z.object({
+  default_model: z.string().optional(),
+  response_style: z.enum(["concise", "balanced", "detailed"]).optional(),
+  auto_save_suggestions: z.boolean().optional(),
+  use_for_enhancement: z.boolean().optional(),
+  training_consent: z.boolean().optional(),
+});
+
+export type UpdateAIPreferencesInput = z.infer<typeof UpdateAIPreferencesSchema>;
+
+// Password update
+export const UpdatePasswordSchema = z.object({
+  current_password: z.string().min(6, "Password must be at least 6 characters"),
+  new_password: z.string().min(8, "New password must be at least 8 characters"),
+});
+
+export type UpdatePasswordInput = z.infer<typeof UpdatePasswordSchema>;
+
+// Email change
+export const RequestEmailChangeSchema = z.object({
+  new_email: z.string().email("Invalid email address"),
+  password: z.string().min(6, "Password is required"),
+});
+
+export type RequestEmailChangeInput = z.infer<typeof RequestEmailChangeSchema>;
+
+// API key creation
+export const CreateAPIKeySchema = z.object({
+  key_name: z.string().trim().min(1).max(50),
+  scopes: z.array(z.string()).default([]),
+  expires_in_days: z.number().int().min(1).max(365).optional(),
+});
+
+export type CreateAPIKeyInput = z.infer<typeof CreateAPIKeySchema>;
