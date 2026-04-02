@@ -571,27 +571,49 @@ body {
    DIARY PAGE STYLES
 ═══════════════════════════════════════════════════ */
 
-/* Paper texture background */
-.diary-paper {
-  background-color: #fdf6e9;
-  background-image:
-    repeating-linear-gradient(
-      transparent,
-      transparent 31px,
-      rgba(147, 180, 220, 0.35) 31px,
-      rgba(147, 180, 220, 0.35) 32px
-    );
+/* Theme-aware diary colors */
+:root {
+  --diary-paper-bg: #fdf6e9;
+  --diary-paper-line: rgba(147, 180, 220, 0.35);
+  --diary-text-primary: #3d1e0a;
+  --diary-text-secondary: #6b3f20;
+  --diary-text-tertiary: #8b6948;
+  --diary-text-placeholder: rgba(61, 30, 10, 0.35);
+  --diary-border: rgba(139, 105, 72, 0.25);
+  --diary-accent: #c89060;
 }
 
-[data-theme="dark"] .diary-paper,
-:root:not([data-theme="light"]) .diary-paper {
-  background-color: #1e1630;
+[data-theme="dark"] {
+  --diary-paper-bg: #1e1630;
+  --diary-paper-line: rgba(100, 80, 160, 0.25);
+  --diary-text-primary: #e8d5c0;
+  --diary-text-secondary: #d0b8a0;
+  --diary-text-tertiary: #b89878;
+  --diary-text-placeholder: rgba(232, 213, 192, 0.35);
+  --diary-border: rgba(184, 152, 120, 0.25);
+  --diary-accent: #d4a574;
+}
+
+:root:not([data-theme="light"]) {
+  --diary-paper-bg: #1e1630;
+  --diary-paper-line: rgba(100, 80, 160, 0.25);
+  --diary-text-primary: #e8d5c0;
+  --diary-text-secondary: #d0b8a0;
+  --diary-text-tertiary: #b89878;
+  --diary-text-placeholder: rgba(232, 213, 192, 0.35);
+  --diary-border: rgba(184, 152, 120, 0.25);
+  --diary-accent: #d4a574;
+}
+
+/* Paper texture background */
+.diary-paper {
+  background-color: var(--diary-paper-bg);
   background-image:
     repeating-linear-gradient(
       transparent,
       transparent 31px,
-      rgba(100, 80, 160, 0.25) 31px,
-      rgba(100, 80, 160, 0.25) 32px
+      var(--diary-paper-line) 31px,
+      var(--diary-paper-line) 32px
     );
 }
 
@@ -875,13 +897,13 @@ body {
   outline: none;
   text-align: center;
   font-size: 0.65rem;
-  color: #6b3f20;
+  color: var(--diary-text-secondary);
   font-family: var(--font-accent), cursive;
   width: calc(100% - 16px);
 }
 
 .diary-polaroid-caption-input::placeholder {
-  color: rgba(107, 63, 32, 0.35);
+  color: var(--diary-text-placeholder);
 }
 
 .diary-polaroid-caption-view {
@@ -891,7 +913,7 @@ body {
   right: 8px;
   text-align: center;
   font-size: 0.68rem;
-  color: #6b3f20;
+  color: var(--diary-text-secondary);
   font-family: var(--font-accent), cursive;
   line-height: 1.3;
 }

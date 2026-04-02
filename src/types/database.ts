@@ -67,26 +67,113 @@ export interface Database {
         Row: {
           id: string;
           created_at: string;
+          updated_at: string;
           couple_id: string;
           sender_id: string;
           content: string;
-          message_type: "text" | "touch" | "presence";
+          message_type: "text" | "touch" | "presence" | "photo" | "video" | "voice" | "gif";
+          media_url: string | null;
+          media_thumbnail_url: string | null;
+          media_duration: number | null;
+          gif_url: string | null;
+          reply_to_id: string | null;
+          edited: boolean;
+          read_at: string | null;
+          deleted_for_sender: boolean;
+          deleted_for_receiver: boolean;
         };
         Insert: {
           id?: string;
           created_at?: string;
+          updated_at?: string;
           couple_id: string;
           sender_id: string;
           content: string;
-          message_type?: "text" | "touch" | "presence";
+          message_type?: "text" | "touch" | "presence" | "photo" | "video" | "voice" | "gif";
+          media_url?: string | null;
+          media_thumbnail_url?: string | null;
+          media_duration?: number | null;
+          gif_url?: string | null;
+          reply_to_id?: string | null;
+          edited?: boolean;
+          read_at?: string | null;
+          deleted_for_sender?: boolean;
+          deleted_for_receiver?: boolean;
         };
         Update: {
           id?: string;
           created_at?: string;
+          updated_at?: string;
           couple_id?: string;
           sender_id?: string;
           content?: string;
-          message_type?: "text" | "touch" | "presence";
+          message_type?: "text" | "touch" | "presence" | "photo" | "video" | "voice" | "gif";
+          media_url?: string | null;
+          media_thumbnail_url?: string | null;
+          media_duration?: number | null;
+          gif_url?: string | null;
+          reply_to_id?: string | null;
+          edited?: boolean;
+          read_at?: string | null;
+          deleted_for_sender?: boolean;
+          deleted_for_receiver?: boolean;
+        };
+        Relationships: [];
+      };
+      message_reactions: {
+        Row: {
+          id: string;
+          created_at: string;
+          message_id: string;
+          user_id: string;
+          reaction: "heart" | "laugh" | "sad" | "wow" | "angry" | "thumbs_up" | "fire" | "clap";
+        };
+        Insert: {
+          id?: string;
+          created_at?: string;
+          message_id: string;
+          user_id: string;
+          reaction: "heart" | "laugh" | "sad" | "wow" | "angry" | "thumbs_up" | "fire" | "clap";
+        };
+        Update: {
+          id?: string;
+          created_at?: string;
+          message_id?: string;
+          user_id?: string;
+          reaction?: "heart" | "laugh" | "sad" | "wow" | "angry" | "thumbs_up" | "fire" | "clap";
+        };
+        Relationships: [];
+      };
+      chat_themes: {
+        Row: {
+          couple_id: string;
+          created_at: string;
+          updated_at: string;
+          theme_name: string;
+          primary_color: string;
+          secondary_color: string;
+          bubble_style: "rounded" | "sharp" | "minimal";
+          custom_emoji: string | null;
+        };
+        Insert: {
+          couple_id: string;
+          created_at?: string;
+          updated_at?: string;
+          theme_name?: string;
+          primary_color?: string;
+          secondary_color?: string;
+          bubble_style?: "rounded" | "sharp" | "minimal";
+          custom_emoji?: string | null;
+        };
+        Update: {
+          couple_id?: string;
+          created_at?: string;
+          updated_at?: string;
+          theme_name?: string;
+          primary_color?: string;
+          secondary_color?: string;
+          bubble_style?: "rounded" | "sharp" | "minimal";
+          custom_emoji?: string | null;
         };
         Relationships: [];
       };
@@ -203,6 +290,8 @@ export interface Database {
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 export type Couple = Database["public"]["Tables"]["couples"]["Row"];
 export type Message = Database["public"]["Tables"]["messages"]["Row"];
+export type MessageReaction = Database["public"]["Tables"]["message_reactions"]["Row"];
+export type ChatTheme = Database["public"]["Tables"]["chat_themes"]["Row"];
 export type DailyAnswer =
   Database["public"]["Tables"]["daily_answers"]["Row"];
 export type SharedNote = Database["public"]["Tables"]["shared_notes"]["Row"];

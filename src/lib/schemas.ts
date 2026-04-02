@@ -28,11 +28,31 @@ export const SendMessageSchema = z.object({
     .string()
     .min(1, "Message cannot be empty")
     .max(4_000, "Message too long"),
-  message_type: z.enum(["text", "touch", "presence"]).default("text"),
+  message_type: z.enum(["text", "touch", "presence", "photo", "video", "voice", "gif"]).default("text"),
+  media_url: z.string().url().optional(),
+  media_thumbnail_url: z.string().url().optional(),
+  media_duration: z.number().int().positive().optional(),
+  gif_url: z.string().url().optional(),
+  reply_to_id: z.string().uuid().optional(),
   idempotency_key: idempotencyKey,
 });
 
 export type SendMessageInput = z.infer<typeof SendMessageSchema>;
+
+export const EditMessageSchema = z.object({
+  content: z
+    .string()
+    .min(1, "Message cannot be empty")
+    .max(4_000, "Message too long"),
+});
+
+export type EditMessageInput = z.infer<typeof EditMessageSchema>;
+
+export const AddReactionSchema = z.object({
+  reaction: z.enum(["heart", "laugh", "sad", "wow", "angry", "thumbs_up", "fire", "clap"]),
+});
+
+export type AddReactionInput = z.infer<typeof AddReactionSchema>;
 
 // ─── Presence ──────────────────────────────────────────────────────────────
 
