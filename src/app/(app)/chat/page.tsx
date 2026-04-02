@@ -612,34 +612,95 @@ export default function ChatPage() {
     if (!userId) return;
     setIsUploading(true);
     setUploadProgress(0);
-    try {
-      const ext = file.name.split(".").pop();
-      const fileName = `${userId}/${Date.now()}.${ext}`;
+    setComposerError(null);
 
+    try {
+      // Validate file size (10MB max for chat media)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        throw new Error("File size must be less than 10MB");
+      }
+
+      // Validate file type
+      if (type === "photo" && !file.type.startsWith("image/")) {
+        throw new Error("Please select a valid image file");
+      }
+      if (type === "video" && !file.type.startsWith("video/")) {
+        throw new Error("Please select a valid video file");
+      }
+      if (type === "voice" && !file.type.startsWith("audio/")) {
+        throw new Error("Please select a valid audio file");
+      }
+
+      setUploadProgress(20);
+
+      // Generate unique filename with proper extension
+      const ext = file.name.split(".").pop() || (type === "voice" ? "webm" : "mp4");
+      const timestamp = Date.now();
+      const randomId = Math.random().toString(36).slice(2, 11);
+      const fileName = `${userId}/${timestamp}-${randomId}.${ext}`;
+
+      setUploadProgress(40);
+
+      // Upload to Supabase Storage
       const { data, error } = await supabase.storage
         .from("chat-media")
         .upload(fileName, file, {
           cacheControl: "3600",
           upsert: false,
+          contentType: file.type,
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Upload error:", error);
+        // Provide more specific error messages
+        if (error.message.includes("row-level security") || error.message.includes("permission")) {
+          throw new Error("Permission error. Please ensure you're logged in.");
+        }
+        if (error.message.includes("not found")) {
+          throw new Error("Storage bucket not configured. Please contact support.");
+        }
+        throw new Error(error.message || "Failed to upload file");
+      }
 
+      setUploadProgress(70);
+
+      // Get public URL for the uploaded file
       const { data: urlData } = supabase.storage
         .from("chat-media")
         .getPublicUrl(data.path);
 
+      if (!urlData?.publicUrl) {
+        throw new Error("Failed to get media URL");
+      }
+
       const mediaUrl = urlData.publicUrl;
 
-      // For video/voice, get duration if needed
-      const duration = type === "video" || type === "voice" ? await getMediaDuration(file) : undefined;
+      setUploadProgress(85);
 
+      // For video/voice, get duration if needed
+      let duration: number | undefined;
+      if (type === "video" || type === "voice") {
+        try {
+          duration = await getMediaDuration(file);
+        } catch (err) {
+          console.warn("Could not get media duration:", err);
+          duration = 0;
+        }
+      }
+
+      setUploadProgress(95);
+
+      // Send message with media
       await sendMessage("", {
         media_url: mediaUrl,
         message_type: type,
         media_duration: duration,
       });
+
+      setUploadProgress(100);
     } catch (error) {
+      console.error("File upload error:", error);
       setComposerError(
         error instanceof Error ? error.message : "Failed to upload file"
       );
@@ -689,7 +750,7 @@ export default function ChatPage() {
       recorder.start();
       setMediaRecorder(recorder);
       setIsRecording(true);
-    } catch (_error) {
+    } catch {
       setComposerError("Failed to access microphone");
     }
   }
@@ -963,23 +1024,66 @@ export default function ChatPage() {
                 >
                   {/* Render different message types */}
                   {msg.message_type === "photo" && msg.media_url && (
-                    <Image
-                      src={msg.media_url}
-                      alt="Shared photo"
-                      width={400}
-                      height={300}
-                      className="rounded-lg max-w-full h-auto mb-2"
-                    />
+                    <div className="relative">
+                      <Image
+                        src={msg.media_url}
+                        alt="Shared photo"
+                        width={400}
+                        height={300}
+                        className="rounded-lg max-w-full h-auto mb-2"
+                        unoptimized
+                        onError={(e) => {
+                          console.error("Image failed to load:", msg.media_url);
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = "none";
+                          const errorDiv = target.nextElementSibling;
+                          if (errorDiv) errorDiv.classList.remove("hidden");
+                        }}
+                      />
+                      <div className="hidden text-xs text-red-300 bg-red-500/10 rounded-lg p-2 mb-2">
+                        Failed to load image
+                      </div>
+                    </div>
                   )}
                   {msg.message_type === "video" && msg.media_url && (
-                    <video
-                      src={msg.media_url}
-                      controls
-                      className="rounded-lg max-w-full h-auto mb-2"
-                    />
+                    <div className="relative">
+                      <video
+                        src={msg.media_url}
+                        controls
+                        preload="metadata"
+                        className="rounded-lg max-w-full h-auto mb-2"
+                        onError={(e) => {
+                          console.error("Video failed to load:", msg.media_url);
+                          const target = e.target as HTMLVideoElement;
+                          target.style.display = "none";
+                          const errorDiv = target.nextElementSibling;
+                          if (errorDiv) errorDiv.classList.remove("hidden");
+                        }}
+                      />
+                      <div className="hidden text-xs text-red-300 bg-red-500/10 rounded-lg p-2 mb-2">
+                        Failed to load video
+                      </div>
+                    </div>
                   )}
                   {msg.message_type === "voice" && msg.media_url && (
-                    <audio src={msg.media_url} controls className="mb-2" />
+                    <div className="relative">
+                      <audio
+                        src={msg.media_url}
+                        controls
+                        preload="metadata"
+                        className="mb-2 w-full max-w-xs"
+                        onError={(e) => {
+                          console.error("Audio failed to load:", msg.media_url);
+                          const target = e.target as HTMLAudioElement;
+                          target.style.display = "none";
+                          const errorDiv = target.nextElementSibling;
+                          if (errorDiv) errorDiv.classList.remove("hidden");
+                        }}
+                      />
+                      <div className="hidden text-xs text-red-300 bg-red-500/10 rounded-lg p-2 mb-2">
+                        Failed to load audio
+                      </div>
+                    </div>
                   )}
                   {msg.message_type === "gif" && msg.gif_url && (
                     <Image
@@ -988,6 +1092,7 @@ export default function ChatPage() {
                       width={400}
                       height={300}
                       className="rounded-lg max-w-full h-auto mb-2"
+                      unoptimized
                     />
                   )}
 
