@@ -213,4 +213,4 @@ export async function syncUnsyncedImages(userId: string): Promise<void> {
   }
 }
 
-export { StorageMode, validateImageFile } from "./cloud";
+export { validateImageFile } from "./cloud";

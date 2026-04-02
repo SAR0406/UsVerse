@@ -129,8 +129,13 @@ export async function deleteImagesByNoteId(noteId: string): Promise<void> {
  */
 export async function getUnsyncedImages(): Promise<DiaryImageRecord[]> {
   const db = await getDB();
-  const index = db.transaction(STORE_NAME).store.index("uploadedToCloud");
-  return await index.getAll(false);
+  const tx = db.transaction(STORE_NAME, "readonly");
+  const store = tx.store;
+  const allRecords = await store.getAll();
+  await tx.done;
+
+  // Filter for unsynced images
+  return allRecords.filter((record) => !record.uploadedToCloud);
 }
 
 /**
