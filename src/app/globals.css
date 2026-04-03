@@ -37,15 +37,15 @@
 
 [data-theme="light"] {
   --background: #fff8fb;
-  --foreground: #2d1654;
+  --foreground: #1a0d2e;
   --card: #ffffff;
   --card-fallback-rgb: 255, 255, 255;
   --surface-2: #fff0f7;
   --border: #f0cadf;
   --accent: var(--color-blossom);
   --accent-glow: rgba(255, 107, 157, 0.3);
-  --text-soft: #8b6f9a;
-  --text-whisper: #c4a8d4;
+  --text-soft: #4a3d5a;
+  --text-whisper: #6b5a7d;
 }
 
 @theme inline {

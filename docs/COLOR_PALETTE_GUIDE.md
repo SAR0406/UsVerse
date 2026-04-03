@@ -127,9 +127,9 @@ An optional bright mode that maintains the romantic essence with softer, warmer 
 
 | Element | Variable | Color | Usage |
 |---------|----------|-------|-------|
-| **Primary Text** | `--foreground` | `#2d1654` | Main text (dark) |
-| **Soft Text** | `--text-soft` | `#8b6f9a` | Secondary text |
-| **Whisper Text** | `--text-whisper` | `#c4a8d4` | Tertiary text |
+| **Primary Text** | `--foreground` | `#1a0d2e` | Main text (dark) |
+| **Soft Text** | `--text-soft` | `#4a3d5a` | Secondary text |
+| **Whisper Text** | `--text-whisper` | `#6b5a7d` | Tertiary text |
 | **Border** | `--border` | `#f0cadf` | Soft pink borders |
 
 ### Background Atmosphere
@@ -459,9 +459,9 @@ var(--card)                /* #1c1040 dark / #ffffff light */
 var(--surface-2)           /* #2d1654 dark / #fff0f7 light */
 
 /* Text */
-var(--foreground)          /* #f0d6ff dark / #2d1654 light */
-var(--text-soft)           /* #c9a8df dark / #8b6f9a light */
-var(--text-whisper)        /* #9f82ba dark / #c4a8d4 light */
+var(--foreground)          /* #f0d6ff dark / #1a0d2e light */
+var(--text-soft)           /* #c9a8df dark / #4a3d5a light */
+var(--text-whisper)        /* #9f82ba dark / #6b5a7d light */
 
 /* Borders & Lines */
 var(--border)              /* rgba(155, 109, 255, 0.3) dark / #f0cadf light */
