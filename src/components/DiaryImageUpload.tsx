@@ -9,6 +9,7 @@ import React, { useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { ImagePlus, Upload, Cloud, HardDrive, X, Loader2 } from "lucide-react";
 import type { StorageMode } from "@/lib/storage/diary-storage";
+import { SecureMediaImage } from "@/components/SecureMedia";
 
 interface ImageUploadZoneProps {
   onFilesSelected: (files: File[]) => void;
@@ -184,12 +185,24 @@ export function ImageGallery({ images, onCaptionChange, onDelete, disabled = fal
       {images.map((img) => (
         <div key={img.id} className="diary-polaroid group relative">
           <div className="diary-tape diary-tape-top" />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={img.dataUrl || img.publicUrl}
-            alt={img.caption || "Memory"}
-            className="diary-polaroid-photo"
-          />
+          {img.dataUrl ? (
+            // Local image - use regular img tag
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={img.dataUrl}
+              alt={img.caption || "Memory"}
+              className="diary-polaroid-photo"
+            />
+          ) : img.publicUrl ? (
+            // Cloud image - use SecureMediaImage for signed URL
+            <SecureMediaImage
+              src={img.publicUrl}
+              alt={img.caption || "Memory"}
+              width={300}
+              height={300}
+              className="diary-polaroid-photo"
+            />
+          ) : null}
           <input
             type="text"
             value={img.caption}

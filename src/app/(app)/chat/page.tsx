@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import type { Message, MessageReaction, Profile } from "@/types/database";
 import { formatDistanceToNow } from "date-fns";
+import { SecureMediaImage, SecureMediaVideo, SecureMediaAudio } from "@/components/SecureMedia";
 
 const DEFAULT_AI_SUGGESTIONS = [
   "I've been thinking about you all day ☁️",
@@ -625,17 +626,14 @@ export default function ChatPage() {
 
       if (error) throw error;
 
-      const { data: urlData } = supabase.storage
-        .from("chat-media")
-        .getPublicUrl(data.path);
-
-      const mediaUrl = urlData.publicUrl;
+      // Store the storage path (not public URL) for private buckets
+      const mediaPath = data.path;
 
       // For video/voice, get duration if needed
       const duration = type === "video" || type === "voice" ? await getMediaDuration(file) : undefined;
 
       await sendMessage("", {
-        media_url: mediaUrl,
+        media_url: mediaPath,
         message_type: type,
         media_duration: duration,
       });
@@ -963,7 +961,7 @@ export default function ChatPage() {
                 >
                   {/* Render different message types */}
                   {msg.message_type === "photo" && msg.media_url && (
-                    <Image
+                    <SecureMediaImage
                       src={msg.media_url}
                       alt="Shared photo"
                       width={400}
@@ -972,14 +970,13 @@ export default function ChatPage() {
                     />
                   )}
                   {msg.message_type === "video" && msg.media_url && (
-                    <video
+                    <SecureMediaVideo
                       src={msg.media_url}
-                      controls
                       className="rounded-lg max-w-full h-auto mb-2"
                     />
                   )}
                   {msg.message_type === "voice" && msg.media_url && (
-                    <audio src={msg.media_url} controls className="mb-2" />
+                    <SecureMediaAudio src={msg.media_url} className="mb-2" />
                   )}
                   {msg.message_type === "gif" && msg.gif_url && (
                     <Image
