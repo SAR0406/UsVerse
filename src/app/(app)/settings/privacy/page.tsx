@@ -24,6 +24,7 @@ export default function PrivacySettingsPage() {
     allow_data_export: true,
     analytics_consent: true,
   });
+  const [isExporting, setIsExporting] = useState(false);
 
   const { isLoading } = useQuery({
     queryKey: ["privacySettings"],
@@ -62,6 +63,30 @@ export default function PrivacySettingsPage() {
   const handleVisibilityChange = (value: string) => {
     setPrivacy({ ...privacy, profile_visibility: value });
     updateMutation.mutate({ profile_visibility: value });
+  };
+
+  const handleDataExport = async () => {
+    setIsExporting(true);
+    try {
+      const res = await fetch("/api/settings/export");
+      if (!res.ok) throw new Error("Failed to export data");
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `usverse_data_export_${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast.success("Data exported successfully!");
+    } catch (error) {
+      toast.error("Failed to export data");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   if (isLoading) {
@@ -157,10 +182,16 @@ export default function PrivacySettingsPage() {
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-purple-600/20 text-purple-200 border border-purple-400/30 text-sm font-medium hover:bg-purple-600/30 transition"
+          onClick={handleDataExport}
+          disabled={isExporting}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-purple-600/20 text-purple-200 border border-purple-400/30 text-sm font-medium hover:bg-purple-600/30 transition disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <Download className="w-4 h-4" />
-          Download My Data
+          {isExporting ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Download className="w-4 h-4" />
+          )}
+          {isExporting ? "Exporting..." : "Download My Data"}
         </motion.button>
       </SettingsSection>
     </div>
