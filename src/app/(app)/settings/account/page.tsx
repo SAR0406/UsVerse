@@ -19,6 +19,8 @@ export default function AccountSettingsPage() {
   const [showEmailChange, setShowEmailChange] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [emailChangePassword, setEmailChangePassword] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
 
   // Fetch profile
   const { data: profileData, isLoading } = useQuery({
@@ -124,6 +126,31 @@ export default function AccountSettingsPage() {
     },
   });
 
+  // Delete account mutation
+  const deleteAccountMutation = useMutation({
+    mutationFn: async (password: string) => {
+      const res = await fetch("/api/settings/account", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to delete account");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success("Account deleted successfully. Redirecting...");
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 2000);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
   // Update password mutation
   const updatePasswordMutation = useMutation({
     mutationFn: async (data: { current_password: string; new_password: string }) => {
@@ -194,6 +221,16 @@ export default function AccountSettingsPage() {
       return;
     }
     changeEmailMutation.mutate({ new_email: newEmail, password: emailChangePassword });
+  };
+
+  const handleDeleteAccount = () => {
+    if (!deletePassword) {
+      toast.error("Please enter your password");
+      return;
+    }
+    if (window.confirm("Are you absolutely sure? This action cannot be undone. All your data will be permanently deleted.")) {
+      deleteAccountMutation.mutate(deletePassword);
+    }
   };
 
   if (isLoading) {
@@ -435,14 +472,58 @@ export default function AccountSettingsPage() {
           label="Delete Account"
           description="Permanently delete your account and all data"
         >
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500/10 text-red-400 border border-red-500/30 text-sm font-medium hover:bg-red-500/20 transition"
-          >
-            <Trash2 className="w-4 h-4" />
-            Delete Account
-          </motion.button>
+          {!showDeleteConfirm ? (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setShowDeleteConfirm(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500/10 text-red-400 border border-red-500/30 text-sm font-medium hover:bg-red-500/20 transition"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete Account
+            </motion.button>
+          ) : (
+            <div className="space-y-3">
+              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+                <p className="font-semibold mb-1">⚠️ Warning</p>
+                <p>This will permanently delete your account and all associated data. This action cannot be undone.</p>
+              </div>
+              <input
+                type="password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                className="w-64 px-3 py-2 rounded-lg bg-[color:var(--surface-2)] border border-red-500/30 text-[color:var(--foreground)] text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                placeholder="Enter password to confirm"
+              />
+              <div className="flex gap-3">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setDeletePassword("");
+                  }}
+                  className="px-4 py-2 rounded-lg bg-[color:var(--surface-2)] border border-purple-400/20 text-[color:var(--foreground)] text-sm font-medium hover:bg-[color:var(--surface-3)] transition"
+                >
+                  Cancel
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleDeleteAccount}
+                  disabled={deleteAccountMutation.isPending}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {deleteAccountMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
+                  Confirm Delete
+                </motion.button>
+              </div>
+            </div>
+          )}
         </SettingsItem>
       </SettingsSection>
     </div>
