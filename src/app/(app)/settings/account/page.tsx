@@ -16,6 +16,9 @@ export default function AccountSettingsPage() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showEmailChange, setShowEmailChange] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [emailChangePassword, setEmailChangePassword] = useState("");
 
   // Fetch profile
   const { data: profileData, isLoading } = useQuery({
@@ -28,6 +31,24 @@ export default function AccountSettingsPage() {
       setUsername(data.profile?.username || "");
       setBio(data.profile?.bio || "");
       return data;
+    },
+  });
+
+  // Fetch user data for email
+  const { data: userData } = useQuery({
+    queryKey: ["user"],
+    queryFn: async () => {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+      const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
+        headers: {
+          'apikey': supabaseKey || '',
+          'Authorization': `Bearer ${document.cookie.split('sb-access-token=')[1]?.split(';')[0] || ''}`,
+        },
+      });
+      if (!res.ok) return null;
+      return res.json();
     },
   });
 
@@ -72,6 +93,31 @@ export default function AccountSettingsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile"] });
       toast.success("Avatar updated successfully!");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  // Change email mutation
+  const changeEmailMutation = useMutation({
+    mutationFn: async (data: { new_email: string; password: string }) => {
+      const res = await fetch("/api/settings/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to change email");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success("Email change requested. Check your new email for confirmation.");
+      setShowEmailChange(false);
+      setNewEmail("");
+      setEmailChangePassword("");
     },
     onError: (error: Error) => {
       toast.error(error.message);
@@ -140,6 +186,14 @@ export default function AccountSettingsPage() {
       }
     };
     input.click();
+  };
+
+  const handleEmailChange = () => {
+    if (!newEmail || !emailChangePassword) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+    changeEmailMutation.mutate({ new_email: newEmail, password: emailChangePassword });
   };
 
   if (isLoading) {
@@ -254,10 +308,75 @@ export default function AccountSettingsPage() {
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[color:var(--surface-2)] border border-purple-400/20 text-sm">
             <Mail className="w-4 h-4 text-[color:var(--text-soft)]" />
             <span className="text-[color:var(--foreground)]">
-              {profileData?.profile?.id ? "email@example.com" : "Not set"}
+              {userData?.email || "Loading..."}
             </span>
           </div>
         </SettingsItem>
+
+        {!showEmailChange ? (
+          <div className="flex justify-end pt-4 border-t border-purple-400/20">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setShowEmailChange(true)}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[color:var(--surface-2)] border border-purple-400/20 text-[color:var(--foreground)] font-medium text-sm hover:bg-[color:var(--surface-3)] transition-colors"
+            >
+              <Mail className="w-4 h-4" />
+              Change Email
+            </motion.button>
+          </div>
+        ) : (
+          <>
+            <SettingsItem label="New Email" description="Enter your new email address">
+              <input
+                type="email"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                className="w-64 px-3 py-2 rounded-lg bg-[color:var(--surface-2)] border border-purple-400/20 text-[color:var(--foreground)] text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                placeholder="new@example.com"
+              />
+            </SettingsItem>
+
+            <SettingsItem label="Confirm Password" description="Enter your current password to confirm">
+              <input
+                type="password"
+                value={emailChangePassword}
+                onChange={(e) => setEmailChangePassword(e.target.value)}
+                className="w-64 px-3 py-2 rounded-lg bg-[color:var(--surface-2)] border border-purple-400/20 text-[color:var(--foreground)] text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                placeholder="Current password"
+              />
+            </SettingsItem>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-purple-400/20">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  setShowEmailChange(false);
+                  setNewEmail("");
+                  setEmailChangePassword("");
+                }}
+                className="px-5 py-2.5 rounded-xl bg-[color:var(--surface-2)] border border-purple-400/20 text-[color:var(--foreground)] font-medium text-sm hover:bg-[color:var(--surface-3)] transition-colors"
+              >
+                Cancel
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleEmailChange}
+                disabled={changeEmailMutation.isPending}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium text-sm hover:shadow-lg hover:shadow-purple-500/30 transition-shadow disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {changeEmailMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                Change Email
+              </motion.button>
+            </div>
+          </>
+        )}
       </SettingsSection>
 
       {/* Password Section */}
