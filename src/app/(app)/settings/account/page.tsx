@@ -54,6 +54,30 @@ export default function AccountSettingsPage() {
     },
   });
 
+  // Upload avatar mutation
+  const uploadAvatarMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("avatar", file);
+      const res = await fetch("/api/settings/avatar", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to upload avatar");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      toast.success("Avatar updated successfully!");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
   // Update password mutation
   const updatePasswordMutation = useMutation({
     mutationFn: async (data: { current_password: string; new_password: string }) => {
@@ -105,6 +129,19 @@ export default function AccountSettingsPage() {
     updatePasswordMutation.mutate({ current_password: currentPassword, new_password: newPassword });
   };
 
+  const handleAvatarClick = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/jpeg,image/jpg,image/png,image/gif,image/webp";
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        uploadAvatarMutation.mutate(file);
+      }
+    };
+    input.click();
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-12">
@@ -123,11 +160,27 @@ export default function AccountSettingsPage() {
         {/* Avatar */}
         <div className="flex items-center gap-6">
           <div className="relative group">
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-3xl font-bold">
-              {displayName?.[0]?.toUpperCase() || <User className="w-10 h-10" />}
-            </div>
-            <button className="absolute inset-0 rounded-full bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-              <Camera className="w-6 h-6 text-white" />
+            {profileData?.profile?.avatar_url ? (
+              <img
+                src={profileData.profile.avatar_url}
+                alt="Avatar"
+                className="w-24 h-24 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-3xl font-bold">
+                {displayName?.[0]?.toUpperCase() || <User className="w-10 h-10" />}
+              </div>
+            )}
+            <button
+              onClick={handleAvatarClick}
+              disabled={uploadAvatarMutation.isPending}
+              className="absolute inset-0 rounded-full bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity disabled:cursor-not-allowed"
+            >
+              {uploadAvatarMutation.isPending ? (
+                <Loader2 className="w-6 h-6 text-white animate-spin" />
+              ) : (
+                <Camera className="w-6 h-6 text-white" />
+              )}
             </button>
           </div>
           <div>

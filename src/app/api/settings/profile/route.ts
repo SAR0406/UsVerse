@@ -12,7 +12,7 @@ export async function GET() {
 
   const { data: profile, error } = await supabase
     .from("profiles")
-    .select("id, display_name, avatar_url")
+    .select("id, display_name, avatar_url, username, bio")
     .eq("id", user.id)
     .single();
 
@@ -44,22 +44,22 @@ export async function PATCH(req: NextRequest) {
 
   const updates = validation.data;
 
-  // Check if username is already taken (commented out until migration is run)
-  // if (updates.username) {
-  //   const { data: existing } = await supabase
-  //     .from("profiles")
-  //     .select("id")
-  //     .eq("username", updates.username)
-  //     .neq("id", user.id)
-  //     .maybeSingle();
+  // Check if username is already taken
+  if (updates.username) {
+    const { data: existing } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("username", updates.username)
+      .neq("id", user.id)
+      .maybeSingle();
 
-  //   if (existing) {
-  //     return NextResponse.json(
-  //       { error: "Username is already taken" },
-  //       { status: 409 }
-  //     );
-  //   }
-  // }
+    if (existing) {
+      return NextResponse.json(
+        { error: "Username is already taken" },
+        { status: 409 }
+      );
+    }
+  }
 
   const { data, error } = await supabase
     .from("profiles")
