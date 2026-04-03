@@ -66,12 +66,43 @@ export default function RootLayout({
         <Script id="usverse-theme-init" strategy="beforeInteractive">{`
           (function() {
             try {
-              var saved = localStorage.getItem("usverse-theme");
-              var dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-              var theme = saved === "light" || saved === "dark" ? saved : (dark ? "dark" : "light");
+              var stored = localStorage.getItem("usverse-theme-prefs");
+              var theme = "romantic-dusk"; // default
+
+              if (stored) {
+                try {
+                  var prefs = JSON.parse(stored);
+                  theme = prefs.theme || "romantic-dusk";
+                } catch (e) {
+                  // Legacy support: check old storage key
+                  var oldTheme = localStorage.getItem("usverse-theme");
+                  if (oldTheme === "light" || oldTheme === "dark") {
+                    theme = oldTheme === "dark" ? "dark" : "romantic-dusk";
+                  }
+                }
+              } else {
+                // No stored preference, check system
+                var dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+                theme = dark ? "dark" : "romantic-dusk";
+              }
+
               document.documentElement.setAttribute("data-theme", theme);
+
+              // Update theme-color meta
               var themeMeta = document.querySelector('meta[name="theme-color"]');
-              if (themeMeta) themeMeta.setAttribute("content", theme === "dark" ? "#0d0720" : "#fff8fb");
+              if (themeMeta) {
+                var colors = {
+                  "romantic-dusk": "#fff8fb",
+                  "golden-hour": "#fffaf5",
+                  "mint-garden": "#f8fefb",
+                  "wisteria-dream": "#faf7fe",
+                  "blush-cream": "#fffcf8",
+                  "light": "#fff8fb",
+                  "dark": "#0d0720",
+                  "dark-void": "#050212"
+                };
+                themeMeta.setAttribute("content", colors[theme] || "#fff8fb");
+              }
             } catch (_) {
             }
           })();
