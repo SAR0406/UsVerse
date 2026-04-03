@@ -54,15 +54,23 @@ export function SecureMediaImage({ src, alt, width = 400, height = 300, classNam
 
   if (loading) {
     return (
-      <div className={`flex items-center justify-center bg-purple-900/20 rounded-lg ${className}`} style={{ width, height }}>
-        <Loader2 className="w-6 h-6 animate-spin text-purple-400" />
+      <div
+        className={`flex items-center justify-center bg-gradient-to-br from-purple-900/20 to-purple-800/10 rounded-lg animate-pulse ${className}`}
+        style={{ width, height }}
+        aria-label="Loading image"
+      >
+        <Loader2 className="w-6 h-6 animate-spin text-purple-400/70" />
       </div>
     );
   }
 
   if (error || !signedUrl) {
     return (
-      <div className={`flex items-center justify-center bg-red-900/20 rounded-lg text-red-400 text-sm ${className}`} style={{ width, height }}>
+      <div
+        className={`flex items-center justify-center bg-red-900/20 rounded-lg text-red-400 text-sm ${className}`}
+        style={{ width, height }}
+        role="alert"
+      >
         Failed to load image
       </div>
     );
@@ -75,7 +83,9 @@ export function SecureMediaImage({ src, alt, width = 400, height = 300, classNam
       width={width}
       height={height}
       className={className}
-      unoptimized
+      priority={false}
+      loading="lazy"
+      quality={85}
     />
   );
 }
@@ -126,21 +136,21 @@ export function SecureMediaVideo({ src, className = "" }: SecureMediaVideoProps)
 
   if (loading) {
     return (
-      <div className={`flex items-center justify-center bg-purple-900/20 rounded-lg p-8 ${className}`}>
-        <Loader2 className="w-6 h-6 animate-spin text-purple-400" />
+      <div className={`flex items-center justify-center bg-gradient-to-br from-purple-900/20 to-purple-800/10 rounded-lg p-8 animate-pulse ${className}`} aria-label="Loading video">
+        <Loader2 className="w-6 h-6 animate-spin text-purple-400/70" />
       </div>
     );
   }
 
   if (error || !signedUrl) {
     return (
-      <div className={`flex items-center justify-center bg-red-900/20 rounded-lg text-red-400 text-sm p-8 ${className}`}>
+      <div className={`flex items-center justify-center bg-red-900/20 rounded-lg text-red-400 text-sm p-8 ${className}`} role="alert">
         Failed to load video
       </div>
     );
   }
 
-  return <video src={signedUrl} controls className={className} />;
+  return <video src={signedUrl} controls className={className} preload="metadata" />;
 }
 
 interface SecureMediaAudioProps {
@@ -189,20 +199,20 @@ export function SecureMediaAudio({ src, className = "" }: SecureMediaAudioProps)
 
   if (loading) {
     return (
-      <div className={`flex items-center gap-2 text-purple-400 text-sm ${className}`}>
-        <Loader2 className="w-4 h-4 animate-spin" />
-        Loading audio...
+      <div className={`flex items-center gap-2 text-purple-400 text-sm ${className}`} aria-label="Loading audio">
+        <div className="w-4 h-4 bg-purple-400/30 rounded-full animate-pulse" />
+        <span className="animate-pulse">Loading audio...</span>
       </div>
     );
   }
 
   if (error || !signedUrl) {
     return (
-      <div className={`text-red-400 text-sm ${className}`}>
+      <div className={`text-red-400 text-sm ${className}`} role="alert">
         Failed to load audio
       </div>
     );
   }
 
-  return <audio src={signedUrl} controls className={className} />;
+  return <audio src={signedUrl} controls className={className} preload="metadata" />;
 }
