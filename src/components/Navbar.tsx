@@ -13,6 +13,7 @@ import {
   Clapperboard,
   LogOut,
   Home,
+  Settings,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import DisplayControls from "@/components/DisplayControls";
@@ -27,6 +28,7 @@ const navItems = [
   { href: "/bloom", label: "Bloom", icon: WandSparkles },
   { href: "/play", label: "Play", icon: Gamepad2 },
   { href: "/cinema", label: "Cinema", icon: Clapperboard },
+  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 export default function Navbar() {
@@ -53,7 +55,7 @@ export default function Navbar() {
 
         <nav className="flex-1 space-y-1">
           {navItems.map(({ href, label, icon: Icon }) => {
-            const active = pathname === href;
+            const active = pathname === href || pathname.startsWith(href + "/");
             return (
               <Link
                 key={href}

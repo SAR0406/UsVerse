@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import type { Message, MessageReaction, Profile } from "@/types/database";
 import { formatDistanceToNow } from "date-fns";
+import { SecureMediaImage, SecureMediaVideo, SecureMediaAudio } from "@/components/SecureMedia";
 
 const DEFAULT_AI_SUGGESTIONS = [
   "I've been thinking about you all day ☁️",
@@ -663,18 +664,8 @@ export default function ChatPage() {
         throw new Error(error.message || "Failed to upload file");
       }
 
-      setUploadProgress(70);
-
-      // Get public URL for the uploaded file
-      const { data: urlData } = supabase.storage
-        .from("chat-media")
-        .getPublicUrl(data.path);
-
-      if (!urlData?.publicUrl) {
-        throw new Error("Failed to get media URL");
-      }
-
-      const mediaUrl = urlData.publicUrl;
+      // Store the storage path (not public URL) for private buckets
+      const mediaPath = data.path;
 
       setUploadProgress(85);
 
@@ -693,7 +684,7 @@ export default function ChatPage() {
 
       // Send message with media
       await sendMessage("", {
-        media_url: mediaUrl,
+        media_url: mediaPath,
         message_type: type,
         media_duration: duration,
       });
@@ -1024,66 +1015,22 @@ export default function ChatPage() {
                 >
                   {/* Render different message types */}
                   {msg.message_type === "photo" && msg.media_url && (
-                    <div className="relative">
-                      <Image
-                        src={msg.media_url}
-                        alt="Shared photo"
-                        width={400}
-                        height={300}
-                        className="rounded-lg max-w-full h-auto mb-2"
-                        unoptimized
-                        onError={(e) => {
-                          console.error("Image failed to load:", msg.media_url);
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = "none";
-                          const errorDiv = target.nextElementSibling;
-                          if (errorDiv) errorDiv.classList.remove("hidden");
-                        }}
-                      />
-                      <div className="hidden text-xs text-red-300 bg-red-500/10 rounded-lg p-2 mb-2">
-                        Failed to load image
-                      </div>
-                    </div>
+                    <SecureMediaImage
+                      src={msg.media_url}
+                      alt="Shared photo"
+                      width={400}
+                      height={300}
+                      className="rounded-lg max-w-full h-auto mb-2"
+                    />
                   )}
                   {msg.message_type === "video" && msg.media_url && (
-                    <div className="relative">
-                      <video
-                        src={msg.media_url}
-                        controls
-                        preload="metadata"
-                        className="rounded-lg max-w-full h-auto mb-2"
-                        onError={(e) => {
-                          console.error("Video failed to load:", msg.media_url);
-                          const target = e.target as HTMLVideoElement;
-                          target.style.display = "none";
-                          const errorDiv = target.nextElementSibling;
-                          if (errorDiv) errorDiv.classList.remove("hidden");
-                        }}
-                      />
-                      <div className="hidden text-xs text-red-300 bg-red-500/10 rounded-lg p-2 mb-2">
-                        Failed to load video
-                      </div>
-                    </div>
+                    <SecureMediaVideo
+                      src={msg.media_url}
+                      className="rounded-lg max-w-full h-auto mb-2"
+                    />
                   )}
                   {msg.message_type === "voice" && msg.media_url && (
-                    <div className="relative">
-                      <audio
-                        src={msg.media_url}
-                        controls
-                        preload="metadata"
-                        className="mb-2 w-full max-w-xs"
-                        onError={(e) => {
-                          console.error("Audio failed to load:", msg.media_url);
-                          const target = e.target as HTMLAudioElement;
-                          target.style.display = "none";
-                          const errorDiv = target.nextElementSibling;
-                          if (errorDiv) errorDiv.classList.remove("hidden");
-                        }}
-                      />
-                      <div className="hidden text-xs text-red-300 bg-red-500/10 rounded-lg p-2 mb-2">
-                        Failed to load audio
-                      </div>
-                    </div>
+                    <SecureMediaAudio src={msg.media_url} className="mb-2" />
                   )}
                   {msg.message_type === "gif" && msg.gif_url && (
                     <Image

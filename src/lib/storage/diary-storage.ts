@@ -13,7 +13,7 @@ export interface DiaryImage {
   noteId: string;
   caption: string;
   dataUrl?: string; // For local storage
-  publicUrl?: string; // For cloud storage
+  publicUrl?: string; // For cloud storage (storage path, not public URL)
   cloudPath?: string;
   storageMode: StorageMode;
   createdAt: number;
@@ -60,7 +60,7 @@ export async function uploadImage(
         }
       );
 
-      if (result.success && result.publicUrl && result.path) {
+      if (result.success && result.path) {
         // Store metadata in IndexedDB for offline access
         const blob = file;
         await indexedDB.storeImage(imageId, noteId, blob, "");
@@ -76,7 +76,7 @@ export async function uploadImage(
           id: imageId,
           noteId,
           caption: "",
-          publicUrl: result.publicUrl,
+          publicUrl: result.path, // Store path for signed URL generation
           cloudPath: result.path,
           storageMode: "cloud",
           createdAt: Date.now(),

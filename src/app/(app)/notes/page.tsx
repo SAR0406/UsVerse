@@ -8,6 +8,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { useImageUpload } from "@/hooks/useImageUpload";
 import { ImageUploadZone, ImageGallery } from "@/components/DiaryImageUpload";
 import type { StorageMode } from "@/lib/storage/diary-storage";
+import { SecureMediaImage } from "@/components/SecureMedia";
 
 /* ─── Mood helpers ─────────────────── */
 const DRAFT_MOOD_KEY = "diary-mood-draft";
@@ -770,8 +771,14 @@ export default function NotesPage() {
                               style={{ transform: `rotate(${idx % 2 === 0 ? -2 : 2}deg)` }}
                             >
                               <div className={`diary-tape ${idx % 3 === 0 ? "diary-tape-top" : idx % 3 === 1 ? "diary-tape-left" : "diary-tape-corner"}`} />
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={img.dataUrl || img.publicUrl} alt={img.caption || "Memory"} className="diary-polaroid-photo" />
+                              {img.dataUrl ? (
+                                // Local image - use regular img tag
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={img.dataUrl} alt={img.caption || "Memory"} className="diary-polaroid-photo" />
+                              ) : img.publicUrl ? (
+                                // Cloud image - use SecureMediaImage for signed URL
+                                <SecureMediaImage src={img.publicUrl} alt={img.caption || "Memory"} width={300} height={300} className="diary-polaroid-photo" />
+                              ) : null}
                               {img.caption && (
                                 <p className="diary-polaroid-caption-view">{img.caption}</p>
                               )}

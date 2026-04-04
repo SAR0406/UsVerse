@@ -1,0 +1,531 @@
+"use client";
+
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { User, Mail, Lock, Trash2, Save, Loader2, Camera } from "lucide-react";
+import SettingsSection from "@/components/settings/SettingsSection";
+import SettingsItem from "@/components/settings/SettingsItem";
+import { motion } from "framer-motion";
+
+export default function AccountSettingsPage() {
+  const queryClient = useQueryClient();
+  const [displayName, setDisplayName] = useState("");
+  const [username, setUsername] = useState("");
+  const [bio, setBio] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showEmailChange, setShowEmailChange] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
+  const [emailChangePassword, setEmailChangePassword] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+
+  // Fetch profile
+  const { data: profileData, isLoading } = useQuery({
+    queryKey: ["profile"],
+    queryFn: async () => {
+      const res = await fetch("/api/settings/profile");
+      if (!res.ok) throw new Error("Failed to fetch profile");
+      const data = await res.json();
+      setDisplayName(data.profile?.display_name || "");
+      setUsername(data.profile?.username || "");
+      setBio(data.profile?.bio || "");
+      return data;
+    },
+  });
+
+  // Fetch user data for email
+  const { data: userData } = useQuery({
+    queryKey: ["user"],
+    queryFn: async () => {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+      const res = await fetch(`${supabaseUrl}/auth/v1/user`, {
+        headers: {
+          'apikey': supabaseKey || '',
+          'Authorization': `Bearer ${document.cookie.split('sb-access-token=')[1]?.split(';')[0] || ''}`,
+        },
+      });
+      if (!res.ok) return null;
+      return res.json();
+    },
+  });
+
+  // Update profile mutation
+  const updateProfileMutation = useMutation({
+    mutationFn: async (updates: object) => {
+      const res = await fetch("/api/settings/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to update profile");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      toast.success("Profile updated successfully!");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  // Upload avatar mutation
+  const uploadAvatarMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("avatar", file);
+      const res = await fetch("/api/settings/avatar", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to upload avatar");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      toast.success("Avatar updated successfully!");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  // Change email mutation
+  const changeEmailMutation = useMutation({
+    mutationFn: async (data: { new_email: string; password: string }) => {
+      const res = await fetch("/api/settings/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to change email");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success("Email change requested. Check your new email for confirmation.");
+      setShowEmailChange(false);
+      setNewEmail("");
+      setEmailChangePassword("");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  // Delete account mutation
+  const deleteAccountMutation = useMutation({
+    mutationFn: async (password: string) => {
+      const res = await fetch("/api/settings/account", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to delete account");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success("Account deleted successfully. Redirecting...");
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 2000);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  // Update password mutation
+  const updatePasswordMutation = useMutation({
+    mutationFn: async (data: { current_password: string; new_password: string }) => {
+      const res = await fetch("/api/settings/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "Failed to update password");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast.success("Password updated successfully!");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    },
+    onError: (error: Error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const handleSaveProfile = () => {
+    const updates: Record<string, string> = {};
+    if (displayName !== profileData?.profile?.display_name) updates.display_name = displayName;
+    if (username !== profileData?.profile?.username) updates.username = username;
+    if (bio !== profileData?.profile?.bio) updates.bio = bio;
+
+    if (Object.keys(updates).length === 0) {
+      toast.info("No changes to save");
+      return;
+    }
+
+    updateProfileMutation.mutate(updates);
+  };
+
+  const handleUpdatePassword = () => {
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords do not match");
+      return;
+    }
+    if (newPassword.length < 8) {
+      toast.error("Password must be at least 8 characters");
+      return;
+    }
+    updatePasswordMutation.mutate({ current_password: currentPassword, new_password: newPassword });
+  };
+
+  const handleAvatarClick = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/jpeg,image/jpg,image/png,image/gif,image/webp";
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        uploadAvatarMutation.mutate(file);
+      }
+    };
+    input.click();
+  };
+
+  const handleEmailChange = () => {
+    if (!newEmail || !emailChangePassword) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+    changeEmailMutation.mutate({ new_email: newEmail, password: emailChangePassword });
+  };
+
+  const handleDeleteAccount = () => {
+    if (!deletePassword) {
+      toast.error("Please enter your password");
+      return;
+    }
+    if (window.confirm("Are you absolutely sure? This action cannot be undone. All your data will be permanently deleted.")) {
+      deleteAccountMutation.mutate(deletePassword);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-12">
+        <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Profile Section */}
+      <SettingsSection
+        title="Profile Information"
+        description="Update your personal information and profile details"
+      >
+        {/* Avatar */}
+        <div className="flex items-center gap-6">
+          <div className="relative group">
+            {profileData?.profile?.avatar_url ? (
+              <img
+                src={profileData.profile.avatar_url}
+                alt="Avatar"
+                className="w-24 h-24 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-3xl font-bold">
+                {displayName?.[0]?.toUpperCase() || <User className="w-10 h-10" />}
+              </div>
+            )}
+            <button
+              onClick={handleAvatarClick}
+              disabled={uploadAvatarMutation.isPending}
+              className="absolute inset-0 rounded-full bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity disabled:cursor-not-allowed"
+            >
+              {uploadAvatarMutation.isPending ? (
+                <Loader2 className="w-6 h-6 text-white animate-spin" />
+              ) : (
+                <Camera className="w-6 h-6 text-white" />
+              )}
+            </button>
+          </div>
+          <div>
+            <h3 className="font-medium text-[color:var(--foreground)]">Profile Picture</h3>
+            <p className="text-sm text-[color:var(--text-soft)]">Click to upload a new avatar</p>
+          </div>
+        </div>
+
+        {/* Display Name */}
+        <SettingsItem label="Display Name" description="Your name as it appears to others">
+          <input
+            type="text"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            className="w-64 px-3 py-2 rounded-lg bg-[color:var(--surface-2)] border border-purple-400/20 text-[color:var(--foreground)] text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+            placeholder="Your name"
+          />
+        </SettingsItem>
+
+        {/* Username */}
+        <SettingsItem
+          label="Username"
+          description="Unique identifier, 3-20 characters"
+        >
+          <input
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value.toLowerCase())}
+            className="w-64 px-3 py-2 rounded-lg bg-[color:var(--surface-2)] border border-purple-400/20 text-[color:var(--foreground)] text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+            placeholder="username"
+          />
+        </SettingsItem>
+
+        {/* Bio */}
+        <SettingsItem label="Bio" description="Tell your partner about yourself (160 characters max)">
+          <textarea
+            value={bio}
+            onChange={(e) => setBio(e.target.value)}
+            maxLength={160}
+            rows={3}
+            className="w-64 px-3 py-2 rounded-lg bg-[color:var(--surface-2)] border border-purple-400/20 text-[color:var(--foreground)] text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50 resize-none"
+            placeholder="Write something about yourself..."
+          />
+        </SettingsItem>
+
+        {/* Save Button */}
+        <div className="flex justify-end pt-4 border-t border-purple-400/20">
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={handleSaveProfile}
+            disabled={updateProfileMutation.isPending}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium text-sm hover:shadow-lg hover:shadow-purple-500/30 transition-shadow disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {updateProfileMutation.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            Save Changes
+          </motion.button>
+        </div>
+      </SettingsSection>
+
+      {/* Email Section */}
+      <SettingsSection title="Email Address" description="Manage your email address">
+        <SettingsItem
+          label="Current Email"
+          description="Your verified email address"
+        >
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[color:var(--surface-2)] border border-purple-400/20 text-sm">
+            <Mail className="w-4 h-4 text-[color:var(--text-soft)]" />
+            <span className="text-[color:var(--foreground)]">
+              {userData?.email || "Loading..."}
+            </span>
+          </div>
+        </SettingsItem>
+
+        {!showEmailChange ? (
+          <div className="flex justify-end pt-4 border-t border-purple-400/20">
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setShowEmailChange(true)}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[color:var(--surface-2)] border border-purple-400/20 text-[color:var(--foreground)] font-medium text-sm hover:bg-[color:var(--surface-3)] transition-colors"
+            >
+              <Mail className="w-4 h-4" />
+              Change Email
+            </motion.button>
+          </div>
+        ) : (
+          <>
+            <SettingsItem label="New Email" description="Enter your new email address">
+              <input
+                type="email"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                className="w-64 px-3 py-2 rounded-lg bg-[color:var(--surface-2)] border border-purple-400/20 text-[color:var(--foreground)] text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                placeholder="new@example.com"
+              />
+            </SettingsItem>
+
+            <SettingsItem label="Confirm Password" description="Enter your current password to confirm">
+              <input
+                type="password"
+                value={emailChangePassword}
+                onChange={(e) => setEmailChangePassword(e.target.value)}
+                className="w-64 px-3 py-2 rounded-lg bg-[color:var(--surface-2)] border border-purple-400/20 text-[color:var(--foreground)] text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                placeholder="Current password"
+              />
+            </SettingsItem>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-purple-400/20">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  setShowEmailChange(false);
+                  setNewEmail("");
+                  setEmailChangePassword("");
+                }}
+                className="px-5 py-2.5 rounded-xl bg-[color:var(--surface-2)] border border-purple-400/20 text-[color:var(--foreground)] font-medium text-sm hover:bg-[color:var(--surface-3)] transition-colors"
+              >
+                Cancel
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleEmailChange}
+                disabled={changeEmailMutation.isPending}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium text-sm hover:shadow-lg hover:shadow-purple-500/30 transition-shadow disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {changeEmailMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                Change Email
+              </motion.button>
+            </div>
+          </>
+        )}
+      </SettingsSection>
+
+      {/* Password Section */}
+      <SettingsSection title="Password" description="Update your password">
+        <SettingsItem label="Current Password">
+          <input
+            type="password"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            className="w-64 px-3 py-2 rounded-lg bg-[color:var(--surface-2)] border border-purple-400/20 text-[color:var(--foreground)] text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+            placeholder="Enter current password"
+          />
+        </SettingsItem>
+
+        <SettingsItem label="New Password">
+          <input
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            className="w-64 px-3 py-2 rounded-lg bg-[color:var(--surface-2)] border border-purple-400/20 text-[color:var(--foreground)] text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+            placeholder="Enter new password (min 8 chars)"
+          />
+        </SettingsItem>
+
+        <SettingsItem label="Confirm Password">
+          <input
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            className="w-64 px-3 py-2 rounded-lg bg-[color:var(--surface-2)] border border-purple-400/20 text-[color:var(--foreground)] text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+            placeholder="Confirm new password"
+          />
+        </SettingsItem>
+
+        <div className="flex justify-end pt-4 border-t border-purple-400/20">
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={handleUpdatePassword}
+            disabled={updatePasswordMutation.isPending || !currentPassword || !newPassword}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-purple-600/20 text-purple-200 border border-purple-400/30 font-medium text-sm hover:bg-purple-600/30 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {updatePasswordMutation.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Lock className="w-4 h-4" />
+            )}
+            Update Password
+          </motion.button>
+        </div>
+      </SettingsSection>
+
+      {/* Danger Zone */}
+      <SettingsSection title="Danger Zone" description="Irreversible actions">
+        <SettingsItem
+          label="Delete Account"
+          description="Permanently delete your account and all data"
+        >
+          {!showDeleteConfirm ? (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setShowDeleteConfirm(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500/10 text-red-400 border border-red-500/30 text-sm font-medium hover:bg-red-500/20 transition"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete Account
+            </motion.button>
+          ) : (
+            <div className="space-y-3">
+              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+                <p className="font-semibold mb-1">⚠️ Warning</p>
+                <p>This will permanently delete your account and all associated data. This action cannot be undone.</p>
+              </div>
+              <input
+                type="password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                className="w-64 px-3 py-2 rounded-lg bg-[color:var(--surface-2)] border border-red-500/30 text-[color:var(--foreground)] text-sm focus:outline-none focus:ring-2 focus:ring-red-500/50"
+                placeholder="Enter password to confirm"
+              />
+              <div className="flex gap-3">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setDeletePassword("");
+                  }}
+                  className="px-4 py-2 rounded-lg bg-[color:var(--surface-2)] border border-purple-400/20 text-[color:var(--foreground)] text-sm font-medium hover:bg-[color:var(--surface-3)] transition"
+                >
+                  Cancel
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleDeleteAccount}
+                  disabled={deleteAccountMutation.isPending}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {deleteAccountMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
+                  Confirm Delete
+                </motion.button>
+              </div>
+            </div>
+          )}
+        </SettingsItem>
+      </SettingsSection>
+    </div>
+  );
+}

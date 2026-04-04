@@ -12,7 +12,6 @@ const MAX_HEIGHT = 1920;
 
 export interface CloudUploadResult {
   success: boolean;
-  publicUrl?: string;
   path?: string;
   error?: string;
 }
@@ -115,16 +114,11 @@ export async function uploadImageToCloud(
       };
     }
 
-    // Get public URL
-    const { data: urlData } = supabase.storage
-      .from(BUCKET_NAME)
-      .getPublicUrl(data.path);
-
+    // Return the storage path (not public URL) for private buckets
     if (onProgress) onProgress(100);
 
     return {
       success: true,
-      publicUrl: urlData.publicUrl,
       path: data.path,
     };
   } catch (error) {
@@ -160,10 +154,24 @@ export async function deleteImageFromCloud(path: string): Promise<boolean> {
 }
 
 /**
- * Get public URL for an image path
+ * Get signed URL for an image path (for private buckets)
+ * Note: Use the SecureMediaImage component instead of calling this directly
  */
-export function getPublicUrl(path: string): string {
+export async function getSignedUrl(path: string): Promise<string | null> {
   const supabase = createClient();
-  const { data } = supabase.storage.from(BUCKET_NAME).getPublicUrl(path);
-  return data.publicUrl;
+  try {
+    const { data, error } = await supabase.storage
+      .from(BUCKET_NAME)
+      .createSignedUrl(path, 3600); // 1 hour expiry
+
+    if (error) {
+      console.error("Error creating signed URL:", error);
+      return null;
+    }
+
+    return data.signedUrl;
+  } catch (error) {
+    console.error("Error creating signed URL:", error);
+    return null;
+  }
 }
