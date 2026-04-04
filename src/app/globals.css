@@ -37,15 +37,190 @@
 
 [data-theme="light"] {
   --background: #fff8fb;
-  --foreground: #2d1654;
+  --foreground: #1a0d2e;
   --card: #ffffff;
   --card-fallback-rgb: 255, 255, 255;
   --surface-2: #fff0f7;
   --border: #f0cadf;
   --accent: var(--color-blossom);
   --accent-glow: rgba(255, 107, 157, 0.3);
+  --text-soft: #4a3d5a;
+  --text-whisper: #6b5a7d;
+}
+
+/* ═══════════════════════════════════════════════════
+   FIVE LIGHT THEMES - Soft Surrealism 2026
+   Based on Pantone trends and emotional design
+═══════════════════════════════════════════════════ */
+
+/* Theme 01: Romantic Dusk - Signature palette (Home, Love Feed, Presence) */
+[data-theme="romantic-dusk"] {
+  --color-bg: #fff8fb;
+  --color-surface: #ffffff;
+  --color-surface-2: #fff0f7;
+  --color-primary: #ff6b9d;
+  --color-secondary: #ffab76;
+  --color-accent: #c8b6e2;
+  --color-text: #2d1654;
+  --color-text-muted: #8b6f9a;
+  --color-border: #f0cadf;
+
+  /* Map to existing variables for compatibility */
+  --background: #fff8fb;
+  --foreground: #2d1654;
+  --card: #ffffff;
+  --card-fallback-rgb: 255, 255, 255;
+  --surface-2: #fff0f7;
+  --border: #f0cadf;
+  --accent: #ff6b9d;
+  --accent-glow: rgba(255, 107, 157, 0.3);
   --text-soft: #8b6f9a;
-  --text-whisper: #c4a8d4;
+  --text-whisper: #b8a0c8;
+}
+
+/* Theme 02: Golden Hour - Mocha Mousse (Kitchen, Morning, Countdown) */
+[data-theme="golden-hour"] {
+  --color-bg: #fffaf5;
+  --color-surface: #ffffff;
+  --color-surface-2: #fff4e6;
+  --color-primary: #ef9f27;
+  --color-secondary: #d85a30;
+  --color-accent: #c89a6f;
+  --color-text: #3d2004;
+  --color-text-muted: #8b6f47;
+  --color-border: #e8d5b7;
+
+  /* Map to existing variables for compatibility */
+  --background: #fffaf5;
+  --foreground: #3d2004;
+  --card: #ffffff;
+  --card-fallback-rgb: 255, 255, 255;
+  --surface-2: #fff4e6;
+  --border: #e8d5b7;
+  --accent: #ef9f27;
+  --accent-glow: rgba(239, 159, 39, 0.3);
+  --text-soft: #8b6f47;
+  --text-whisper: #a89070;
+}
+
+/* Theme 03: Mint Garden - Aqua & Sand (Garden, Play, Pets) */
+[data-theme="mint-garden"] {
+  --color-bg: #f8fefb;
+  --color-surface: #ffffff;
+  --color-surface-2: #f0f9f4;
+  --color-primary: #5bc0be;
+  --color-secondary: #6fffe9;
+  --color-accent: #ffe6a7;
+  --color-text: #1a5653;
+  --color-text-muted: #5a8b88;
+  --color-border: #c7e8e5;
+
+  /* Map to existing variables for compatibility */
+  --background: #f8fefb;
+  --foreground: #1a5653;
+  --card: #ffffff;
+  --card-fallback-rgb: 255, 255, 255;
+  --surface-2: #f0f9f4;
+  --border: #c7e8e5;
+  --accent: #5bc0be;
+  --accent-glow: rgba(91, 192, 190, 0.3);
+  --text-soft: #5a8b88;
+  --text-whisper: #7aa8a5;
+}
+
+/* Theme 04: Wisteria Dream - Lavender Monochrome (Diary, Memory Wall, Studio) */
+[data-theme="wisteria-dream"] {
+  --color-bg: #faf7fe;
+  --color-surface: #ffffff;
+  --color-surface-2: #f4effc;
+  --color-primary: #9d84b7;
+  --color-secondary: #c9ada7;
+  --color-accent: #dfd3e3;
+  --color-text: #3d2a54;
+  --color-text-muted: #7d6b8f;
+  --color-border: #e0d4e8;
+
+  /* Map to existing variables for compatibility */
+  --background: #faf7fe;
+  --foreground: #3d2a54;
+  --card: #ffffff;
+  --card-fallback-rgb: 255, 255, 255;
+  --surface-2: #f4effc;
+  --border: #e0d4e8;
+  --accent: #9d84b7;
+  --accent-glow: rgba(157, 132, 183, 0.3);
+  --text-soft: #7d6b8f;
+  --text-whisper: #9d88a8;
+}
+
+/* Theme 05: Blush Cream - Dusty Rose (Settings, Onboarding, Celebrations) */
+[data-theme="blush-cream"] {
+  --color-bg: #fffcf8;
+  --color-surface: #ffffff;
+  --color-surface-2: #fff5f0;
+  --color-primary: #d4a5a5;
+  --color-secondary: #b88b8d;
+  --color-accent: #c9a9a6;
+  --color-text: #4a3635;
+  --color-text-muted: #8b7170;
+  --color-border: #e8d9d7;
+
+  /* Map to existing variables for compatibility */
+  --background: #fffcf8;
+  --foreground: #4a3635;
+  --card: #ffffff;
+  --card-fallback-rgb: 255, 255, 255;
+  --surface-2: #fff5f0;
+  --border: #e8d9d7;
+  --accent: #d4a5a5;
+  --accent-glow: rgba(212, 165, 165, 0.3);
+  --text-soft: #8b7170;
+  --text-whisper: #a89190;
+}
+
+/* Enhanced Dark Mode: Dark Void - Deeper, richer darkness */
+[data-theme="dark-void"] {
+  --background: #050212;
+  --foreground: #f5e6ff;
+  --card: #0f0828;
+  --card-fallback-rgb: 15, 8, 40;
+  --surface-2: #1a0f3a;
+  --border: rgba(145, 99, 235, 0.35);
+  --accent: #ff6b9d;
+  --accent-glow: rgba(255, 107, 157, 0.4);
+  --text-soft: #d4b8ef;
+  --text-whisper: #a888ca;
+}
+
+/* Semantic State Colors - Consistent across ALL themes */
+:root,
+[data-theme="light"],
+[data-theme="romantic-dusk"],
+[data-theme="golden-hour"],
+[data-theme="mint-garden"],
+[data-theme="wisteria-dream"],
+[data-theme="blush-cream"],
+[data-theme="dark"],
+[data-theme="dark-void"] {
+  /* Success - Green */
+  --color-success-bg: #b8f0c8;
+  --color-success-text: #2d7a4a;
+  --color-success-border: #70d890;
+
+  /* Error - Deep Rose */
+  --color-error-bg: #ffb3c1;
+  --color-error-text: #993556;
+  --color-error-border: #ff7a95;
+
+  /* Warning - Amber */
+  --color-warning-bg: #ffe19c;
+  --color-warning-text: #d85a30;
+  --color-warning-border: #ffb85f;
+
+  /* Info - Blue */
+  --color-info-bg: #b8e3ff;
+  --color-info-text: #4a7ba7;
+  --color-info-border: #7ab8e8;
 }
 
 @theme inline {
@@ -70,6 +245,54 @@ body {
   background:
     radial-gradient(circle at 0% 0%, rgba(255, 214, 231, 0.6), transparent 45%),
     radial-gradient(circle at 100% 100%, rgba(200, 182, 226, 0.25), transparent 40%),
+    var(--background);
+}
+
+/* Romantic Dusk body background */
+[data-theme="romantic-dusk"] body {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(255, 214, 231, 0.6), transparent 45%),
+    radial-gradient(circle at 100% 100%, rgba(200, 182, 226, 0.25), transparent 40%),
+    var(--background);
+}
+
+/* Golden Hour body background */
+[data-theme="golden-hour"] body {
+  background:
+    radial-gradient(circle at 10% 10%, rgba(239, 159, 39, 0.18), transparent 50%),
+    radial-gradient(circle at 90% 90%, rgba(216, 90, 48, 0.12), transparent 45%),
+    var(--background);
+}
+
+/* Mint Garden body background */
+[data-theme="mint-garden"] body {
+  background:
+    radial-gradient(circle at 20% 20%, rgba(91, 192, 190, 0.15), transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(255, 230, 167, 0.2), transparent 45%),
+    var(--background);
+}
+
+/* Wisteria Dream body background */
+[data-theme="wisteria-dream"] body {
+  background:
+    radial-gradient(circle at 15% 15%, rgba(157, 132, 183, 0.2), transparent 50%),
+    radial-gradient(circle at 85% 85%, rgba(201, 173, 167, 0.15), transparent 45%),
+    var(--background);
+}
+
+/* Blush Cream body background */
+[data-theme="blush-cream"] body {
+  background:
+    radial-gradient(circle at 25% 25%, rgba(212, 165, 165, 0.22), transparent 50%),
+    radial-gradient(circle at 75% 75%, rgba(184, 139, 141, 0.15), transparent 45%),
+    var(--background);
+}
+
+/* Dark Void body background */
+[data-theme="dark-void"] body {
+  background:
+    radial-gradient(circle at 20% 15%, rgba(145, 99, 235, 0.22), transparent 40%),
+    radial-gradient(circle at 80% 80%, rgba(255, 107, 157, 0.15), transparent 45%),
     var(--background);
 }
 

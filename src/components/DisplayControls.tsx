@@ -1,48 +1,24 @@
 "use client";
 
-import { Bell, BellOff, Moon, Sun } from "lucide-react";
+import { Bell, BellOff, Palette } from "lucide-react";
 import { useEffect, useState } from "react";
-
-type ThemeMode = "light" | "dark";
-
-const STORAGE_KEY = "usverse-theme";
-
-function getThemeMetaColor(theme: ThemeMode) {
-  return theme === "dark" ? "#0d0720" : "#fff8fb";
-}
-
-function applyTheme(theme: ThemeMode) {
-  document.documentElement.setAttribute("data-theme", theme);
-  const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute("content", getThemeMetaColor(theme));
-}
+import { useTheme } from "@/components/providers/ThemeProvider";
+import { ThemeSelector } from "@/components/ThemeSelector";
+import { THEME_METADATA } from "@/lib/theme/config";
 
 export default function DisplayControls() {
-  const [theme, setTheme] = useState<ThemeMode>("dark");
+  const { theme } = useTheme();
   const [notificationState, setNotificationState] = useState<NotificationPermission | "unsupported">("default");
   const [busy, setBusy] = useState(false);
+  const [themeSelectorOpen, setThemeSelectorOpen] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    const darkPreferred = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const initialTheme: ThemeMode =
-      saved === "light" || saved === "dark" ? saved : darkPreferred ? "dark" : "light";
-    setTheme(initialTheme);
-    applyTheme(initialTheme);
-
     if (typeof window.Notification !== "undefined") {
       setNotificationState(window.Notification.permission);
     } else {
       setNotificationState("unsupported");
     }
   }, []);
-
-  function toggleTheme() {
-    const nextTheme: ThemeMode = theme === "dark" ? "light" : "dark";
-    setTheme(nextTheme);
-    localStorage.setItem(STORAGE_KEY, nextTheme);
-    applyTheme(nextTheme);
-  }
 
   async function enableNotifications() {
     if (typeof window.Notification === "undefined") {
@@ -74,17 +50,21 @@ export default function DisplayControls() {
           ? "Not supported"
           : "Enable notifications";
 
+  const themeMetadata = THEME_METADATA[theme];
+
   return (
-    <div className="flex flex-wrap items-center gap-2 mt-2 md:mt-4">
-      <button
-        type="button"
-        onClick={toggleTheme}
-        className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border border-[color:var(--border)] text-[color:var(--text-soft)] hover:text-[color:var(--foreground)] hover:bg-[color:var(--surface-2)] transition-all"
-        aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
-      >
-        {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-        <span>{theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}</span>
-      </button>
+    <>
+      <div className="flex flex-wrap items-center gap-2 mt-2 md:mt-4">
+        <button
+          type="button"
+          onClick={() => setThemeSelectorOpen(true)}
+          className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border border-[color:var(--border)] text-[color:var(--text-soft)] hover:text-[color:var(--foreground)] hover:bg-[color:var(--surface-2)] transition-all"
+          aria-label="Open theme selector"
+        >
+          <span className="text-base">{themeMetadata.emoji}</span>
+          <Palette className="w-4 h-4" />
+          <span className="hidden sm:inline">{themeMetadata.name}</span>
+        </button>
 
       <button
         type="button"
@@ -100,6 +80,9 @@ export default function DisplayControls() {
         )}
         <span>{notifLabel}</span>
       </button>
-    </div>
+      </div>
+
+      <ThemeSelector isOpen={themeSelectorOpen} onClose={() => setThemeSelectorOpen(false)} />
+    </>
   );
 }

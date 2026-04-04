@@ -613,31 +613,85 @@ export default function ChatPage() {
     if (!userId) return;
     setIsUploading(true);
     setUploadProgress(0);
-    try {
-      const ext = file.name.split(".").pop();
-      const fileName = `${userId}/${Date.now()}.${ext}`;
+    setComposerError(null);
 
+    try {
+      // Validate file size (10MB max for chat media)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        throw new Error("File size must be less than 10MB");
+      }
+
+      // Validate file type
+      if (type === "photo" && !file.type.startsWith("image/")) {
+        throw new Error("Please select a valid image file");
+      }
+      if (type === "video" && !file.type.startsWith("video/")) {
+        throw new Error("Please select a valid video file");
+      }
+      if (type === "voice" && !file.type.startsWith("audio/")) {
+        throw new Error("Please select a valid audio file");
+      }
+
+      setUploadProgress(20);
+
+      // Generate unique filename with proper extension
+      const ext = file.name.split(".").pop() || (type === "voice" ? "webm" : "mp4");
+      const timestamp = Date.now();
+      const randomId = Math.random().toString(36).slice(2, 11);
+      const fileName = `${userId}/${timestamp}-${randomId}.${ext}`;
+
+      setUploadProgress(40);
+
+      // Upload to Supabase Storage
       const { data, error } = await supabase.storage
         .from("chat-media")
         .upload(fileName, file, {
           cacheControl: "3600",
           upsert: false,
+          contentType: file.type,
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Upload error:", error);
+        // Provide more specific error messages
+        if (error.message.includes("row-level security") || error.message.includes("permission")) {
+          throw new Error("Permission error. Please ensure you're logged in.");
+        }
+        if (error.message.includes("not found")) {
+          throw new Error("Storage bucket not configured. Please contact support.");
+        }
+        throw new Error(error.message || "Failed to upload file");
+      }
 
       // Store the storage path (not public URL) for private buckets
       const mediaPath = data.path;
 
-      // For video/voice, get duration if needed
-      const duration = type === "video" || type === "voice" ? await getMediaDuration(file) : undefined;
+      setUploadProgress(85);
 
+      // For video/voice, get duration if needed
+      let duration: number | undefined;
+      if (type === "video" || type === "voice") {
+        try {
+          duration = await getMediaDuration(file);
+        } catch (err) {
+          console.warn("Could not get media duration:", err);
+          duration = 0;
+        }
+      }
+
+      setUploadProgress(95);
+
+      // Send message with media
       await sendMessage("", {
         media_url: mediaPath,
         message_type: type,
         media_duration: duration,
       });
+
+      setUploadProgress(100);
     } catch (error) {
+      console.error("File upload error:", error);
       setComposerError(
         error instanceof Error ? error.message : "Failed to upload file"
       );
@@ -687,7 +741,7 @@ export default function ChatPage() {
       recorder.start();
       setMediaRecorder(recorder);
       setIsRecording(true);
-    } catch (_error) {
+    } catch {
       setComposerError("Failed to access microphone");
     }
   }
@@ -985,6 +1039,7 @@ export default function ChatPage() {
                       width={400}
                       height={300}
                       className="rounded-lg max-w-full h-auto mb-2"
+                      unoptimized
                     />
                   )}
 
