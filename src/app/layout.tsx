@@ -41,9 +41,19 @@ export const metadata: Metadata = {
     title: "UsVerse",
     statusBarStyle: "black-translucent",
   },
+  other: {
+    "mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-capable": "yes",
+    "format-detection": "telephone=no",
+  },
 };
 
 export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#fff8fb" },
     { media: "(prefers-color-scheme: dark)", color: "#0d0720" },

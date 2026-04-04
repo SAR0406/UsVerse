@@ -85,20 +85,20 @@ export default function Navbar() {
       </aside>
 
       {/* Mobile bottom nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 glass-card rounded-none border-t border-purple-500/10">
-        <div className="flex items-center justify-around px-2 py-2">
-          {navItems.map(({ href, label, icon: Icon }) => {
-            const active = pathname === href;
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 glass-card rounded-none border-t border-purple-500/10 safe-bottom">
+        <div className="flex items-center justify-around px-1 py-2">
+          {navItems.slice(0, 5).map(({ href, label, icon: Icon }) => {
+            const active = pathname === href || pathname.startsWith(href + "/");
             return (
               <Link
                 key={href}
                 href={href}
-                className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg transition-all ${
-                  active ? "text-[color:var(--foreground)]" : "text-[color:var(--text-whisper)]"
+                className={`tap-target flex flex-col items-center justify-center gap-0.5 px-2 py-1.5 rounded-lg transition-all touch-pressable ${
+                  active ? "text-[color:var(--foreground)] scale-105" : "text-[color:var(--text-whisper)]"
                 }`}
               >
                 <Icon className="w-5 h-5" />
-                <span className="text-[10px] font-medium">{label}</span>
+                <span className="text-[9px] font-medium leading-tight">{label}</span>
               </Link>
             );
           })}
