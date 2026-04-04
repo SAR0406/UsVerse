@@ -16,6 +16,8 @@ export interface Database {
           display_name: string | null;
           avatar_url: string | null;
           couple_id: string | null;
+          username: string | null;
+          bio: string | null;
         };
         Insert: {
           id: string;
@@ -23,6 +25,8 @@ export interface Database {
           display_name?: string | null;
           avatar_url?: string | null;
           couple_id?: string | null;
+          username?: string | null;
+          bio?: string | null;
         };
         Update: {
           id?: string;
@@ -30,6 +34,8 @@ export interface Database {
           display_name?: string | null;
           avatar_url?: string | null;
           couple_id?: string | null;
+          username?: string | null;
+          bio?: string | null;
         };
         Relationships: [];
       };
