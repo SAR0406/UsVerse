@@ -41,30 +41,30 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
   const pathname = usePathname();
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold gradient-text">Settings</h1>
-        <p className="text-[color:var(--text-soft)] mt-1">
+    <div className="w-full max-w-7xl mx-auto mobile-px py-4 sm:py-6">
+      <div className="mb-5 sm:mb-6">
+        <h1 className="text-mobile-3xl sm:text-3xl font-bold gradient-text">Settings</h1>
+        <p className="text-[color:var(--text-soft)] text-mobile-sm sm:text-base mt-1">
           Manage your account and preferences
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4 sm:gap-6">
         {/* Sidebar Navigation */}
         <aside className="lg:sticky lg:top-6 lg:self-start">
-          <nav className="glass-card border border-purple-400/20 rounded-2xl p-4 space-y-6">
+          <nav className="glass-card border border-purple-400/20 rounded-2xl p-3 sm:p-4 space-y-4 sm:space-y-6">
             {settingsSections.map((section) => (
               <div key={section.title}>
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-[color:var(--text-whisper)] mb-2 px-3">
+                <h3 className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-[color:var(--text-whisper)] mb-2 px-2 sm:px-3">
                   {section.title}
                 </h3>
-                <div className="space-y-1">
+                <div className="space-y-0.5 sm:space-y-1">
                   {section.items.map(({ href, label, icon: Icon }) => {
                     const isActive = pathname === href;
                     return (
                       <Link key={href} href={href}>
                         <motion.div
-                          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all relative overflow-hidden ${
+                          className={`tap-target flex items-center gap-2 sm:gap-3 px-2 sm:px-3 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all relative overflow-hidden touch-pressable ${
                             isActive
                               ? "text-[color:var(--foreground)]"
                               : "text-[color:var(--text-soft)] hover:text-[color:var(--foreground)]"
@@ -81,10 +81,10 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
                               exit={{ opacity: 0 }}
                             />
                           )}
-                          <Icon className="w-4 h-4 relative z-10" />
-                          <span className="flex-1 relative z-10">{label}</span>
+                          <Icon className="w-4 h-4 relative z-10 flex-shrink-0" />
+                          <span className="flex-1 relative z-10 leading-tight">{label}</span>
                           {isActive && (
-                            <ChevronRight className="w-4 h-4 relative z-10" />
+                            <ChevronRight className="w-4 h-4 relative z-10 flex-shrink-0" />
                           )}
                         </motion.div>
                       </Link>
